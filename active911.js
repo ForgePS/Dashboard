@@ -150,10 +150,6 @@ async function loadLatestAlert() {
   try {
     const response = await fetch(`/api/active911-takeover?ts=${Date.now()}`, { cache: 'no-store' });
 
-    if (!response.ok) {
-      throw new Error(`Feed returned ${response.status}`);
-    }
-
     const data = await response.json();
     const recent = Array.isArray(data.recent) ? data.recent : [];
     const latest = recent[0];
@@ -162,7 +158,7 @@ async function loadLatestAlert() {
     renderRecent(recent);
 
     if (!latest) {
-      setWaiting('No recent incident loaded');
+      setWaiting(data.error || 'No recent Active911 alerts loaded');
       return;
     }
 

@@ -1994,7 +1994,7 @@ app.get('/api/latest', (req, res) => {
 
 app.get('/api/active911-takeover', async (req, res) => {
   const dashboard = await buildActive911TakeoverPayload(5);
-  res.status(dashboard.ok ? 200 : 500).json(dashboard);
+  res.json(dashboard);
 });
 
 app.get('/api/analytics-refresh', (req, res) => {
