@@ -1752,6 +1752,78 @@ function buildAnalyticsDashboard(recentLimit = 5) {
   };
 }
 
+function formatTakeoverIncident(item) {
+  return {
+      id: item.id || '',
+      type: item.rawType || item.type || 'UNKNOWN',
+      normalizedType: item.type || 'UNKNOWN',
+      address: item.address || '',
+      businessName: item.businessName || '',
+      cadCode: item.cadCode || '',
+      units: item.units || '',
+      latitude: item.latitude || '',
+      longitude: item.longitude || '',
+      sent: item.sent || '',
+      timeLabel: item.sent ? formatCentralDateTime(item.sent) : '',
+      details: item.raw?.details || item.raw?.description || item.raw?.cad_code || item.rawType || item.cadCode || ''
+  };
+}
+
+async function buildActive911TakeoverPayload(recentLimit = 5) {
+  try {
+    const response = await active911Fetch(ACTIVE911_ALERTS_URL, { method: 'GET' });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Active911 HTTP ${response.status}: ${text.slice(0, 250)}`);
+    }
+
+    const payload = await response.json();
+    const alertRefs = extractAlertArray(payload).slice(0, recentLimit);
+    const recent = [];
+
+    for (const alertRef of alertRefs) {
+      try {
+        const fullAlert = await fetchAlertDetail(alertRef);
+        const incident = normalizeAlertPayload(fullAlert, 'active911-takeover');
+        recent.push(formatTakeoverIncident(incident));
+        addIncident(fullAlert, 'active911-takeover');
+      } catch (err) {
+        const incident = normalizeAlertPayload(alertRef, 'active911-takeover-list');
+        recent.push(formatTakeoverIncident(incident));
+      }
+    }
+
+    active911Debug.lastPollSuccessAt = nowIso();
+    active911Debug.lastPollError = null;
+
+    return {
+      ok: true,
+      source: 'active911-api',
+      updated: nowIso(),
+      updatedLabel: formatCentralDateTime(new Date()),
+      recent,
+      active911: active911Debug
+    };
+  } catch (err) {
+    active911Debug.lastPollError = err.message;
+
+    const recent = incidentHistory
+      .slice(0, recentLimit)
+      .map(formatTakeoverIncident);
+
+    return {
+      ok: recent.length > 0,
+      source: 'stored-fail-safe',
+      error: err.message,
+      updated: nowIso(),
+      updatedLabel: formatCentralDateTime(new Date()),
+      recent,
+      active911: active911Debug
+    };
+  }
+}
+
 // ======================================================
 // HYDRANT CONFIG
 // ======================================================
@@ -1918,6 +1990,11 @@ app.get('/api/analytics', (req, res) => {
 
 app.get('/api/latest', (req, res) => {
   res.json(buildAnalyticsDashboard(5));
+});
+
+app.get('/api/active911-takeover', async (req, res) => {
+  const dashboard = await buildActive911TakeoverPayload(5);
+  res.status(dashboard.ok ? 200 : 500).json(dashboard);
 });
 
 app.get('/api/analytics-refresh', (req, res) => {
@@ -2498,6 +2575,48 @@ function safeString(value) {
   return String(value ?? '').trim();
 }
 
+const mapGeocodeCache = new Map();
+
+async function geocodeAddressForMaps(address) {
+  const text = safeString(address);
+  if (!GOOGLE_MAPS_API_KEY || !text) return null;
+
+  const key = text.toUpperCase();
+  if (mapGeocodeCache.has(key)) return mapGeocodeCache.get(key);
+
+  const params = new URLSearchParams({
+    address: `${text}, Horn Lake, MS`,
+    key: GOOGLE_MAPS_API_KEY
+  });
+  const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`);
+  const payload = await response.json();
+
+  if (!response.ok || payload.status !== 'OK') {
+    throw new Error(payload.error_message || payload.status || response.statusText);
+  }
+
+  const location = payload.results?.[0]?.geometry?.location;
+  if (!location?.lat || !location?.lng) return null;
+
+  const result = {
+    lat: String(location.lat),
+    lon: String(location.lng)
+  };
+  mapGeocodeCache.set(key, result);
+  return result;
+}
+
+async function resolveMapPoint(req) {
+  const lat = safeString(req.query.lat);
+  const lon = safeString(req.query.lon || req.query.lng);
+
+  if (lat && lon) {
+    return { lat, lon };
+  }
+
+  return geocodeAddressForMaps(req.query.address);
+}
+
 function normalizeActive911StationId(value) {
   const raw = safeString(value).toLowerCase().replace(/\s+/g, '');
   if (raw === 'station2' || raw === '2') return '2';
@@ -2573,8 +2692,9 @@ function windDirectionLabel(degrees) {
 
 app.get('/api/weather', async (req, res) => {
   try {
-    const lat = safeString(req.query.lat || HORN_LAKE_WEATHER.lat);
-    const lon = safeString(req.query.lon || HORN_LAKE_WEATHER.lon);
+    const point = await resolveMapPoint(req).catch(() => null);
+    const lat = safeString(point?.lat || HORN_LAKE_WEATHER.lat);
+    const lon = safeString(point?.lon || HORN_LAKE_WEATHER.lon);
     const url =
       `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
       '&current=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m' +
@@ -2623,9 +2743,13 @@ app.get('/api/weather', async (req, res) => {
   }
 });
 
-app.get('/api/map/streetview', (req, res) => {
-  const lat = safeString(req.query.lat);
-  const lon = safeString(req.query.lon || req.query.lng);
+app.get('/api/map/streetview', async (req, res) => {
+  const mapPoint = await resolveMapPoint(req).catch((err) => {
+    console.error('Street View geocode failed:', err.message);
+    return null;
+  });
+  const lat = safeString(mapPoint?.lat);
+  const lon = safeString(mapPoint?.lon);
 
   if (!GOOGLE_MAPS_API_KEY || !lat || !lon) {
     return res.type('svg').send(svgPlaceholder(
@@ -2647,9 +2771,13 @@ app.get('/api/map/streetview', (req, res) => {
   res.redirect(`https://maps.googleapis.com/maps/api/streetview?${params.toString()}`);
 });
 
-app.get('/api/map/satellite', (req, res) => {
-  const lat = safeString(req.query.lat);
-  const lon = safeString(req.query.lon || req.query.lng);
+app.get('/api/map/satellite', async (req, res) => {
+  const mapPoint = await resolveMapPoint(req).catch((err) => {
+    console.error('Satellite geocode failed:', err.message);
+    return null;
+  });
+  const lat = safeString(mapPoint?.lat);
+  const lon = safeString(mapPoint?.lon);
 
   if (!GOOGLE_MAPS_API_KEY || !lat || !lon) {
     return res.type('svg').send(svgPlaceholder(
@@ -2695,8 +2823,12 @@ async function getDirectionsPolyline(origin, destination) {
 }
 
 app.get('/api/map/route', async (req, res) => {
-  const lat = safeString(req.query.lat);
-  const lon = safeString(req.query.lon || req.query.lng);
+  const mapPoint = await resolveMapPoint(req).catch((err) => {
+    console.error('Route geocode failed:', err.message);
+    return null;
+  });
+  const lat = safeString(mapPoint?.lat);
+  const lon = safeString(mapPoint?.lon);
 
   if (!GOOGLE_MAPS_API_KEY || !lat || !lon) {
     return res.type('svg').send(svgPlaceholder(

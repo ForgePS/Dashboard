@@ -33,7 +33,8 @@ const TYPE_LABELS = {
 
 function displayType(value) {
   const key = String(value || '').trim().toUpperCase();
-  return TYPE_LABELS[key] || key || 'ALERT';
+  const code = key.split('-')[0].trim();
+  return TYPE_LABELS[key] || TYPE_LABELS[code] || key || 'ALERT';
 }
 
 function formatDispatchTime(value) {
@@ -63,6 +64,21 @@ function hasCoordinates(incident) {
   return incident?.latitude && incident?.longitude;
 }
 
+function mapQuery(incident) {
+  const params = new URLSearchParams();
+
+  if (incident?.latitude && incident?.longitude) {
+    params.set('lat', incident.latitude);
+    params.set('lon', incident.longitude);
+  }
+
+  if (incident?.address) {
+    params.set('address', incident.address);
+  }
+
+  return params.toString();
+}
+
 function renderRecent(items) {
   recentList.innerHTML = '';
 
@@ -79,9 +95,8 @@ function renderRecent(items) {
 }
 
 async function loadWeather(incident) {
-  const query = hasCoordinates(incident)
-    ? `?lat=${encodeURIComponent(incident.latitude)}&lon=${encodeURIComponent(incident.longitude)}`
-    : '';
+  const queryText = mapQuery(incident);
+  const query = queryText ? `?${queryText}` : '';
 
   try {
     const response = await fetch(`/api/weather${query}`, { cache: 'no-store' });
@@ -91,7 +106,7 @@ async function loadWeather(incident) {
       throw new Error(data.error || 'Weather unavailable');
     }
 
-    weatherTemp.textContent = `${data.temp}°F`;
+    weatherTemp.textContent = `${data.temp}\u00b0F`;
     weatherSummary.textContent = data.condition || 'Current';
     windText.textContent = `Wind: ${data.windMph} mph ${data.windDir || ''}`.trim();
   } catch (err) {
@@ -102,21 +117,21 @@ async function loadWeather(incident) {
 }
 
 function setMapImages(incident) {
-  if (!hasCoordinates(incident)) {
+  const query = mapQuery(incident);
+
+  if (!query) {
     streetViewFrame.removeAttribute('src');
     satelliteImage.removeAttribute('src');
     routeImage.removeAttribute('src');
     return;
   }
 
-  const lat = encodeURIComponent(incident.latitude);
-  const lon = encodeURIComponent(incident.longitude);
   const station = encodeURIComponent(routeStation());
   const stamp = Date.now();
 
-  streetViewFrame.src = `/api/map/streetview?lat=${lat}&lon=${lon}&size=640x260&fov=120&pitch=-2&radius=1000&ts=${stamp}`;
-  satelliteImage.src = `/api/map/satellite?lat=${lat}&lon=${lon}&size=640x260&hydrants=18&ts=${stamp}`;
-  routeImage.src = `/api/map/route?station=${station}&lat=${lat}&lon=${lon}&size=640x260&ts=${stamp}`;
+  streetViewFrame.src = `/api/map/streetview?${query}&size=640x260&fov=120&pitch=-2&radius=1000&ts=${stamp}`;
+  satelliteImage.src = `/api/map/satellite?${query}&size=640x260&hydrants=18&ts=${stamp}`;
+  routeImage.src = `/api/map/route?station=${station}&${query}&size=640x260&ts=${stamp}`;
 }
 
 function setWaiting(message = 'Waiting for Active911 alert') {
@@ -133,7 +148,7 @@ function setWaiting(message = 'Waiting for Active911 alert') {
 
 async function loadLatestAlert() {
   try {
-    const response = await fetch(`/api/latest?ts=${Date.now()}`, { cache: 'no-store' });
+    const response = await fetch(`/api/active911-takeover?ts=${Date.now()}`, { cache: 'no-store' });
 
     if (!response.ok) {
       throw new Error(`Feed returned ${response.status}`);
@@ -152,7 +167,7 @@ async function loadLatestAlert() {
     }
 
     dispatchTime.textContent = formatDispatchTime(latest.sent);
-    dispatchType.textContent = displayType(latest.type || latest.rawType || latest.cadCode);
+    dispatchType.textContent = displayType(latest.type || latest.normalizedType || latest.rawType || latest.cadCode);
     dispatchAddress.textContent = latest.address || 'Address unavailable';
     dispatchUnits.textContent = latest.units || 'Units pending';
     incidentDetails.textContent =
@@ -174,3 +189,4 @@ async function loadLatestAlert() {
 
 loadLatestAlert();
 setInterval(loadLatestAlert, 15000);
+
