@@ -46,7 +46,7 @@ body {
   justify-content: space-between;
   gap: 40px;
   min-height: 86px;
-  padding: 10px 18px;
+  padding: 30px 18px;
   border: 0px solid var(--line);
   border-radius: 20px;
   background: rgba(8, 13, 20, 0.28);
