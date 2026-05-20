@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Active911 Alert Takeover</title>
+  <link rel="stylesheet" href="/active911.css?v=2" />
+</head>
+<body>
+  <main class="dispatch-board">
+    <header class="dispatch-header">
+      <div class="dispatch-time">
+        <div class="label">Dispatched</div>
+        <div id="dispatchTime" class="time">--</div>
+      </div>
+
+      <div class="dispatch-title">
+        <h1 id="dispatchType">Waiting</h1>
+        <div id="dispatchAddress" class="address">Waiting for Active911 alert</div>
+        <div id="dispatchUnits" class="units">--</div>
+      </div>
+
+      <img class="logo" src="/horn-lake-logo.png" alt="Horn Lake Fire Department" />
+
+      <div class="weather">
+        <div><strong id="weatherTemp">--</strong> <span id="weatherSummary">Live feed</span></div>
+        <div id="windText">Active911 connected</div>
+        <div id="updatedText">Last Updated --</div>
+      </div>
+    </header>
+
+    <section class="main-grid">
+      <aside class="panel recent-panel">
+        <h2>Last 5 Incidents</h2>
+        <div id="recentList" class="recent-list"></div>
+      </aside>
+
+      <section class="center-stack">
+        <article class="image-card">
+          <div class="tag">Street View - Facing Address</div>
+          <iframe id="streetViewFrame" title="Street view facing address" loading="lazy"></iframe>
+        </article>
+
+        <article class="panel info-panel">
+          <h2>Incident Information</h2>
+          <div id="incidentDetails" class="details-box">Waiting for incident information.</div>
+        </article>
+      </section>
+
+      <section class="right-stack">
+        <article class="map-card">
+          <div class="tag">Satellite + Hydrants</div>
+          <iframe id="satelliteFrame" title="Satellite map" loading="lazy"></iframe>
+        </article>
+
+        <article class="map-card">
+          <div class="tag">Route</div>
+          <iframe id="routeFrame" title="Route map" loading="lazy"></iframe>
+        </article>
+      </section>
+    </section>
+  </main>
+
+  <script src="/active911.js?v=2"></script>
+</body>
+</html>

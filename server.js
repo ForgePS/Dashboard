@@ -1723,10 +1723,16 @@ function buildAnalyticsDashboard(recentLimit = 5) {
     busiestAddresses: generateBusiestAddresses(history),
     recent: history.slice(0, recentLimit).map((item) => ({
       type: item.type || 'UNKNOWN',
+      rawType: item.rawType || '',
       address: item.address || '',
       businessName: item.businessName || '',
+      cadCode: item.cadCode || '',
+      units: item.units || '',
+      latitude: item.latitude || '',
+      longitude: item.longitude || '',
       sent: item.sent || '',
-      timeLabel: item.sent ? formatCentralDateTime(item.sent) : ''
+      timeLabel: item.sent ? formatCentralDateTime(item.sent) : '',
+      details: item.raw?.details || item.raw?.description || item.raw?.cad_code || item.rawType || ''
     })),
     daily: generateDailyStats(history, monthlyRows),
     historicalCsv: {
@@ -1828,6 +1834,14 @@ app.get('/live-doc', (req, res) => {
 
 app.get('/events', (req, res) => {
   sendHtmlFileOrFallback(res, 'events.html', 'Horn Lake Fire Events', '/api/events');
+});
+
+app.get('/active911', (req, res) => {
+  sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/latest');
+});
+
+app.get('/alerts', (req, res) => {
+  sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/latest');
 });
 
 app.get('/api/daily-roster', async (req, res) => {
