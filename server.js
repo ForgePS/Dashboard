@@ -2614,3 +2614,18 @@ app.listen(PORT, () => {
   console.log('========================================');
   console.log('');
 });
+
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
+
+
+// KEEP SERVER AWAKE
+setInterval(async () => {
+    try {
+        const response = await fetch('https://dashboard-hu4c.onrender.com/api/health');
+        console.log('Health ping:', response.status);
+    } catch (err) {
+        console.error('Health ping failed:', err.message);
+    }
+}, 14 * 60 * 1000);
