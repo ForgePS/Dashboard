@@ -1893,6 +1893,10 @@ app.get('/api/analytics', (req, res) => {
   res.json(buildAnalyticsDashboard(5));
 });
 
+app.get('/api/latest', (req, res) => {
+  res.json(buildAnalyticsDashboard(5));
+});
+
 app.get('/api/analytics-refresh', (req, res) => {
   const dashboard = buildAnalyticsDashboard(5);
   res.json({ ...dashboard, refreshed: true });
@@ -2586,6 +2590,7 @@ app.use('/api', (req, res) => {
       '/api/analytics-dashboard',
       '/api/dashboard',
       '/api/analytics',
+      '/api/latest',
       '/api/hydrants-status',
       '/api/daily-roster',
       '/api/live-document',
@@ -2614,7 +2619,3 @@ app.listen(PORT, () => {
   console.log('========================================');
   console.log('');
 });
-
-
-
-
