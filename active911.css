@@ -131,8 +131,8 @@ h1 {
 }
 
 .logo {
-  width: 125px;
-  height: 125px;
+  width: 118px;
+  height: 118px;
   justify-self: center;
   object-fit: contain;
 }
@@ -304,6 +304,7 @@ iframe {
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 12px;
+  min-height: 0;
 }
 
 .details-box,
@@ -319,6 +320,15 @@ iframe {
   line-height: 1.18;
   overflow: hidden;
   text-shadow: 2px 2px 0 #000;
+  min-height: 0;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.details-box {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 7;
 }
 
 .special-notes {
@@ -330,6 +340,7 @@ iframe {
   color: #fff7c2;
   font-size: clamp(18px, 1.12vw, 24px);
   line-height: 1.22;
+  max-height: 108px;
 }
 
 .special-notes.visible {

@@ -39,6 +39,23 @@ function displayType(value) {
   return TYPE_LABELS[key] || TYPE_LABELS[code] || key || 'ALERT';
 }
 
+function displayPlaceName(place, units) {
+  const value = String(place || '').trim();
+  const unitText = String(units || '').trim();
+
+  if (!value) return '';
+  if (value.toUpperCase() === unitText.toUpperCase()) return '';
+  if (/^(UNIT|ENGINE|TRUCK|RESCUE|BATTALION|SQUAD|MEDIC)\s*\d+/i.test(value)) return '';
+
+  return value;
+}
+
+function cleanIncidentDetails(value) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!text) return 'No incident details provided.';
+  return text.length > 520 ? `${text.slice(0, 517)}...` : text;
+}
+
 function formatDispatchTime(value) {
   if (!value) return '--';
   const date = new Date(value);
@@ -169,15 +186,16 @@ async function loadLatestAlert() {
 
     dispatchTime.textContent = formatDispatchTime(latest.sent);
     dispatchType.textContent = displayType(latest.type || latest.normalizedType || latest.rawType || latest.cadCode);
-    dispatchPlace.textContent = latest.businessName || '';
+    dispatchPlace.textContent = displayPlaceName(latest.businessName, latest.units);
     dispatchAddress.textContent = latest.address || 'Address unavailable';
     dispatchUnits.textContent = latest.units || 'Units pending';
-    incidentDetails.textContent =
+    incidentDetails.textContent = cleanIncidentDetails(
       latest.details ||
       latest.rawType ||
       latest.cadCode ||
       latest.businessName ||
-      'No incident details provided.';
+      'No incident details provided.'
+    );
     specialNotes.textContent = latest.specialNotes || '';
     specialNotes.classList.toggle('visible', Boolean(latest.specialNotes));
 
