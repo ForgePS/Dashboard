@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Active911 Alert Takeover - iPad</title>
+  <link rel="stylesheet" href="/active911-ipad.css?v=1" />
+</head>
+<body>
+  <main class="dispatch-board">
+    <header class="dispatch-header">
+      <div class="dispatch-time">
+        <div class="label">Dispatched</div>
+        <div id="dispatchTime" class="time">--</div>
+        <div id="countdownTimer" class="countdown">Clears in --</div>
+      </div>
+
+      <div class="dispatch-title">
+        <h1 id="dispatchType">Waiting</h1>
+        <div id="dispatchPlace" class="place-name"></div>
+        <div id="dispatchAddress" class="address">Waiting for Active911 alert</div>
+        <div id="dispatchUnits" class="units">--</div>
+      </div>
+
+      <img class="logo" src="/horn-lake-logo.png" alt="Horn Lake Fire Department" />
+
+      <div class="weather">
+        <div><strong id="weatherTemp">--</strong> <span id="weatherSummary">Live feed</span></div>
+        <div id="windText">Active911 connected</div>
+        <div id="updatedText">Last Updated --</div>
+      </div>
+    </header>
+
+    <section class="main-grid">
+      <aside class="panel recent-panel">
+        <h2>Last 5 Incidents</h2>
+        <div id="recentList" class="recent-list"></div>
+      </aside>
+
+      <section class="center-stack">
+        <article class="image-card">
+          <img id="streetViewImage" alt="Street view facing address" />
+          <div class="map-fallback">Street View waiting for coordinates.</div>
+        </article>
+
+        <article class="panel info-panel">
+          <h2>Incident Information</h2>
+          <div class="info-stack">
+            <div id="incidentDetails" class="details-box">Waiting for incident information.</div>
+            <div id="specialNotes" class="special-notes"></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="right-stack">
+        <article class="map-card">
+          <img id="satelliteImage" alt="Satellite map with hydrants" />
+          <div class="map-fallback">Satellite map waiting for coordinates.</div>
+        </article>
+
+        <article class="map-card">
+          <img id="routeImage" alt="Station route map" />
+          <div class="map-fallback">Route map waiting for coordinates.</div>
+        </article>
+      </section>
+    </section>
+  </main>
+
+  <script src="/active911-ipad.js?v=1"></script>
+</body>
+</html>

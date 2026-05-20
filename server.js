@@ -1967,6 +1967,14 @@ app.get('/alert', (req, res) => {
   sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/active911-takeover');
 });
 
+app.get('/ipad/alert', (req, res) => {
+  sendHtmlFileOrFallback(res, 'active911-ipad.html', 'Active911 Alert Takeover iPad', '/api/active911-takeover');
+});
+
+app.get('/ipad/station:station/alert', (req, res) => {
+  sendHtmlFileOrFallback(res, 'active911-ipad.html', 'Active911 Alert Takeover iPad', '/api/active911-takeover');
+});
+
 app.get('/active911/station:station', (req, res) => {
   sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/latest');
 });
