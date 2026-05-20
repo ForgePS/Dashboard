@@ -16,17 +16,26 @@ function eventMonthMatches(dateText) {
 }
 
 function eventCard(event) {
-  const meta = [event.location, event.owner].filter((value) => value && value !== '--').join(' | ');
+  const details = [
+    ['Date', event.dateLabel],
+    ['Time', event.time],
+    ['Location', event.location],
+    ['Contact', event.owner]
+  ].filter(([, value]) => value && value !== '--');
 
   return `
     <article class="event-card">
       <div class="event-card-top">
-        <div class="event-date">${event.dateLabel || '--'} ${event.time || ''}</div>
+        <div class="event-date">${event.category || 'Event'}</div>
         <div class="event-status">${event.status || 'Scheduled'}</div>
       </div>
       <h3>${event.title || 'Untitled Event'}</h3>
-      ${meta ? `<p>${meta}</p>` : ''}
-      ${event.notes ? `<p>${event.notes}</p>` : ''}
+      <div class="event-details">
+        ${details.map(([label, value]) => `
+          <div class="event-line"><span>${label}</span><strong>${value}</strong></div>
+        `).join('')}
+        ${event.notes ? `<div class="event-line notes"><span>Notes</span><strong>${event.notes}</strong></div>` : ''}
+      </div>
     </article>
   `;
 }
