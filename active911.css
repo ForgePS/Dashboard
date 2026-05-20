@@ -1,8 +1,8 @@
 :root {
-  --bg: #070b10;
-  --panel: #0e141c;
-  --panel-soft: #141b25;
-  --line: #2d3b4d;
+  --bg: #05080d;
+  --panel: rgba(13, 20, 29, 0.96);
+  --panel-soft: #17202b;
+  --line: rgba(132, 157, 187, 0.35);
   --text: #ffffff;
   --muted: #c6d7ec;
   --red: #ff2b2b;
@@ -29,7 +29,10 @@ body {
   height: 100vh;
   display: grid;
   grid-template-rows: 178px minmax(0, 1fr);
-  background: #080d13;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255, 43, 43, 0.22), transparent 36%),
+    radial-gradient(circle at 86% 14%, rgba(46, 156, 255, 0.18), transparent 32%),
+    linear-gradient(135deg, #05080d 0%, #09111b 52%, #06090f 100%);
 }
 
 .dispatch-header {
@@ -38,9 +41,12 @@ body {
   align-items: center;
   gap: 16px;
   padding: 14px 22px 12px;
-  border: 2px solid #2c3540;
+  border: 1px solid rgba(132, 157, 187, 0.32);
   border-bottom: 5px solid #020304;
-  background: #171d26;
+  background:
+    linear-gradient(90deg, rgba(8, 13, 20, 0.98), rgba(20, 28, 39, 0.98)),
+    #171d26;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.44);
 }
 
 .label,
@@ -55,6 +61,7 @@ h2,
   padding-left: 18px;
   font-style: italic;
   font-weight: 900;
+  text-shadow: 2px 2px 0 #000;
 }
 
 .dispatch-time .label {
@@ -82,6 +89,7 @@ h1 {
   line-height: 0.9;
   letter-spacing: 7px;
   text-transform: uppercase;
+  text-shadow: 3px 4px 0 #000;
 }
 
 .address {
@@ -89,6 +97,7 @@ h1 {
   color: var(--yellow);
   font-size: clamp(25px, 2.15vw, 38px);
   text-transform: uppercase;
+  text-shadow: 3px 3px 0 #000;
 }
 
 .units {
@@ -99,6 +108,7 @@ h1 {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-shadow: 2px 2px 0 #000;
 }
 
 .logo {
@@ -114,6 +124,7 @@ h1 {
   font-size: clamp(18px, 1.25vw, 25px);
   text-align: right;
   line-height: 1.3;
+  text-shadow: 2px 2px 0 #000;
 }
 
 .weather strong {
@@ -131,8 +142,8 @@ h1 {
   min-height: 0;
   display: grid;
   grid-template-columns: 22% minmax(0, 44%) 33%;
-  gap: 14px;
-  padding: 12px 10px 10px;
+  gap: 12px;
+  padding: 12px;
 }
 
 .panel,
@@ -140,30 +151,39 @@ h1 {
 .map-card {
   min-width: 0;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #0b1118;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(18, 27, 38, 0.95), rgba(7, 12, 18, 0.96)),
+    #0b1118;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 12px 26px rgba(0, 0, 0, 0.35);
 }
 
 .recent-panel {
   min-height: 0;
-  padding: 20px;
+  padding: 18px;
 }
 
 h2 {
-  margin: 0 0 18px;
-  font-size: clamp(22px, 1.55vw, 32px);
+  margin: 0 0 16px;
+  font-size: clamp(22px, 1.5vw, 31px);
+  text-shadow: 2px 2px 0 #000;
 }
 
 .recent-list {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .recent-item {
-  padding: 12px 18px;
+  padding: 13px 16px;
   border-left: 6px solid var(--red);
-  border-radius: 7px;
-  background: #202730;
+  border-radius: 10px;
+  background:
+    linear-gradient(90deg, rgba(255, 43, 43, 0.08), rgba(36, 47, 60, 0.95)),
+    #202730;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .recent-type {
@@ -176,6 +196,7 @@ h2 {
 .recent-time {
   margin-top: 4px;
   font-size: clamp(14px, 0.95vw, 18px);
+  color: #f3f7ff;
 }
 
 .center-stack,
@@ -186,7 +207,7 @@ h2 {
 }
 
 .center-stack {
-  grid-template-rows: 48% minmax(0, 1fr);
+  grid-template-rows: 50% minmax(0, 1fr);
 }
 
 .right-stack {
@@ -220,6 +241,14 @@ iframe {
   background: #151d28;
 }
 
+#streetViewFrame {
+  display: block;
+  transform: scale(1.285);
+  transform-origin: top left;
+  width: 78%;
+  height: 78%;
+}
+
 .map-card img {
   width: 100%;
   height: 100%;
@@ -248,18 +277,22 @@ iframe {
 
 .info-panel {
   min-height: 0;
-  padding: 24px 20px;
+  padding: 22px 20px;
 }
 
 .details-box {
   height: calc(100% - 54px);
-  padding: 24px;
+  padding: 22px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #0b1118;
+  background:
+    linear-gradient(180deg, rgba(8, 13, 20, 0.9), rgba(6, 10, 16, 0.96)),
+    #0b1118;
   color: #fff;
-  font-size: clamp(26px, 1.8vw, 36px);
-  line-height: 1.25;
+  font-size: clamp(22px, 1.42vw, 30px);
+  line-height: 1.18;
+  overflow: hidden;
+  text-shadow: 2px 2px 0 #000;
 }
 
 @media (max-width: 1100px) {
