@@ -51,7 +51,17 @@ function displayPlaceName(place, units) {
 }
 
 function cleanIncidentDetails(value) {
-  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  let text = String(value || '').replace(/\s+/g, ' ').trim();
+
+  text = text
+    .replace(/\b\d{1,2}\/\d{1,2}\/\d{2,4}\s+\d{1,2}:\d{2}(?::\d{2})?\b/g, ' ')
+    .replace(/\b(?:TIME|DATE):\s*\d{1,2}:?\d{2}:?\d{0,2}\b/gi, ' ')
+    .replace(/\bDATE:\s*\d{1,2}\/\d{1,2}\/\d{2,4}\b/gi, ' ')
+    .replace(/\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g, ' ')
+    .replace(/\b\d{1,2}:\d{2}:\d{2}\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
   if (!text) return 'No incident details provided.';
   return text.length > 520 ? `${text.slice(0, 517)}...` : text;
 }
