@@ -2615,8 +2615,6 @@ app.listen(PORT, () => {
   console.log('');
 });
 
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+
 
 
