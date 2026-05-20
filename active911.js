@@ -16,8 +16,10 @@ const satelliteImage = document.getElementById('satelliteImage');
 const routeImage = document.getElementById('routeImage');
 const ACTIVE911_TAKEOVER_DURATION_MS =
   Number(new URLSearchParams(window.location.search).get('durationMinutes') || 5) * 60 * 1000;
+const ALERT_SOUND_ENABLED = new URLSearchParams(window.location.search).get('sound') !== '0';
 let activeIncidentSent = '';
 let lastRenderedAlertKey = '';
+let alertAudioContext = null;
 
 const TYPE_LABELS = {
   MEDICAL: 'MEDICAL',
@@ -111,6 +113,68 @@ function countdownText() {
 
 function updateCountdown() {
   countdownTimer.textContent = countdownText();
+}
+
+function getAlertAudioContext() {
+  if (!alertAudioContext) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+    alertAudioContext = new AudioContextClass();
+  }
+
+  return alertAudioContext;
+}
+
+async function playAlertToneSequence() {
+  const context = getAlertAudioContext();
+  if (!context) return;
+
+  if (context.state === 'suspended') {
+    await context.resume();
+  }
+
+  const start = context.currentTime + 0.04;
+  const tones = [
+    { at: 0, frequency: 880, length: 0.22 },
+    { at: 0.32, frequency: 660, length: 0.22 },
+    { at: 0.64, frequency: 880, length: 0.36 }
+  ];
+
+  for (const tone of tones) {
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const toneStart = start + tone.at;
+    const toneEnd = toneStart + tone.length;
+
+    oscillator.type = 'square';
+    oscillator.frequency.setValueAtTime(tone.frequency, toneStart);
+
+    gain.gain.setValueAtTime(0.0001, toneStart);
+    gain.gain.exponentialRampToValueAtTime(0.34, toneStart + 0.025);
+    gain.gain.exponentialRampToValueAtTime(0.0001, toneEnd);
+
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(toneStart);
+    oscillator.stop(toneEnd + 0.03);
+  }
+}
+
+function alertSoundStorageKey(alertKey) {
+  return `active911-alert-sounded:${alertKey}`;
+}
+
+function playAlertSound(alertKey) {
+  if (!ALERT_SOUND_ENABLED || !alertKey) return;
+
+  const storageKey = alertSoundStorageKey(alertKey);
+  if (sessionStorage.getItem(storageKey)) return;
+
+  sessionStorage.setItem(storageKey, 'true');
+
+  playAlertToneSequence().catch((err) => {
+    console.warn('Active911 alert sound blocked or unavailable:', err.message);
+  });
 }
 
 function formatDispatchTime(value) {
@@ -289,6 +353,7 @@ async function loadLatestAlert() {
 
     await loadWeather(latest);
     if (isNewRenderedAlert) {
+      playAlertSound(alertKey);
       setMapImages(latest);
     }
   } catch (err) {
