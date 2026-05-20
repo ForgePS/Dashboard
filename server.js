@@ -2691,7 +2691,19 @@ function bearingDegrees(fromLat, fromLon, toLat, toLon) {
   return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
 }
 
-async function streetViewCameraForPoint(lat, lon, radius = 1000) {
+function offsetLatLon(lat, lon, northFeet, eastFeet) {
+  const metersNorth = Number(northFeet) * 0.3048;
+  const metersEast = Number(eastFeet) * 0.3048;
+  const dLat = metersNorth / 111320;
+  const dLon = metersEast / (111320 * Math.cos(Number(lat) * Math.PI / 180));
+
+  return {
+    lat: Number(lat) + dLat,
+    lon: Number(lon) + dLon
+  };
+}
+
+async function getStreetViewMetadata(lat, lon, radius = 220) {
   const params = new URLSearchParams({
     location: `${lat},${lon}`,
     radius: String(radius),
@@ -2701,20 +2713,76 @@ async function streetViewCameraForPoint(lat, lon, radius = 1000) {
   const response = await fetch(`https://maps.googleapis.com/maps/api/streetview/metadata?${params.toString()}`);
   const payload = await response.json();
 
-  if (!response.ok || payload.status !== 'OK' || !payload.location?.lat || !payload.location?.lng) {
+  if (!response.ok || payload.status !== 'OK' || !payload.location?.lat || !payload.location?.lng) return null;
+  return payload;
+}
+
+function feetBetween(lat1, lon1, lat2, lon2) {
+  const radiusFeet = 20902231;
+  const toRad = (value) => Number(value) * Math.PI / 180;
+  const dLat = toRad(lat2) - toRad(lat1);
+  const dLon = toRad(lon2) - toRad(lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+
+  return 2 * radiusFeet * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+async function streetViewCameraForPoint(lat, lon, radius = 1000) {
+  const baseLat = Number(lat);
+  const baseLon = Number(lon);
+  const offsets = [
+    [0, 0],
+    [0, 90],
+    [0, -90],
+    [90, 0],
+    [-90, 0],
+    [70, 70],
+    [70, -70],
+    [-70, 70],
+    [-70, -70],
+    [0, 180],
+    [0, -180],
+    [180, 0],
+    [-180, 0]
+  ];
+
+  const candidates = [];
+
+  for (const [north, east] of offsets) {
+    const point = offsetLatLon(baseLat, baseLon, north, east);
+    const metadata = await getStreetViewMetadata(point.lat, point.lon, 260).catch(() => null);
+    if (!metadata) continue;
+
+    const panoLat = Number(metadata.location.lat);
+    const panoLon = Number(metadata.location.lng);
+    const distance = feetBetween(baseLat, baseLon, panoLat, panoLon);
+
+    candidates.push({
+      metadata,
+      distance,
+      location: `${panoLat},${panoLon}`,
+      heading: String(Math.round(bearingDegrees(panoLat, panoLon, baseLat, baseLon)))
+    });
+  }
+
+  const chosen = candidates
+    .filter((candidate) => candidate.distance >= 25)
+    .sort((a, b) => a.distance - b.distance)[0] ||
+    candidates.sort((a, b) => a.distance - b.distance)[0];
+
+  if (!chosen) {
     return {
       location: `${lat},${lon}`,
       heading: safeString('')
     };
   }
 
-  const panoLat = Number(payload.location.lat);
-  const panoLon = Number(payload.location.lng);
-
   return {
-    location: `${panoLat},${panoLon}`,
-    pano: payload.pano_id || '',
-    heading: String(Math.round(bearingDegrees(panoLat, panoLon, lat, lon)))
+    location: chosen.location,
+    pano: chosen.metadata.pano_id || '',
+    heading: chosen.heading
   };
 }
 
