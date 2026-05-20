@@ -64,13 +64,16 @@ function rowTitle(row) {
 
 function stationMarkup(row) {
   const hideLeftShift = row.station === 'Battalion';
+  const showStationTitle = row.station !== 'Battalion';
 
   return `
     <section class="station-row">
       <div class="station-card">
-        <div class="station-title">
-          <h2>${rowTitle(row)}</h2>
-        </div>
+        ${showStationTitle ? `
+          <div class="station-title">
+            <h2>${rowTitle(row)}</h2>
+          </div>
+        ` : ''}
         ${(row.left || []).map((apparatus) => apparatusMarkup({
           ...apparatus,
           shift: hideLeftShift ? '' : apparatus.shift
