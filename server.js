@@ -2829,7 +2829,7 @@ app.get('/api/map/satellite', async (req, res) => {
     size: safeString(req.query.size || '640x260'),
     scale: '2',
     maptype: 'satellite',
-    markers: `color:red|label:I|${lat},${lon}`,
+    markers: `color:blue|label:A|${lat},${lon}`,
     key: GOOGLE_MAPS_API_KEY
   });
 
