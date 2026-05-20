@@ -158,7 +158,7 @@ h1 {
   text-transform: uppercase;
   color: var(--bright);
   text-shadow:
-    0 0 12px rgba(47, 128, 237, 0.55),
+    0 0 0px rgba(47, 128, 237, 0.55),
     0 2px 8px rgba(0, 0, 0, 0.8);
   
 }
