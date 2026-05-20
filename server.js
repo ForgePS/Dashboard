@@ -2679,6 +2679,45 @@ async function resolveMapPoint(req) {
   return geocodeAddressForMaps(req.query.address);
 }
 
+function bearingDegrees(fromLat, fromLon, toLat, toLon) {
+  const lat1 = Number(fromLat) * Math.PI / 180;
+  const lat2 = Number(toLat) * Math.PI / 180;
+  const deltaLon = (Number(toLon) - Number(fromLon)) * Math.PI / 180;
+  const y = Math.sin(deltaLon) * Math.cos(lat2);
+  const x =
+    Math.cos(lat1) * Math.sin(lat2) -
+    Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLon);
+
+  return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
+}
+
+async function streetViewCameraForPoint(lat, lon, radius = 1000) {
+  const params = new URLSearchParams({
+    location: `${lat},${lon}`,
+    radius: String(radius),
+    source: 'outdoor',
+    key: GOOGLE_MAPS_API_KEY
+  });
+  const response = await fetch(`https://maps.googleapis.com/maps/api/streetview/metadata?${params.toString()}`);
+  const payload = await response.json();
+
+  if (!response.ok || payload.status !== 'OK' || !payload.location?.lat || !payload.location?.lng) {
+    return {
+      location: `${lat},${lon}`,
+      heading: safeString('')
+    };
+  }
+
+  const panoLat = Number(payload.location.lat);
+  const panoLon = Number(payload.location.lng);
+
+  return {
+    location: `${panoLat},${panoLon}`,
+    pano: payload.pano_id || '',
+    heading: String(Math.round(bearingDegrees(panoLat, panoLon, lat, lon)))
+  };
+}
+
 function normalizeActive911StationId(value) {
   const raw = safeString(value).toLowerCase().replace(/\s+/g, '');
   if (raw === 'station2' || raw === '2') return '2';
@@ -2820,15 +2859,29 @@ app.get('/api/map/streetview', async (req, res) => {
     ));
   }
 
+  const camera = await streetViewCameraForPoint(lat, lon, safeString(req.query.radius || '1000')).catch((err) => {
+    console.error('Street View camera lookup failed:', err.message);
+    return {
+      location: `${lat},${lon}`,
+      heading: safeString(req.query.heading || '')
+    };
+  });
+
   const params = new URLSearchParams({
     size: safeString(req.query.size || '640x260'),
     fov: safeString(req.query.fov || '120'),
+    heading: camera.heading || safeString(req.query.heading || '0'),
     pitch: safeString(req.query.pitch || '-2'),
     source: 'outdoor',
-    location: `${lat},${lon}`,
-    radius: safeString(req.query.radius || '1000'),
     key: GOOGLE_MAPS_API_KEY
   });
+
+  if (camera.pano) {
+    params.set('pano', camera.pano);
+  } else {
+    params.set('location', camera.location || `${lat},${lon}`);
+    params.set('radius', safeString(req.query.radius || '1000'));
+  }
 
   res.redirect(`https://maps.googleapis.com/maps/api/streetview?${params.toString()}`);
 });
