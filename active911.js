@@ -13,6 +13,8 @@ const specialNotes = document.getElementById('specialNotes');
 const streetViewImage = document.getElementById('streetViewImage');
 const satelliteImage = document.getElementById('satelliteImage');
 const routeImage = document.getElementById('routeImage');
+const ACTIVE911_TAKEOVER_DURATION_MS =
+  Number(new URLSearchParams(window.location.search).get('durationMinutes') || 5) * 60 * 1000;
 
 const TYPE_LABELS = {
   MEDICAL: 'MEDICAL',
@@ -51,7 +53,7 @@ function displayPlaceName(place, units) {
 }
 
 function cleanIncidentDetails(value) {
-  let text = String(value || '').replace(/\s+/g, ' ').trim();
+let text = String(value || '').replace(/\s+/g, ' ').trim();
 
   text = text
     .replace(/(?:TIME|DATE):?\s*\d{1,2}:\d{2}:\d{2}/gi, ' ')
@@ -66,6 +68,21 @@ function cleanIncidentDetails(value) {
 
   if (!text) return 'No incident details provided.';
   return text.length > 520 ? `${text.slice(0, 517)}...` : text;
+}
+
+function returnPath() {
+  const path = window.location.pathname.toLowerCase();
+  const params = new URLSearchParams(window.location.search);
+  const station = params.get('station');
+
+  if (path.includes('station2') || station === '2') return '/station2';
+  if (path.includes('station3') || station === '3') return '/station3';
+  return '/station1';
+}
+
+function isAlertActive(incident) {
+  const sentAt = new Date(incident?.sent || '').getTime();
+  return Number.isFinite(sentAt) && Date.now() - sentAt <= ACTIVE911_TAKEOVER_DURATION_MS;
 }
 
 function formatDispatchTime(value) {
@@ -203,6 +220,11 @@ async function loadLatestAlert() {
 
     if (!latest) {
       setWaiting(data.error || 'No recent Active911 alerts loaded');
+      return;
+    }
+
+    if (!isAlertActive(latest)) {
+      window.location.href = returnPath();
       return;
     }
 

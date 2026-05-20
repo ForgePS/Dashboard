@@ -29,7 +29,10 @@ const CATEGORY_LABELS = {
 };
 
 const numberFormat = new Intl.NumberFormat('en-US');
+const ACTIVE911_TAKEOVER_DURATION_MS =
+  Number(new URLSearchParams(window.location.search).get('takeoverMinutes') || 5) * 60 * 1000;
 let dailyChart;
+let lastTakeoverAlertId = sessionStorage.getItem('lastTakeoverAlertId') || '';
 
 function setText(id, value) {
   const el = document.getElementById(id);
@@ -249,5 +252,45 @@ async function refreshAnalytics() {
   }
 }
 
+function stationTakeoverPath() {
+  const path = window.location.pathname.toLowerCase();
+  const params = new URLSearchParams(window.location.search);
+  const station = params.get('station');
+
+  const duration = new URLSearchParams(window.location.search).get('takeoverMinutes');
+  const suffix = duration ? `?durationMinutes=${encodeURIComponent(duration)}` : '';
+
+  if (path.includes('station2') || station === '2') return `/active911/station2${suffix}`;
+  if (path.includes('station3') || station === '3') return `/active911/station3${suffix}`;
+  return `/active911/station1${suffix}`;
+}
+
+async function checkActive911Takeover() {
+  try {
+    const response = await fetch('/api/active911-takeover', { cache: 'no-store' });
+    const data = await response.json();
+    const latest = Array.isArray(data.recent) ? data.recent[0] : null;
+
+    if (!latest?.id || !latest.sent) return;
+
+    const sentAt = new Date(latest.sent).getTime();
+    if (!Number.isFinite(sentAt)) return;
+
+    const isActive = Date.now() - sentAt <= ACTIVE911_TAKEOVER_DURATION_MS;
+    if (!isActive) return;
+
+    if (latest.id !== lastTakeoverAlertId) {
+      lastTakeoverAlertId = latest.id;
+      sessionStorage.setItem('lastTakeoverAlertId', latest.id);
+    }
+
+    window.location.href = stationTakeoverPath();
+  } catch (err) {
+    console.warn('Active911 takeover check failed:', err.message);
+  }
+}
+
 refreshAnalytics();
+checkActive911Takeover();
 setInterval(refreshAnalytics, 15000);
+setInterval(checkActive911Takeover, 15000);
