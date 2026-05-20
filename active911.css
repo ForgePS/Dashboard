@@ -131,8 +131,8 @@ h1 {
 }
 
 .logo {
-  width: 118px;
-  height: 118px;
+  width: 150px;
+  height: 150px;
   justify-self: center;
   object-fit: contain;
 }
