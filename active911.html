@@ -16,6 +16,7 @@
 
       <div class="dispatch-title">
         <h1 id="dispatchType">Waiting</h1>
+        <div id="dispatchPlace" class="place-name"></div>
         <div id="dispatchAddress" class="address">Waiting for Active911 alert</div>
         <div id="dispatchUnits" class="units">--</div>
       </div>
@@ -42,7 +43,10 @@
 
         <article class="panel info-panel">
           <h2>Incident Information</h2>
-          <div id="incidentDetails" class="details-box">Waiting for incident information.</div>
+          <div class="info-stack">
+            <div id="incidentDetails" class="details-box">Waiting for incident information.</div>
+            <div id="specialNotes" class="special-notes"></div>
+          </div>
         </article>
       </section>
 
@@ -60,6 +64,6 @@
     </section>
   </main>
 
-  <script src="/active911.js?v=4"></script>
+  <script src="/active911.js?v=5"></script>
 </body>
 </html>

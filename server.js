@@ -131,6 +131,9 @@ const ACTIVE911_TOKEN_URL =
   process.env.ACTIVE911_TOKEN_URL ||
   'https://access.active911.com/interface/open_api/token.php';
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || '';
+const SPECIAL_ADDRESS_NOTES_FILE =
+  process.env.SPECIAL_ADDRESS_NOTES_FILE ||
+  path.join(DATA_DIR, 'special-address-notes.json');
 
 const ACTIVE911_BACKFILL_START =
   process.env.ACTIVE911_BACKFILL_START ||
@@ -1752,6 +1755,39 @@ function buildAnalyticsDashboard(recentLimit = 5) {
   };
 }
 
+function normalizeAddressKey(value) {
+  return String(value || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, ' ')
+    .replace(/\b(NORTH|SOUTH|EAST|WEST)\b/g, (match) => match[0])
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function loadSpecialAddressNotes() {
+  const rows = loadJsonFile(SPECIAL_ADDRESS_NOTES_FILE, []);
+  if (!Array.isArray(rows)) return [];
+
+  return rows
+    .map((row) => ({
+      address: String(row.address || row.location || '').trim(),
+      notes: String(row.notes || row.note || '').trim()
+    }))
+    .filter((row) => row.address && row.notes);
+}
+
+function getSpecialAddressNotes(address) {
+  const incidentKey = normalizeAddressKey(address);
+  if (!incidentKey) return '';
+
+  const match = loadSpecialAddressNotes().find((row) => {
+    const noteKey = normalizeAddressKey(row.address);
+    return noteKey && (incidentKey.includes(noteKey) || noteKey.includes(incidentKey));
+  });
+
+  return match?.notes || '';
+}
+
 function formatTakeoverIncident(item) {
   return {
       id: item.id || '',
@@ -1765,7 +1801,8 @@ function formatTakeoverIncident(item) {
       longitude: item.longitude || '',
       sent: item.sent || '',
       timeLabel: item.sent ? formatCentralDateTime(item.sent) : '',
-      details: item.raw?.details || item.raw?.description || item.raw?.cad_code || item.rawType || item.cadCode || ''
+      details: item.raw?.details || item.raw?.description || item.raw?.cad_code || item.rawType || item.cadCode || '',
+      specialNotes: getSpecialAddressNotes(item.address)
   };
 }
 

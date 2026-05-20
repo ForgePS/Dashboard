@@ -1,6 +1,7 @@
 const weatherTemp = document.getElementById('weatherTemp');
 const dispatchTime = document.getElementById('dispatchTime');
 const dispatchType = document.getElementById('dispatchType');
+const dispatchPlace = document.getElementById('dispatchPlace');
 const dispatchAddress = document.getElementById('dispatchAddress');
 const dispatchUnits = document.getElementById('dispatchUnits');
 const updatedText = document.getElementById('updatedText');
@@ -8,6 +9,7 @@ const weatherSummary = document.getElementById('weatherSummary');
 const windText = document.getElementById('windText');
 const recentList = document.getElementById('recentList');
 const incidentDetails = document.getElementById('incidentDetails');
+const specialNotes = document.getElementById('specialNotes');
 const streetViewFrame = document.getElementById('streetViewFrame');
 const satelliteImage = document.getElementById('satelliteImage');
 const routeImage = document.getElementById('routeImage');
@@ -137,9 +139,12 @@ function setMapImages(incident) {
 function setWaiting(message = 'Waiting for Active911 alert') {
   dispatchTime.textContent = '--';
   dispatchType.textContent = 'Waiting';
+  dispatchPlace.textContent = '';
   dispatchAddress.textContent = message;
   dispatchUnits.textContent = '--';
   incidentDetails.textContent = 'Waiting for incident information.';
+  specialNotes.textContent = '';
+  specialNotes.classList.remove('visible');
   weatherTemp.textContent = '--';
   weatherSummary.textContent = 'Live feed';
   windText.textContent = 'Active911 connected';
@@ -164,6 +169,7 @@ async function loadLatestAlert() {
 
     dispatchTime.textContent = formatDispatchTime(latest.sent);
     dispatchType.textContent = displayType(latest.type || latest.normalizedType || latest.rawType || latest.cadCode);
+    dispatchPlace.textContent = latest.businessName || '';
     dispatchAddress.textContent = latest.address || 'Address unavailable';
     dispatchUnits.textContent = latest.units || 'Units pending';
     incidentDetails.textContent =
@@ -172,6 +178,8 @@ async function loadLatestAlert() {
       latest.cadCode ||
       latest.businessName ||
       'No incident details provided.';
+    specialNotes.textContent = latest.specialNotes || '';
+    specialNotes.classList.toggle('visible', Boolean(latest.specialNotes));
 
     await loadWeather(latest);
     setMapImages(latest);
