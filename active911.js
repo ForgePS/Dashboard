@@ -54,12 +54,13 @@ function cleanIncidentDetails(value) {
   let text = String(value || '').replace(/\s+/g, ' ').trim();
 
   text = text
-    .replace(/\b\d{1,2}:\d{2}:\d{2}\b/g, ' ')
-    .replace(/\b(?:TIME|DATE):\s*\d{1,2}:\d{2}:\d{2}\b/gi, ' ')
-    .replace(/\b\d{1,2}\/\d{1,2}\/\d{2,4}\s+\d{1,2}:\d{2}(?::\d{2})?\b/g, ' ')
-    .replace(/\b(?:TIME|DATE):\s*\d{1,2}:?\d{2}:?\d{0,2}\b/gi, ' ')
-    .replace(/\bDATE:\s*\d{1,2}\/\d{1,2}\/\d{2,4}\b/gi, ' ')
-    .replace(/\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g, ' ')
+    .replace(/(?:TIME|DATE):?\s*\d{1,2}:\d{2}:\d{2}/gi, ' ')
+    .replace(/\d{1,2}:\d{2}:\d{2}/g, ' ')
+    .replace(/(?:^|[\s,;/-])(?:TIME|DATE):?\s*\d{1,2}:\d{2}:\d{2}(?=\D|$)/gi, ' ')
+    .replace(/(?:^|[\s,;/-])\d{1,2}:\d{2}:\d{2}(?=\D|$)/g, ' ')
+    .replace(/(?:^|[\s,;/-])\d{1,2}\/\d{1,2}\/\d{2,4}\s*\d{1,2}:\d{2}(?::\d{2})?(?=\D|$)/g, ' ')
+    .replace(/(?:^|[\s,;/-])DATE:?\s*\d{1,2}\/\d{1,2}\/\d{2,4}(?=\D|$)/gi, ' ')
+    .replace(/(?:^|[\s,;/-])\d{1,2}\/\d{1,2}\/\d{2,4}(?=\D|$)/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
