@@ -77,6 +77,9 @@ let text = String(value || '').replace(/\s+/g, ' ').trim();
 }
 
 function returnPath() {
+  const returnTo = new URLSearchParams(window.location.search).get('returnTo');
+  if (returnTo) return returnTo;
+
   const path = window.location.pathname.toLowerCase();
   const params = new URLSearchParams(window.location.search);
   const station = params.get('station');

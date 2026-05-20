@@ -1915,16 +1915,24 @@ app.get('/analytics', (req, res) => {
   sendHtmlFileOrFallback(res, 'analytics.html', 'Horn Lake Fire Analytics', '/api/analytics-dashboard');
 });
 
+app.get('/mvix-playback', (req, res) => {
+  sendHtmlFileOrFallback(res, 'mvix-playback.html', 'MVIX Playback With Active911 Override', '/api/active911-takeover');
+});
+
+app.get('/mvix', (req, res) => {
+  sendHtmlFileOrFallback(res, 'mvix-playback.html', 'MVIX Playback With Active911 Override', '/api/active911-takeover');
+});
+
 app.get('/station1', (req, res) => {
-  sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/active911-takeover');
+  sendHtmlFileOrFallback(res, 'analytics.html', 'Horn Lake Fire Analytics', '/api/analytics-dashboard');
 });
 
 app.get('/station2', (req, res) => {
-  sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/active911-takeover');
+  sendHtmlFileOrFallback(res, 'analytics.html', 'Horn Lake Fire Analytics', '/api/analytics-dashboard');
 });
 
 app.get('/station3', (req, res) => {
-  sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/active911-takeover');
+  sendHtmlFileOrFallback(res, 'analytics.html', 'Horn Lake Fire Analytics', '/api/analytics-dashboard');
 });
 
 app.get('/daily-roster', (req, res) => {

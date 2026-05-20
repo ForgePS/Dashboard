@@ -258,11 +258,20 @@ function stationTakeoverPath() {
   const station = params.get('station');
 
   const duration = new URLSearchParams(window.location.search).get('takeoverMinutes');
-  const suffix = duration ? `?durationMinutes=${encodeURIComponent(duration)}` : '';
+  const takeoverParams = new URLSearchParams();
+  takeoverParams.set('returnTo', path.includes('station2') || station === '2'
+    ? '/station2'
+    : path.includes('station3') || station === '3'
+      ? '/station3'
+      : '/station1');
 
-  if (path.includes('station2') || station === '2') return `/active911/station2${suffix}`;
-  if (path.includes('station3') || station === '3') return `/active911/station3${suffix}`;
-  return `/active911/station1${suffix}`;
+  if (duration) takeoverParams.set('durationMinutes', duration);
+
+  const suffix = `?${takeoverParams.toString()}`;
+
+  if (path.includes('station2') || station === '2') return `/station2/alert${suffix}`;
+  if (path.includes('station3') || station === '3') return `/station3/alert${suffix}`;
+  return `/station1/alert${suffix}`;
 }
 
 async function checkActive911Takeover() {
