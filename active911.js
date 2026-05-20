@@ -1,5 +1,6 @@
 const weatherTemp = document.getElementById('weatherTemp');
 const dispatchTime = document.getElementById('dispatchTime');
+const countdownTimer = document.getElementById('countdownTimer');
 const dispatchType = document.getElementById('dispatchType');
 const dispatchPlace = document.getElementById('dispatchPlace');
 const dispatchAddress = document.getElementById('dispatchAddress');
@@ -15,6 +16,7 @@ const satelliteImage = document.getElementById('satelliteImage');
 const routeImage = document.getElementById('routeImage');
 const ACTIVE911_TAKEOVER_DURATION_MS =
   Number(new URLSearchParams(window.location.search).get('durationMinutes') || 5) * 60 * 1000;
+let activeIncidentSent = '';
 
 const TYPE_LABELS = {
   MEDICAL: 'MEDICAL',
@@ -58,6 +60,9 @@ let text = String(value || '').replace(/\s+/g, ' ').trim();
   text = text
     .replace(/(?:TIME|DATE):?\s*\d{1,2}:\d{2}:\d{2}/gi, ' ')
     .replace(/\d{1,2}:\d{2}:\d{2}/g, ' ')
+    .replace(/\d{4}[-/]\d{1,2}[-/]\d{1,2}(?:[T\s]\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?Z?)?/g, ' ')
+    .replace(/\d{1,2}[-/]\d{1,2}[-/]\d{2,4}/g, ' ')
+    .replace(/(?:DATE):?\s*(?:\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4})/gi, ' ')
     .replace(/(?:^|[\s,;/-])(?:TIME|DATE):?\s*\d{1,2}:\d{2}:\d{2}(?=\D|$)/gi, ' ')
     .replace(/(?:^|[\s,;/-])\d{1,2}:\d{2}:\d{2}(?=\D|$)/g, ' ')
     .replace(/(?:^|[\s,;/-])\d{1,2}\/\d{1,2}\/\d{2,4}\s*\d{1,2}:\d{2}(?::\d{2})?(?=\D|$)/g, ' ')
@@ -83,6 +88,21 @@ function returnPath() {
 function isAlertActive(incident) {
   const sentAt = new Date(incident?.sent || '').getTime();
   return Number.isFinite(sentAt) && Date.now() - sentAt <= ACTIVE911_TAKEOVER_DURATION_MS;
+}
+
+function countdownText() {
+  const sentAt = new Date(activeIncidentSent || '').getTime();
+  if (!Number.isFinite(sentAt)) return 'Clears in --';
+
+  const remaining = Math.max(0, ACTIVE911_TAKEOVER_DURATION_MS - (Date.now() - sentAt));
+  const totalSeconds = Math.ceil(remaining / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = String(totalSeconds % 60).padStart(2, '0');
+  return `Clears in ${minutes}:${seconds}`;
+}
+
+function updateCountdown() {
+  countdownTimer.textContent = countdownText();
 }
 
 function formatDispatchTime(value) {
@@ -194,6 +214,8 @@ function setMapImages(incident) {
 
 function setWaiting(message = 'Waiting for Active911 alert') {
   dispatchTime.textContent = '--';
+  activeIncidentSent = '';
+  updateCountdown();
   dispatchType.textContent = 'Waiting';
   dispatchPlace.textContent = '';
   dispatchAddress.textContent = message;
@@ -224,10 +246,14 @@ async function loadLatestAlert() {
     }
 
     if (!isAlertActive(latest)) {
-      window.location.href = returnPath();
+      activeIncidentSent = '';
+      updateCountdown();
+      setWaiting('No active incident. Waiting for next Active911 alert.');
       return;
     }
 
+    activeIncidentSent = latest.sent || '';
+    updateCountdown();
     dispatchTime.textContent = formatDispatchTime(latest.sent);
     dispatchType.textContent = displayType(latest.type || latest.normalizedType || latest.rawType || latest.cadCode);
     dispatchPlace.textContent = displayPlaceName(latest.businessName, latest.units);
@@ -255,4 +281,5 @@ async function loadLatestAlert() {
 
 loadLatestAlert();
 setInterval(loadLatestAlert, 15000);
+setInterval(updateCountdown, 1000);
 

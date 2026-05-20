@@ -75,6 +75,21 @@ h2,
   letter-spacing: 1px;
 }
 
+.countdown {
+  width: max-content;
+  margin-top: 16px;
+  padding: 7px 12px;
+  border: 1px solid rgba(247, 255, 0, 0.45);
+  border-radius: 999px;
+  background: rgba(247, 255, 0, 0.1);
+  color: var(--yellow);
+  font-size: clamp(15px, 1vw, 20px);
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
 .dispatch-title {
   min-width: 0;
   text-align: center;
