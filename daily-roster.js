@@ -56,19 +56,17 @@ function apparatusMarkup(apparatus, unit = false) {
 }
 
 function stationMarkup(row) {
-  const hideLeftShift = row.station === 'Battalion';
-
   return `
     <section class="station-row">
       <div class="station-card">
         ${(row.left || []).map((apparatus) => apparatusMarkup({
           ...apparatus,
-          shift: hideLeftShift ? '' : apparatus.shift
+          shift: ''
         })).join('')}
       </div>
       <div class="unit-card ${row.right ? '' : 'empty'}">
         ${row.right ? `
-          ${apparatusMarkup(row.right, true)}
+          ${apparatusMarkup({ ...row.right, shift: '' }, true)}
         ` : ''}
       </div>
     </section>
