@@ -44,14 +44,16 @@ function renderHero(event) {
     return;
   }
 
+  const meta = [
+    event.dateLabel && event.dateLabel !== '--' ? event.dateLabel : '',
+    event.time && event.time !== '--' ? event.time : '',
+    event.location && event.location !== '--' ? event.location : ''
+  ].filter(Boolean);
+
   container.innerHTML = `
     <div class="event-tag">${event.category || 'Event'}</div>
     <h2>${event.title || 'Untitled Event'}</h2>
-    <div class="hero-meta">
-      ${event.dateLabel && event.dateLabel !== '--' ? `<span>${event.dateLabel}</span>` : ''}
-      ${event.time && event.time !== '--' ? `<span>${event.time}</span>` : ''}
-      ${event.location && event.location !== '--' ? `<span>${event.location}</span>` : ''}
-    </div>
+    ${meta.length ? `<div class="hero-meta">${meta.map((item) => `<span>${item}</span>`).join('')}</div>` : ''}
     ${event.notes ? `<div class="hero-notes">${event.notes}</div>` : ''}
   `;
 }
