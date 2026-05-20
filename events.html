@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Horn Lake Fire Events</title>
+  <link rel="stylesheet" href="/events.css?v=1" />
+</head>
+<body>
+  <main class="events-page">
+    <header class="events-header">
+      <div class="brand">
+        <img src="/horn-lake-logo.png" alt="Horn Lake Fire Department" />
+        <div>
+          <div class="kicker">Horn Lake Fire Department</div>
+          <h1>Events</h1>
+        </div>
+      </div>
+      <div class="status">
+        <div><span class="live-dot"></span><span id="statusText">Connecting events</span></div>
+        <div id="updatedText">Last Updated --</div>
+      </div>
+    </header>
+
+    <section class="feature-grid">
+      <article class="hero-event" id="heroEvent"></article>
+      <aside class="event-stats">
+        <div class="stat-card red">
+          <span>Upcoming</span>
+          <strong id="upcomingCount">--</strong>
+        </div>
+        <div class="stat-card gold">
+          <span>This Month</span>
+          <strong id="monthCount">--</strong>
+        </div>
+        <div class="stat-card blue">
+          <span>Next Event</span>
+          <strong id="nextEventDate">--</strong>
+        </div>
+      </aside>
+    </section>
+
+    <section class="events-board">
+      <div class="board-head">
+        <h2>Upcoming Events</h2>
+        <p>Live Google Sheets feed</p>
+      </div>
+      <div id="eventList" class="event-list"></div>
+    </section>
+  </main>
+
+  <script src="/events.js?v=1"></script>
+</body>
+</html>

@@ -91,6 +91,11 @@ const LIVE_DOCUMENT_CSV_URL =
 const LIVE_DOCUMENT_REFRESH_MS =
   Number(process.env.LIVE_DOCUMENT_REFRESH_MS || 30000);
 
+const EVENTS_CSV_URL =
+  process.env.EVENTS_CSV_URL ||
+  'https://docs.google.com/spreadsheets/d/e/2PACX-1vS23hz49iXdY-BTcTRNGqS1OESOQ_hHvVcTTGs8cbIf-zanzJ8Fln05jK7GwPZBW7auVUidMyqXxIC0/pub?gid=663103771&single=true&output=csv';
+const EVENTS_REFRESH_MS = Number(process.env.EVENTS_REFRESH_MS || 30000);
+
 const HISTORICAL_INCIDENTS_CSV_FILE =
   process.env.HISTORICAL_INCIDENTS_CSV_FILE ||
   path.join(__dirname, 'historical-incidents.csv');
@@ -1137,6 +1142,178 @@ async function fetchLiveDocument(force = false) {
   }
 }
 
+function parseEventDate(value) {
+  const text = String(value || '').trim();
+  if (!text) return null;
+
+  const parsed = new Date(text);
+  if (!Number.isNaN(parsed.getTime())) return parsed;
+
+  const match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (!match) return null;
+
+  const [, month, day, yearText] = match;
+  const year = Number(yearText.length === 2 ? `20${yearText}` : yearText);
+  const date = new Date(year, Number(month) - 1, Number(day));
+
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatEventDate(value) {
+  const date = parseEventDate(value);
+  if (!date) return String(value || '').trim() || '--';
+
+  return date.toLocaleDateString('en-US', {
+    timeZone: TIME_ZONE,
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric'
+  });
+}
+
+function shapeEventRows(rows) {
+  const cleanRows = compactCsvRows(rows);
+  if (cleanRows.length < 2) return [];
+
+  const headers = cleanRows[0].map(normalizeHeader);
+
+  return cleanRows.slice(1)
+    .map((values, index) => {
+      const row = {};
+      headers.forEach((header, i) => {
+        row[header] = values[i] || '';
+      });
+
+      const title = getCsvValue(row, ['title', 'event', 'event_name', 'name']);
+      const date = getCsvValue(row, ['date', 'event_date', 'start_date']);
+      const time = getCsvValue(row, ['time', 'event_time', 'start_time']);
+      const location = getCsvValue(row, ['location', 'place', 'venue']);
+      const category = getCsvValue(row, ['category', 'type', 'event_type']);
+      const status = getCsvValue(row, ['status']);
+      const notes = getCsvValue(row, ['notes', 'description', 'details']);
+      const owner = getCsvValue(row, ['owner', 'contact', 'lead']);
+      const sortDate = parseEventDate(date);
+      const fallbackTitle = [category, location, date]
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+        .join(' - ');
+
+      return {
+        id: getCsvValue(row, ['id']) || `event-${index + 1}`,
+        title: title || fallbackTitle || 'Untitled Event',
+        date,
+        dateLabel: formatEventDate(date),
+        time: time || '--',
+        location: location || '--',
+        category: category || 'Department Event',
+        status: status || 'Scheduled',
+        notes,
+        owner,
+        sortTime: sortDate ? sortDate.getTime() : Number.MAX_SAFE_INTEGER
+      };
+    })
+    .filter((event) => {
+      const values = [
+        event.title,
+        event.date,
+        event.time,
+        event.location,
+        event.category,
+        event.status,
+        event.notes,
+        event.owner
+      ];
+
+      return values.some((value) => {
+        const text = String(value || '').trim();
+        return text && text !== '--' && text !== 'Department Event' && text !== 'Scheduled';
+      });
+    })
+    .sort((a, b) => a.sortTime - b.sortTime);
+}
+
+function fallbackEvents() {
+  return [
+    {
+      id: 'sample-1',
+      title: 'Sheet Not Connected',
+      date: '',
+      dateLabel: 'Ready',
+      time: '--',
+      location: 'Add EVENTS_CSV_URL',
+      category: 'Setup',
+      status: 'Waiting',
+      notes: 'Publish a Google Sheet as CSV and set EVENTS_CSV_URL to make this page live.',
+      owner: '',
+      sortTime: Number.MAX_SAFE_INTEGER
+    }
+  ];
+}
+
+async function fetchEvents(force = false) {
+  const now = Date.now();
+  const loadedAt = eventsCache.loadedAt ? new Date(eventsCache.loadedAt).getTime() : 0;
+
+  if (!force && eventsCache.data && now - loadedAt < EVENTS_REFRESH_MS) {
+    return eventsCache.data;
+  }
+
+  if (!EVENTS_CSV_URL) {
+    const data = {
+      ok: true,
+      title: 'Events',
+      source: '',
+      connected: false,
+      updated: nowIso(),
+      updatedLabel: formatCentralDateTime(new Date()),
+      refreshMs: EVENTS_REFRESH_MS,
+      events: fallbackEvents()
+    };
+
+    eventsCache = { loadedAt: nowIso(), data, error: null };
+    return data;
+  }
+
+  try {
+    const response = await fetch(EVENTS_CSV_URL, {
+      headers: {
+        Accept: 'text/csv,text/plain'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Events sheet HTTP ${response.status}`);
+    }
+
+    const events = shapeEventRows(parseCsvText(await response.text()));
+    const data = {
+      ok: true,
+      title: 'Events',
+      source: EVENTS_CSV_URL,
+      connected: true,
+      updated: nowIso(),
+      updatedLabel: formatCentralDateTime(new Date()),
+      refreshMs: EVENTS_REFRESH_MS,
+      events
+    };
+
+    eventsCache = { loadedAt: nowIso(), data, error: null };
+    return data;
+  } catch (err) {
+    eventsCache.error = err.message;
+
+    if (eventsCache.data) {
+      return {
+        ...eventsCache.data,
+        stale: true,
+        error: err.message
+      };
+    }
+
+    throw err;
+  }
+}
+
 function parseCount(value) {
   const parsed = Number(String(value || '').replace(/,/g, '').trim());
   return Number.isFinite(parsed) ? parsed : 0;
@@ -1543,6 +1720,11 @@ let problematicHydrantCsvCache = {
   source: null,
   error: null
 };
+let eventsCache = {
+  loadedAt: null,
+  data: null,
+  error: null
+};
 
 // ======================================================
 // ANALYTICS ROUTES
@@ -1584,6 +1766,10 @@ app.get('/live-doc', (req, res) => {
   sendHtmlFileOrFallback(res, 'live-document.html', 'Horn Lake Fire Unit Status', '/api/live-document');
 });
 
+app.get('/events', (req, res) => {
+  sendHtmlFileOrFallback(res, 'events.html', 'Horn Lake Fire Events', '/api/events');
+});
+
 app.get('/api/daily-roster', async (req, res) => {
   try {
     const roster = await fetchDailyRoster(String(req.query.force || '').toLowerCase() === 'true');
@@ -1606,6 +1792,19 @@ app.get('/api/live-document', async (req, res) => {
       ok: false,
       error: err.message,
       source: LIVE_DOCUMENT_CSV_URL
+    });
+  }
+});
+
+app.get('/api/events', async (req, res) => {
+  try {
+    const events = await fetchEvents(String(req.query.force || '').toLowerCase() === 'true');
+    res.json(events);
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      error: err.message,
+      source: EVENTS_CSV_URL
     });
   }
 });
@@ -2330,6 +2529,7 @@ app.use('/api', (req, res) => {
       '/api/hydrants-status',
       '/api/daily-roster',
       '/api/live-document',
+      '/api/events',
       '/api/health'
     ]
   });
