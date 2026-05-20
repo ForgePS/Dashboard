@@ -125,7 +125,7 @@ h1 {
   border: 0px solid var(--line);
   border-radius: 16px;
   background: rgba(17, 24, 33, 0.24);
-  backdrop-filter: blur(1px);
+  backdrop-filter: blur(0px);
   overflow: hidden;
 }
 
