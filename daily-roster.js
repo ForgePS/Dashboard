@@ -55,25 +55,12 @@ function apparatusMarkup(apparatus, unit = false) {
   `;
 }
 
-function rowTitle(row) {
-  if (row.station !== 'Battalion') return text(row.station);
-
-  const shift = row.left?.[0]?.shift || '';
-  return shift ? shift.replace(/\s*\|\s*/g, ' ') : 'Battalion';
-}
-
 function stationMarkup(row) {
   const hideLeftShift = row.station === 'Battalion';
-  const showStationTitle = row.station !== 'Battalion';
 
   return `
     <section class="station-row">
       <div class="station-card">
-        ${showStationTitle ? `
-          <div class="station-title">
-            <h2>${rowTitle(row)}</h2>
-          </div>
-        ` : ''}
         ${(row.left || []).map((apparatus) => apparatusMarkup({
           ...apparatus,
           shift: hideLeftShift ? '' : apparatus.shift
