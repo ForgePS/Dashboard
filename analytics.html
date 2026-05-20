@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Horn Lake Fire Analytics</title>
+
+<link rel="stylesheet" href="/analytics.css?v=68" /> 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    #typeBreakdown.exact-type-list {
+      display: grid;
+      gap: 6px;
+      padding: 10px 12px 12px;
+      overflow: hidden;
+    }
+
+    .exact-type-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      min-height: 28px;
+      padding: 4px 8px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 7px;
+      background: rgba(15, 23, 42, 0.22);
+    }
+
+    .exact-type-name {
+      min-width: 0;
+      color: #fff;
+      font-size: clamp(10px, 0.72vw, 13px);
+      font-weight: 800;
+      letter-spacing: 0;
+      line-height: 1.08;
+      text-transform: uppercase;
+      overflow-wrap: normal;
+    }
+
+    .exact-type-count {
+      color: #fff;
+      font-size: clamp(11px, 0.72vw, 13px);
+      font-weight: 900;
+      line-height: 1;
+      text-align: right;
+    }
+
+    .exact-type-meter {
+      grid-column: 1 / -1;
+      height: 5px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.22);
+    }
+
+    .exact-type-fill {
+      height: 100%;
+      border-radius: 999px;
+    }
+
+    #hotspotList.hotspot-card-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px 10px;
+      padding: 12px;
+    }
+
+    .hotspot-card {
+      display: grid;
+      grid-template-columns: 30px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      min-height: 50px;
+      padding: 8px 10px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 8px;
+      background: rgba(15, 23, 42, 0.24);
+    }
+
+    .hotspot-rank {
+      display: grid;
+      width: 26px;
+      height: 26px;
+      place-items: center;
+      border-radius: 999px;
+      background: rgba(242, 184, 75, 0.18);
+      color: #f2b84b;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .hotspot-main {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .hotspot-address {
+      overflow: hidden;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 800;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .hotspot-meter {
+      height: 6px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.2);
+    }
+
+    .hotspot-meter div {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #f2b84b, #e74c3c);
+    }
+
+    .hotspot-count {
+      display: grid;
+      justify-items: end;
+      gap: 1px;
+      min-width: 46px;
+    }
+
+    .hotspot-count strong {
+      color: #fff;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .hotspot-count span {
+      color: rgba(226, 232, 240, 0.72);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="analytics-page">
+
+    <header class="topbar">
+      <div class="brand-block">
+        <img src="/horn-lake-logo.png" alt="Horn Lake Fire Department" />
+
+        <div class="title-block">
+          <div class="kicker">Horn Lake Fire Department</div>
+          <h1>Incident Analytics</h1>
+          <div class="subline">
+            Operational call volume since January 1, 2026 at 00:00:01
+          </div>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="status-live">
+          <span class="live-dot"></span>
+          <span id="statusText">Updating analytics...</span>
+        </div>
+
+        <div id="lastUpdated" class="updated-time">
+          Last Updated --
+        </div>
+      </div>
+    </header>
+
+    <section class="kpi-grid">
+      <article class="kpi red">
+        <span class="kpi-label">Total Calls</span>
+        <strong id="totalCalls">--</strong>
+        <small>Verified 2026 baseline</small>
+      </article>
+
+      <article class="kpi orange">
+        <span class="kpi-label">Fire</span>
+        <strong id="fireCalls">--</strong>
+        <small id="firePercent">--</small>
+      </article>
+
+      <article class="kpi blue">
+        <span class="kpi-label">EMS</span>
+        <strong id="emsCalls">--</strong>
+        <small id="emsPercent">--</small>
+      </article>
+
+      <article class="kpi gray">
+        <span class="kpi-label">Other</span>
+        <strong id="otherCalls">--</strong>
+        <small id="otherPercent">--</small>
+      </article>
+    </section>
+
+    <section class="main-grid">
+      <article class="panel trend-panel">
+        <div class="panel-head">
+          <div>
+            <h2>Monthly Call Volume</h2>
+            <p id="monthlyRange">Recent Active911 detail records</p>
+          </div>
+
+          <span>Fire / EMS / Total</span>
+        </div>
+
+        <div class="chart-wrap">
+          <canvas id="dailyChart"></canvas>
+        </div>
+      </article>
+
+      <article class="panel split-panel">
+        <div class="panel-head">
+          <div>
+            <h2>Fire / EMS Split</h2>
+            <p id="splitSummary">--</p>
+          </div>
+        </div>
+
+        <div class="split-display">
+          <div class="split-item">
+            <div class="split-top">
+              <span>EMS</span>
+              <strong id="emsSplitValue">--</strong>
+            </div>
+            <div class="split-bar">
+              <div id="emsSplitBar" class="split-fill ems-fill"></div>
+            </div>
+          </div>
+
+          <div class="split-item">
+            <div class="split-top">
+              <span>Fire</span>
+              <strong id="fireSplitValue">--</strong>
+            </div>
+            <div class="split-bar">
+              <div id="fireSplitBar" class="split-fill fire-fill"></div>
+            </div>
+          </div>
+
+          <div class="split-item">
+            <div class="split-top">
+              <span>Other</span>
+              <strong id="otherSplitValue">--</strong>
+            </div>
+            <div class="split-bar">
+              <div id="otherSplitBar" class="split-fill other-fill"></div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel type-panel">
+        <div class="panel-head">
+          <div>
+            <h2>Incident Types</h2>
+            <p>Breakdown</p>
+          </div>
+        </div>
+
+        <div id="typeBreakdown" class="type-breakdown"></div>
+      </article>
+
+      <article class="panel recent-panel">
+        <div class="panel-head">
+          <div>
+            <h2>Recent Incidents</h2>
+            <p>Latest stored calls</p>
+          </div>
+        </div>
+
+        <div id="recentList" class="recent-list"></div>
+      </article>
+
+      <article class="panel hotspot-panel">
+        <div class="panel-head">
+          <div>
+            <h2>Busiest Addresses</h2>
+            <p>High activity locations</p>
+          </div>
+        </div>
+
+        <div id="hotspotList" class="hotspot-list"></div>
+      </article>
+    </section>
+
+  </main>
+
+  <script src="/analytics.js?v=68"></script>
+</body>
+</html>

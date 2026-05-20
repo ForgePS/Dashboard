@@ -1,0 +1,94 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 100%; height: 100%; background: #070b10; color: #f5f7fb; font-family: Arial, Helvetica, sans-serif; overflow: hidden; }
+.screen { width: 100vw; height: 100vh; background: #080d13; }
+.idle { padding: 26px; }
+.idle-top { height: 170px; display: grid; grid-template-columns: 150px 1fr 360px; gap: 24px; align-items: center; background: #141b24; border: 1px solid #343b46; padding: 16px 28px; border-radius: 14px; }
+.idle-top h1 { margin: 0 0 10px; font-size: 48px; letter-spacing: 2px; }
+.idle-top p { margin: 0; color: #c0c7d2; font-size: 22px; }
+.idle-right { text-align: right; }
+.idle-panel { margin-top: 24px; border: 1px solid #303743; background: #0e131a; padding: 28px; border-radius: 14px; height: calc(100vh - 246px); }
+.idle-panel h2 { margin: 0 0 18px; font-size: 30px; text-decoration: underline; }
+.topbar { height: 182px; background: #151b24; display: grid; grid-template-columns: 300px 1fr 390px 190px; align-items: center; border-bottom: 5px solid #000; position: relative; }
+.dispatch-block { text-align: center; font-style: italic; }
+.label { font-size: 34px; font-weight: 900; }
+.big-clock { font-size: 30px; font-weight: 900; margin-top: 12px; }
+.incident-head { text-align: center; min-width: 0; }
+.incident-head h1 { margin: 0; color: #ff1717; font-size: 56px; letter-spacing: 3px; line-height: 1; }
+.incident-head h2 { margin: 14px 0 10px; color: #ffff00; font-size: 32px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.unit-strip { color: #9fe363; font-size: 24px; font-weight: 900; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brand-weather { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 16px; padding-right: 16px; }
+.dept-logo { width: 128px; height: 128px; object-fit: contain; }
+.weather-block { text-align: right; font-size: 24px; line-height: 1.35; color: #c0c7d2; }
+.weather-block b { color: #fff; font-size: 28px; }
+.alert-countdown { font-size: 18px; color: #bfc7d4; padding-right: 22px; text-align: right; }
+.alert-countdown b { color: #fff; font-size: 26px; }
+.grid { height: calc(100vh - 182px); display: grid; grid-template-columns: 320px 1fr 540px; gap: 14px; padding: 14px; }
+.panel { border: 1px solid #303743; background: #0e131a; border-radius: 12px; padding: 20px; overflow: hidden; }
+.middle-stack { display: grid; grid-template-rows: 300px 1fr; gap: 12px; min-width: 0; min-height: 0; }
+.middle-stack .notes { min-height: 0; }
+.street-middle { min-height: 260px; }
+h3 { margin: 0 0 20px; font-size: 25px; text-decoration: underline; }
+.history-row { border-left: 7px solid #d40000; background: #20252d; margin-bottom: 12px; padding: 12px 14px; border-radius: 8px; display: grid; gap: 3px; }
+.history-row strong { font-size: 20px; }
+.history-row span { color: #d8dee8; font-size: 17px; }
+.history-row small { color: #aab2bf; }
+.info-line { display: flex; justify-content: space-between; align-items: center; background: #232832; padding: 16px 18px; border-radius: 9px; margin-bottom: 13px; font-size: 23px; }
+.info-line b { text-align: right; }
+.notes-box { margin-top: 18px; border: 1px solid #3a424f; border-radius: 9px; padding: 20px; min-height: 185px; font-size: 26px; line-height: 1.35; }
+.maps { display: grid; gap: 10px; }
+.three-maps { grid-template-rows: 1fr 1fr 1fr; }
+.two-maps { grid-template-rows: 1fr 1fr; }
+.map-card { position: relative; border: 1px solid #303743; background: #0e131a; border-radius: 12px; overflow: hidden; min-height: 0; }
+.map-title { position: absolute; left: 12px; top: 10px; z-index: 2; background: rgba(0,0,0,.72); padding: 7px 12px; border-radius: 7px; font-size: 17px; font-weight: 900; letter-spacing: .5px; }
+.map-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.map-fallback { width: 100%; height: 100%; display: none; align-items: center; justify-content: center; text-align: center; padding: 22px; color: #d8dee8; font-size: 24px; background: repeating-linear-gradient(45deg,#171b22,#171b22 14px,#1d222a 14px,#1d222a 28px); }
+.muted { color: #aab2bf; }
+@media (min-width: 1800px) { .grid { grid-template-columns: 410px 1fr 620px; } .middle-stack { grid-template-rows: 330px 1fr; } .topbar { grid-template-columns: 330px 1fr 430px 210px; } .dept-logo { width: 136px; height: 136px; } }
+.notes-box.notes-only { min-height: 260px; font-size: 27px; }
+.map-title { font-size: 18px; }
+.weather-block.fail b { color: #ffcc00; }
+.status { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 8px; font-size: 15px; color: #cfd6e2; font-weight: 800; letter-spacing: .4px; }
+.status span { width: 12px; height: 12px; border-radius: 50%; display: inline-block; background: #67c56f; }
+.status.warn { color: #ffcc00; }
+.status.warn span { background: #ffcc00; }
+.alert { position: relative; }
+.alert .grid { height: calc(100vh - 182px); }
+.fail-panel h1 { color: #ffcc00; }
+.fail-panel p { font-size: 24px; color: #d8dee8; }
+@media (min-width: 1800px) { .alert .grid { height: calc(100vh - 182px); } }
+
+
+/* v25: Force-hide any old footer/status branding if browser cache or older markup is present */
+.footer, .app-footer, .bottom-footer, .bottom-bar, .pipeline, .branding-footer, .display-footer, .status-footer, #footer, #appFooter, #displayFooter {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+.status { display: none !important; }
+
+
+/* v26: absolute footer/banner removal */
+body > footer,
+body > .footer,
+body > .app-footer,
+body > .bottom-footer,
+body > .bottom-bar,
+body > .pipeline,
+body > .branding-footer,
+body > .display-footer,
+body > .status-footer,
+body > #footer,
+body > #appFooter,
+body > #displayFooter {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  max-height: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

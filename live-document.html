@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Horn Lake Fire Unit Status</title>
+  <link rel="stylesheet" href="/live-document.css?v=2" />
+</head>
+<body>
+  <main class="doc-page">
+    <header class="doc-header">
+      <div class="brand">
+        <img src="/horn-lake-logo.png" alt="Horn Lake Fire Department" />
+        <div>
+          <div class="kicker">Horn Lake Fire Department</div>
+        </div>
+      </div>
+      <div class="status">
+        <div><span class="live-dot"></span><span id="statusText">Connecting</span></div>
+        <div id="updatedText">Last Updated --</div>
+      </div>
+    </header>
+
+    <section class="doc-grid">
+      <article class="panel wide">
+        <div class="panel-head">
+          <h2 id="unitStatusTitle">Unit Status</h2>
+        </div>
+        <div id="unitStatusTable" class="table-wrap"></div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <h2 id="trainingTitle">Training Schedule</h2>
+        </div>
+        <div id="trainingTable" class="table-wrap"></div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <h2 id="oosTitle">OOS Equipment</h2>
+        </div>
+        <div id="oosTable" class="table-wrap"></div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <h2 id="emsTitle">EMS Expiration Dates</h2>
+        </div>
+        <div id="emsTable" class="table-wrap"></div>
+      </article>
+    </section>
+  </main>
+
+  <script src="/live-document.js?v=2"></script>
+</body>
+</html>

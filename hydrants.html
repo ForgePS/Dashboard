@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Out of Service Hydrants</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="/hydrants.css?v=3" />
+</head>
+
+<body>
+  <main class="hydrant-page">
+
+    <header class="topbar">
+      <div class="brand-block">
+        <img src="/horn-lake-logo.png" alt="Horn Lake Fire Department" />
+
+        <div>
+          <div class="kicker">Horn Lake Fire Department</div>
+          <h1>Out of Service Hydrants</h1>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="status-live">
+          <span class="live-dot"></span>
+          <span id="statusText">Loading hydrant status...</span>
+        </div>
+
+        <div id="lastUpdated" class="updated-time">
+          Last Updated --
+        </div>
+      </div>
+    </header>
+
+    <section class="kpi-grid">
+      <article class="kpi blue">
+        <span>Total Hydrants</span>
+        <strong id="totalHydrants">--</strong>
+        <small>Imported inventory</small>
+      </article>
+
+      <article class="kpi red">
+        <span>Out of Service</span>
+        <strong id="oosHydrants">--</strong>
+        <small>Immediate operational concern</small>
+      </article>
+
+      <article class="kpi gray">
+        <span>Under Repair</span>
+        <strong id="repairHydrants">--</strong>
+        <small>Repair / testing / follow-up</small>
+      </article>
+    </section>
+
+    <section class="main-grid">
+
+      <article class="panel provider-panel">
+        <div class="panel-head">
+          <div>
+            <h2>Water Provider Status</h2>
+            <p>Horn Lake Water / Days Water / Walls Water</p>
+          </div>
+        </div>
+
+        <div id="providerGrid" class="provider-grid"></div>
+      </article>
+
+      <article class="panel map-panel">
+        <div class="panel-head">
+          <div>
+            <h2>Hydrant Supply Map</h2>
+            <p id="mapSummary">Inventory map</p>
+          </div>
+        </div>
+
+        <div class="legend">
+          <span><i class="dot available"></i>Available</span>
+          <span><i class="dot oos"></i>OOS</span>
+          <span><i class="dot lowflow"></i>Low Flow</span>
+          <span><i class="dot repair"></i>Repair / Testing</span>
+          <span><i class="dot unknown"></i>Unknown</span>
+        </div>
+
+        <div id="hydrantMap"></div>
+      </article>
+
+      <article class="panel notes-panel">
+        <div class="panel-head">
+          <div>
+            <h2>Out of Service Hydrants</h2>
+            <p>Live OOS spreadsheet feed</p>
+          </div>
+        </div>
+
+        <div id="notesList" class="notes-list"></div>
+      </article>
+
+    </section>
+
+  </main>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="/hydrants.js?v=3"></script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Horn Lake Daily Roster</title>
+  <link rel="stylesheet" href="/daily-roster.css?v=1" />
+</head>
+<body>
+  <main class="roster-page">
+    <header class="roster-header">
+      <div class="brand">
+        <img src="/horn-lake-logo.png" alt="Horn Lake Fire Department" />
+        <div>
+          <div class="kicker">Horn Lake Fire Department</div>
+          <h1>Daily Roster</h1>
+          <div id="rosterDate" class="subline">Loading roster</div>
+        </div>
+      </div>
+      <div class="status">
+        <div><span class="live-dot"></span><span id="statusText">Connecting to Slate</span></div>
+        <div id="updatedText">Last Updated --</div>
+      </div>
+    </header>
+
+    <section class="roster-grid" id="rosterGrid"></section>
+  </main>
+
+  <script src="/daily-roster.js?v=1"></script>
+</body>
+</html>
