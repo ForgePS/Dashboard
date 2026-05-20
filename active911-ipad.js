@@ -5,6 +5,7 @@ const dispatchType = document.getElementById('dispatchType');
 const dispatchPlace = document.getElementById('dispatchPlace');
 const dispatchAddress = document.getElementById('dispatchAddress');
 const dispatchUnits = document.getElementById('dispatchUnits');
+const preFirePlanButton = document.getElementById('preFirePlanButton');
 const updatedText = document.getElementById('updatedText');
 const weatherSummary = document.getElementById('weatherSummary');
 const windText = document.getElementById('windText');
@@ -21,6 +22,9 @@ let activeIncidentSent = '';
 let lastRenderedAlertKey = '';
 let alertAudioContext = null;
 let screenWakeLock = null;
+let currentDirectionsUrl = '';
+let currentIncidentDestination = '';
+let currentPreFirePlanUrl = '';
 
 const TYPE_LABELS = {
   MEDICAL: 'MEDICAL',
@@ -248,6 +252,99 @@ function mapQuery(incident) {
   return params.toString();
 }
 
+function mapsDestination(incident) {
+  if (incident?.latitude && incident?.longitude) {
+    return `${incident.latitude},${incident.longitude}`;
+  }
+
+  return String(incident?.address || '').trim();
+}
+
+function directionsUrlForIncident(incident) {
+  const destination = mapsDestination(incident);
+  if (!destination) return '';
+
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`;
+}
+
+function openCurrentDirections() {
+  if (!currentIncidentDestination) return;
+
+  const openDirections = (origin) => {
+    const url = new URL('https://www.google.com/maps/dir/');
+    url.searchParams.set('api', '1');
+    url.searchParams.set('destination', currentIncidentDestination);
+    url.searchParams.set('travelmode', 'driving');
+
+    if (origin) {
+      url.searchParams.set('origin', origin);
+    }
+
+    window.open(url.toString(), '_blank', 'noopener');
+  };
+
+  if (!navigator.geolocation) {
+    openDirections('');
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      openDirections(`${position.coords.latitude},${position.coords.longitude}`);
+    },
+    () => {
+      openDirections('');
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 5000,
+      maximumAge: 60000
+    }
+  );
+}
+
+function setPreFirePlanButton(plan) {
+  currentPreFirePlanUrl = plan?.url || '';
+
+  if (!preFirePlanButton) return;
+
+  preFirePlanButton.disabled = !currentPreFirePlanUrl;
+  preFirePlanButton.textContent = currentPreFirePlanUrl
+    ? (plan?.name || 'Pre Fire Plan')
+    : 'No Pre Fire Plan';
+}
+
+function openPreFirePlan() {
+  if (!currentPreFirePlanUrl) return;
+  window.open(currentPreFirePlanUrl, '_blank', 'noopener');
+}
+
+function setupDirectionsTapTargets() {
+  const tapTargets = [
+    satelliteImage?.closest('.map-card'),
+    routeImage?.closest('.map-card')
+  ].filter(Boolean);
+
+  for (const target of tapTargets) {
+    target.setAttribute('role', 'button');
+    target.setAttribute('tabindex', '0');
+    target.setAttribute('title', 'Open Google Maps directions from current location');
+
+    target.addEventListener('click', openCurrentDirections);
+    target.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        openCurrentDirections();
+      }
+    });
+  }
+}
+
+function setupPreFirePlanButton() {
+  if (!preFirePlanButton) return;
+  preFirePlanButton.addEventListener('click', openPreFirePlan);
+}
+
 function imageSize(element) {
   const rect = element.getBoundingClientRect();
   const width = Math.max(360, Math.round(rect.width || 640));
@@ -294,6 +391,9 @@ async function loadWeather(incident) {
 
 function setMapImages(incident) {
   const query = mapQuery(incident);
+  currentIncidentDestination = mapsDestination(incident);
+  currentDirectionsUrl = directionsUrlForIncident(incident);
+  document.body.classList.toggle('has-directions', Boolean(currentDirectionsUrl));
 
   if (!query) {
     streetViewImage.removeAttribute('src');
@@ -324,6 +424,7 @@ function setWaiting(message = 'Waiting for Active911 alert') {
   incidentDetails.textContent = 'Waiting for incident information.';
   specialNotes.textContent = '';
   specialNotes.classList.remove('visible');
+  setPreFirePlanButton(null);
   weatherTemp.textContent = '--';
   weatherSummary.textContent = 'Live feed';
   windText.textContent = 'Active911 connected';
@@ -379,6 +480,7 @@ async function loadLatestAlert() {
     );
     specialNotes.textContent = latest.specialNotes || '';
     specialNotes.classList.toggle('visible', Boolean(latest.specialNotes));
+    setPreFirePlanButton(latest.preFirePlan);
 
     await loadWeather(latest);
     if (isNewRenderedAlert) {
@@ -394,6 +496,8 @@ async function loadLatestAlert() {
 }
 
 keepIpadAwake();
+setupDirectionsTapTargets();
+setupPreFirePlanButton();
 loadLatestAlert();
 setInterval(loadLatestAlert, 15000);
 setInterval(updateCountdown, 1000);

@@ -135,6 +135,9 @@ const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || '';
 const SPECIAL_ADDRESS_NOTES_FILE =
   process.env.SPECIAL_ADDRESS_NOTES_FILE ||
   path.join(DATA_DIR, 'special-address-notes.json');
+const PREFIRE_PLANS_FILE =
+  process.env.PREFIRE_PLANS_FILE ||
+  path.join(DATA_DIR, 'pre-fire-plans.json');
 
 const ACTIVE911_BACKFILL_START =
   process.env.ACTIVE911_BACKFILL_START ||
@@ -1789,7 +1792,39 @@ function getSpecialAddressNotes(address) {
   return match?.notes || '';
 }
 
+function loadPreFirePlans() {
+  const rows = loadJsonFile(PREFIRE_PLANS_FILE, []);
+  if (!Array.isArray(rows)) return [];
+
+  return rows
+    .map((row) => ({
+      address: String(row.address || row.location || '').trim(),
+      name: String(row.name || row.title || row.businessName || 'Pre Fire Plan').trim(),
+      url: String(row.url || row.link || row.planUrl || row.preFirePlanUrl || '').trim()
+    }))
+    .filter((row) => row.address && row.url);
+}
+
+function getPreFirePlan(address) {
+  const incidentKey = normalizeAddressKey(address);
+  if (!incidentKey) return null;
+
+  const match = loadPreFirePlans().find((row) => {
+    const planKey = normalizeAddressKey(row.address);
+    return planKey && (incidentKey.includes(planKey) || planKey.includes(incidentKey));
+  });
+
+  if (!match) return null;
+
+  return {
+    name: match.name || 'Pre Fire Plan',
+    url: match.url
+  };
+}
+
 function formatTakeoverIncident(item) {
+  const preFirePlan = getPreFirePlan(item.address);
+
   return {
       id: item.id || '',
       type: item.rawType || item.type || 'UNKNOWN',
@@ -1803,7 +1838,8 @@ function formatTakeoverIncident(item) {
       sent: item.sent || '',
       timeLabel: item.sent ? formatCentralDateTime(item.sent) : '',
       details: item.raw?.details || item.raw?.description || item.raw?.cad_code || item.rawType || item.cadCode || '',
-      specialNotes: getSpecialAddressNotes(item.address)
+      specialNotes: getSpecialAddressNotes(item.address),
+      preFirePlan
   };
 }
 
