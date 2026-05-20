@@ -1915,15 +1915,15 @@ app.get('/analytics', (req, res) => {
 });
 
 app.get('/station1', (req, res) => {
-  sendHtmlFileOrFallback(res, 'analytics.html', 'Horn Lake Fire Analytics', '/api/analytics-dashboard');
+  sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/active911-takeover');
 });
 
 app.get('/station2', (req, res) => {
-  sendHtmlFileOrFallback(res, 'analytics.html', 'Horn Lake Fire Analytics', '/api/analytics-dashboard');
+  sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/active911-takeover');
 });
 
 app.get('/station3', (req, res) => {
-  sendHtmlFileOrFallback(res, 'analytics.html', 'Horn Lake Fire Analytics', '/api/analytics-dashboard');
+  sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/active911-takeover');
 });
 
 app.get('/daily-roster', (req, res) => {
@@ -1954,12 +1954,28 @@ app.get('/alerts', (req, res) => {
   sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/latest');
 });
 
+app.get('/alert', (req, res) => {
+  sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/active911-takeover');
+});
+
 app.get('/active911/station:station', (req, res) => {
   sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/latest');
 });
 
 app.get('/alerts/station:station', (req, res) => {
   sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/latest');
+});
+
+app.get('/station:station/active911', (req, res) => {
+  sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/latest');
+});
+
+app.get('/station:station/alerts', (req, res) => {
+  sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/latest');
+});
+
+app.get('/station:station/alert', (req, res) => {
+  sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/active911-takeover');
 });
 
 app.get('/api/daily-roster', async (req, res) => {
