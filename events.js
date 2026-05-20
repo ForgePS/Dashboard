@@ -50,7 +50,7 @@ function renderEvents(data) {
   setText('updatedText', `Last Updated ${data.updatedLabel || '--'}`);
   setText('upcomingCount', numberFormat.format(events.length));
   setText('monthCount', numberFormat.format(events.filter(eventMonthMatches).length));
-  setText('nextEventDate', events[0]?.dateLabel || '--');
+  setText('nextEventDate', events[0]?.startDateLabel || events[0]?.dateLabel || '--');
 
   if (!list) return;
   list.innerHTML = events.length

@@ -33,7 +33,7 @@ body {
   margin: 0 auto;
   padding: 14px 18px 18px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 420px;
+  grid-template-columns: minmax(0, 1fr) 330px;
   grid-template-rows: 118px minmax(0, 1fr);
   gap: 14px;
 }
@@ -113,13 +113,14 @@ h1 {
   grid-column: 2 / 3;
   grid-row: 2 / 3;
   display: grid;
-  gap: 14px;
+  gap: 10px;
   align-content: start;
 }
 
 .stat-card {
-  padding: 14px 20px;
-  border-left: 7px solid var(--blue);
+  min-height: 92px;
+  padding: 13px 18px;
+  border-left: 6px solid var(--blue);
 }
 
 .stat-card.red {
@@ -132,17 +133,17 @@ h1 {
 
 .stat-card span {
   color: var(--muted);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 900;
-  letter-spacing: 4px;
+  letter-spacing: 3px;
   text-transform: uppercase;
 }
 
 .stat-card strong {
   display: block;
-  margin-top: 8px;
+  margin-top: 7px;
   color: #fff;
-  font-size: 34px;
+  font-size: 30px;
   line-height: 1;
 }
 

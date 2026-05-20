@@ -1146,29 +1146,87 @@ function parseEventDate(value) {
   const text = String(value || '').trim();
   if (!text) return null;
 
+  let match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\b.*)?$/);
+
+  if (match) {
+    const [, month, day, yearText] = match;
+    const year = Number(yearText.length === 2 ? `20${yearText}` : yearText);
+    const date = new Date(year, Number(month) - 1, Number(day), 12, 0, 0);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  match = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s].*)?$/);
+
+  if (match) {
+    const [, year, month, day] = match;
+    const date = new Date(Number(year), Number(month) - 1, Number(day), 12, 0, 0);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const monthMatch = text.match(/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/i);
+  const dayMatch = text.match(/\b(\d{1,2})(?:st|nd|rd|th)?\b/);
+
+  if (monthMatch && dayMatch) {
+    const monthMap = {
+      jan: 0,
+      feb: 1,
+      mar: 2,
+      apr: 3,
+      may: 4,
+      jun: 5,
+      jul: 6,
+      aug: 7,
+      sep: 8,
+      oct: 9,
+      nov: 10,
+      dec: 11
+    };
+    const yearMatch = text.match(/\b(20\d{2})\b/);
+    const month = monthMap[monthMatch[1].slice(0, 3).toLowerCase()];
+    const year = yearMatch ? Number(yearMatch[1]) : new Date().getFullYear();
+    const date = new Date(year, month, Number(dayMatch[1]), 12, 0, 0);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
   const parsed = new Date(text);
-  if (!Number.isNaN(parsed.getTime())) return parsed;
 
-  const match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-  if (!match) return null;
-
-  const [, month, day, yearText] = match;
-  const year = Number(yearText.length === 2 ? `20${yearText}` : yearText);
-  const date = new Date(year, Number(month) - 1, Number(day));
-
-  return Number.isNaN(date.getTime()) ? null : date;
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function formatEventDate(value) {
-  const date = parseEventDate(value);
-  if (!date) return String(value || '').trim() || '--';
+function formatShortEventDate(date) {
+  if (!date || Number.isNaN(date.getTime())) return '--';
 
   return date.toLocaleDateString('en-US', {
     timeZone: TIME_ZONE,
-    weekday: 'short',
     month: 'short',
     day: 'numeric'
   });
+}
+
+function formatEventDate(value) {
+  const text = String(value || '').trim();
+  const monthMatch = text.match(/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/i);
+  const days = [...text.matchAll(/\b(\d{1,2})(?:st|nd|rd|th)?\b/g)]
+    .map((match) => Number(match[1]))
+    .filter((day) => day >= 1 && day <= 31);
+
+  if (monthMatch && days.length > 1) {
+    const start = parseEventDate(`${monthMatch[1]} ${days[0]}`);
+    const endDay = days[days.length - 1];
+    return `${formatShortEventDate(start)}-${endDay}`;
+  }
+
+  const date = parseEventDate(value);
+  if (!date) return String(value || '').trim() || '--';
+
+  return formatShortEventDate(date);
+}
+
+function getEventMonthKey(value) {
+  const date = parseEventDate(value);
+  if (!date) return '';
+
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
 function shapeEventRows(rows) {
@@ -1203,9 +1261,11 @@ function shapeEventRows(rows) {
         title: title || fallbackTitle || 'Untitled Event',
         date,
         dateLabel: formatEventDate(date),
+        startDateLabel: formatShortEventDate(sortDate),
+        monthKey: getEventMonthKey(date),
         time: time || '--',
         location: location || '--',
-        category: category || 'Department Event',
+        category,
         status: status || 'Scheduled',
         notes,
         owner,
@@ -1226,7 +1286,7 @@ function shapeEventRows(rows) {
 
       return values.some((value) => {
         const text = String(value || '').trim();
-        return text && text !== '--' && text !== 'Department Event' && text !== 'Scheduled';
+        return text && text !== '--' && text !== 'Scheduled';
       });
     })
     .sort((a, b) => a.sortTime - b.sortTime);
