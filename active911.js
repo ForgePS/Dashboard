@@ -10,7 +10,7 @@ const windText = document.getElementById('windText');
 const recentList = document.getElementById('recentList');
 const incidentDetails = document.getElementById('incidentDetails');
 const specialNotes = document.getElementById('specialNotes');
-const streetViewFrame = document.getElementById('streetViewFrame');
+const streetViewImage = document.getElementById('streetViewImage');
 const satelliteImage = document.getElementById('satelliteImage');
 const routeImage = document.getElementById('routeImage');
 
@@ -98,6 +98,13 @@ function mapQuery(incident) {
   return params.toString();
 }
 
+function imageSize(element) {
+  const rect = element.getBoundingClientRect();
+  const width = Math.max(360, Math.round(rect.width || 640));
+  const height = Math.max(220, Math.round(rect.height || 260));
+  return `${width}x${height}`;
+}
+
 function renderRecent(items) {
   recentList.innerHTML = '';
 
@@ -139,7 +146,7 @@ function setMapImages(incident) {
   const query = mapQuery(incident);
 
   if (!query) {
-    streetViewFrame.removeAttribute('src');
+    streetViewImage.removeAttribute('src');
     satelliteImage.removeAttribute('src');
     routeImage.removeAttribute('src');
     return;
@@ -147,10 +154,13 @@ function setMapImages(incident) {
 
   const station = encodeURIComponent(routeStation());
   const stamp = Date.now();
+  const streetSize = encodeURIComponent(imageSize(streetViewImage));
+  const satelliteSize = encodeURIComponent(imageSize(satelliteImage));
+  const routeSize = encodeURIComponent(imageSize(routeImage));
 
-  streetViewFrame.src = `/api/map/streetview?${query}&size=640x260&fov=120&pitch=-2&radius=1000&ts=${stamp}`;
-  satelliteImage.src = `/api/map/satellite?${query}&size=640x260&hydrants=18&ts=${stamp}`;
-  routeImage.src = `/api/map/route?station=${station}&${query}&size=640x260&ts=${stamp}`;
+  streetViewImage.src = `/api/map/streetview?${query}&size=${streetSize}&fov=120&pitch=-2&radius=1000&ts=${stamp}`;
+  satelliteImage.src = `/api/map/satellite?${query}&size=${satelliteSize}&hydrants=18&ts=${stamp}`;
+  routeImage.src = `/api/map/route?station=${station}&${query}&size=${routeSize}&ts=${stamp}`;
 }
 
 function setWaiting(message = 'Waiting for Active911 alert') {
