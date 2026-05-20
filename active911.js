@@ -17,6 +17,7 @@ const routeImage = document.getElementById('routeImage');
 const ACTIVE911_TAKEOVER_DURATION_MS =
   Number(new URLSearchParams(window.location.search).get('durationMinutes') || 5) * 60 * 1000;
 let activeIncidentSent = '';
+let lastRenderedAlertKey = '';
 
 const TYPE_LABELS = {
   MEDICAL: 'MEDICAL',
@@ -245,6 +246,10 @@ async function loadLatestAlert() {
       return;
     }
 
+    const alertKey = `${latest.id || ''}|${latest.sent || ''}|${latest.address || ''}`;
+    const isNewRenderedAlert = alertKey !== lastRenderedAlertKey;
+    lastRenderedAlertKey = alertKey;
+
     if (!isAlertActive(latest)) {
       activeIncidentSent = '';
       updateCountdown();
@@ -270,7 +275,9 @@ async function loadLatestAlert() {
     specialNotes.classList.toggle('visible', Boolean(latest.specialNotes));
 
     await loadWeather(latest);
-    setMapImages(latest);
+    if (isNewRenderedAlert) {
+      setMapImages(latest);
+    }
   } catch (err) {
     setWaiting('Unable to reach Active911 feed');
     updatedText.textContent = `Last Updated ${new Date().toLocaleString()}`;
