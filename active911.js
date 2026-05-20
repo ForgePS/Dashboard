@@ -89,6 +89,10 @@ function returnPath() {
   return '/station1';
 }
 
+function shouldAutoReturn() {
+  return Boolean(new URLSearchParams(window.location.search).get('returnTo'));
+}
+
 function isAlertActive(incident) {
   const sentAt = new Date(incident?.sent || '').getTime();
   return Number.isFinite(sentAt) && Date.now() - sentAt <= ACTIVE911_TAKEOVER_DURATION_MS;
@@ -256,6 +260,12 @@ async function loadLatestAlert() {
     if (!isAlertActive(latest)) {
       activeIncidentSent = '';
       updateCountdown();
+
+      if (shouldAutoReturn()) {
+        window.location.href = returnPath();
+        return;
+      }
+
       setWaiting('No active incident. Waiting for next Active911 alert.');
       return;
     }
