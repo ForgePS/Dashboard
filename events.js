@@ -1,21 +1,23 @@
 const numberFormat = new Intl.NumberFormat('en-US');
 
+function displayCategory(value) {
+  const clean = String(value || '').trim();
+  return clean.toUpperCase() === 'DEPARTMENT EVENT' ? '' : clean;
+}
+
 function setText(id, value) {
   const el = document.getElementById(id);
   if (el) el.textContent = value;
 }
 
-function eventMonthMatches(dateText) {
-  if (!dateText) return false;
-
-  const date = new Date(dateText);
-  if (Number.isNaN(date.getTime())) return false;
-
+function eventMonthMatches(event) {
   const now = new Date();
-  return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  return event.monthKey === currentMonth;
 }
 
 function eventCard(event) {
+  const category = displayCategory(event.category);
   const details = [
     ['Date', event.dateLabel],
     ['Time', event.time],
@@ -26,7 +28,7 @@ function eventCard(event) {
   return `
     <article class="event-card">
       <div class="event-card-top">
-        <div class="event-date">${event.category || 'Event'}</div>
+        <div class="event-date">${category}</div>
         <div class="event-status">${event.status || 'Scheduled'}</div>
       </div>
       <h3>${event.title || 'Untitled Event'}</h3>
@@ -40,33 +42,6 @@ function eventCard(event) {
   `;
 }
 
-function renderHero(event) {
-  const container = document.getElementById('heroEvent');
-  if (!container) return;
-
-  if (!event) {
-    container.innerHTML = `
-      <div class="event-tag">Ready</div>
-      <h2>No Events Listed</h2>
-      <div class="hero-meta"><span>Waiting on the events feed</span></div>
-    `;
-    return;
-  }
-
-  const meta = [
-    event.dateLabel && event.dateLabel !== '--' ? event.dateLabel : '',
-    event.time && event.time !== '--' ? event.time : '',
-    event.location && event.location !== '--' ? event.location : ''
-  ].filter(Boolean);
-
-  container.innerHTML = `
-    <div class="event-tag">${event.category || 'Event'}</div>
-    <h2>${event.title || 'Untitled Event'}</h2>
-    ${meta.length ? `<div class="hero-meta">${meta.map((item) => `<span>${item}</span>`).join('')}</div>` : ''}
-    ${event.notes ? `<div class="hero-notes">${event.notes}</div>` : ''}
-  `;
-}
-
 function renderEvents(data) {
   const events = data.events || [];
   const list = document.getElementById('eventList');
@@ -74,10 +49,8 @@ function renderEvents(data) {
   setText('statusText', data.connected ? 'Live events feed connected' : 'Events page ready');
   setText('updatedText', `Last Updated ${data.updatedLabel || '--'}`);
   setText('upcomingCount', numberFormat.format(events.length));
-  setText('monthCount', numberFormat.format(events.filter((event) => eventMonthMatches(event.date)).length));
+  setText('monthCount', numberFormat.format(events.filter(eventMonthMatches).length));
   setText('nextEventDate', events[0]?.dateLabel || '--');
-
-  renderHero(events[0]);
 
   if (!list) return;
   list.innerHTML = events.length
