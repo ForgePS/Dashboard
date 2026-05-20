@@ -1,3 +1,4 @@
+const weatherTemp = document.getElementById('weatherTemp');
 const dispatchTime = document.getElementById('dispatchTime');
 const dispatchType = document.getElementById('dispatchType');
 const dispatchAddress = document.getElementById('dispatchAddress');
@@ -8,8 +9,8 @@ const windText = document.getElementById('windText');
 const recentList = document.getElementById('recentList');
 const incidentDetails = document.getElementById('incidentDetails');
 const streetViewFrame = document.getElementById('streetViewFrame');
-const satelliteFrame = document.getElementById('satelliteFrame');
-const routeFrame = document.getElementById('routeFrame');
+const satelliteImage = document.getElementById('satelliteImage');
+const routeImage = document.getElementById('routeImage');
 
 const TYPE_LABELS = {
   MEDICAL: 'MEDICAL',
@@ -48,20 +49,18 @@ function formatDispatchTime(value) {
   });
 }
 
-function mapQuery(incident) {
-  if (incident.latitude && incident.longitude) {
-    return `${incident.latitude},${incident.longitude}`;
-  }
+function routeStation() {
+  const params = new URLSearchParams(window.location.search);
+  const fromQuery = params.get('station');
+  const path = window.location.pathname.toLowerCase();
 
-  return `${incident.address || 'Horn Lake, MS'} Horn Lake MS`;
+  if (fromQuery === '2' || fromQuery?.toLowerCase() === 'station2' || path.includes('station2')) return '2';
+  if (fromQuery === '3' || fromQuery?.toLowerCase() === 'station3' || path.includes('station3')) return '3';
+  return '1';
 }
 
-function setMapFrames(incident) {
-  const query = encodeURIComponent(mapQuery(incident));
-
-  streetViewFrame.src = `https://maps.google.com/maps?q=${query}&layer=c&output=svembed`;
-  satelliteFrame.src = `https://maps.google.com/maps?q=${query}&t=k&z=17&output=embed`;
-  routeFrame.src = `https://maps.google.com/maps?q=${query}&z=15&output=embed`;
+function hasCoordinates(incident) {
+  return incident?.latitude && incident?.longitude;
 }
 
 function renderRecent(items) {
@@ -79,14 +78,57 @@ function renderRecent(items) {
   }
 }
 
+async function loadWeather(incident) {
+  const query = hasCoordinates(incident)
+    ? `?lat=${encodeURIComponent(incident.latitude)}&lon=${encodeURIComponent(incident.longitude)}`
+    : '';
+
+  try {
+    const response = await fetch(`/api/weather${query}`, { cache: 'no-store' });
+    const data = await response.json();
+
+    if (!data.ok) {
+      throw new Error(data.error || 'Weather unavailable');
+    }
+
+    weatherTemp.textContent = `${data.temp}°F`;
+    weatherSummary.textContent = data.condition || 'Current';
+    windText.textContent = `Wind: ${data.windMph} mph ${data.windDir || ''}`.trim();
+  } catch (err) {
+    weatherTemp.textContent = '--';
+    weatherSummary.textContent = 'Weather unavailable';
+    windText.textContent = 'Wind: --';
+  }
+}
+
+function setMapImages(incident) {
+  if (!hasCoordinates(incident)) {
+    streetViewFrame.removeAttribute('src');
+    satelliteImage.removeAttribute('src');
+    routeImage.removeAttribute('src');
+    return;
+  }
+
+  const lat = encodeURIComponent(incident.latitude);
+  const lon = encodeURIComponent(incident.longitude);
+  const station = encodeURIComponent(routeStation());
+  const stamp = Date.now();
+
+  streetViewFrame.src = `/api/map/streetview?lat=${lat}&lon=${lon}&size=640x260&fov=120&pitch=-2&radius=1000&ts=${stamp}`;
+  satelliteImage.src = `/api/map/satellite?lat=${lat}&lon=${lon}&size=640x260&hydrants=18&ts=${stamp}`;
+  routeImage.src = `/api/map/route?station=${station}&lat=${lat}&lon=${lon}&size=640x260&ts=${stamp}`;
+}
+
 function setWaiting(message = 'Waiting for Active911 alert') {
   dispatchTime.textContent = '--';
   dispatchType.textContent = 'Waiting';
   dispatchAddress.textContent = message;
   dispatchUnits.textContent = '--';
   incidentDetails.textContent = 'Waiting for incident information.';
+  weatherTemp.textContent = '--';
   weatherSummary.textContent = 'Live feed';
   windText.textContent = 'Active911 connected';
+  setMapImages(null);
 }
 
 async function loadLatestAlert() {
@@ -119,9 +161,9 @@ async function loadLatestAlert() {
       latest.cadCode ||
       latest.businessName ||
       'No incident details provided.';
-    weatherSummary.textContent = 'Clear';
-    windText.textContent = data.active911?.lastPollError ? 'Feed warning' : 'Active911 connected';
-    setMapFrames(latest);
+
+    await loadWeather(latest);
+    setMapImages(latest);
   } catch (err) {
     setWaiting('Unable to reach Active911 feed');
     updatedText.textContent = `Last Updated ${new Date().toLocaleString()}`;

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Active911 Alert Takeover</title>
-  <link rel="stylesheet" href="/active911.css?v=2" />
+  <link rel="stylesheet" href="/active911.css?v=4" />
 </head>
 <body>
   <main class="dispatch-board">
@@ -37,7 +37,6 @@
 
       <section class="center-stack">
         <article class="image-card">
-          <div class="tag">Street View - Facing Address</div>
           <iframe id="streetViewFrame" title="Street view facing address" loading="lazy"></iframe>
         </article>
 
@@ -49,18 +48,18 @@
 
       <section class="right-stack">
         <article class="map-card">
-          <div class="tag">Satellite + Hydrants</div>
-          <iframe id="satelliteFrame" title="Satellite map" loading="lazy"></iframe>
+          <img id="satelliteImage" alt="Satellite map with hydrants" />
+          <div class="map-fallback">Satellite map waiting for coordinates.</div>
         </article>
 
         <article class="map-card">
-          <div class="tag">Route</div>
-          <iframe id="routeFrame" title="Route map" loading="lazy"></iframe>
+          <img id="routeImage" alt="Station route map" />
+          <div class="map-fallback">Route map waiting for coordinates.</div>
         </article>
       </section>
     </section>
   </main>
 
-  <script src="/active911.js?v=2"></script>
+  <script src="/active911.js?v=4"></script>
 </body>
 </html>

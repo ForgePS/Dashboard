@@ -130,6 +130,7 @@ const ACTIVE911_REFRESH_TOKEN = process.env.ACTIVE911_REFRESH_TOKEN || '';
 const ACTIVE911_TOKEN_URL =
   process.env.ACTIVE911_TOKEN_URL ||
   'https://access.active911.com/interface/open_api/token.php';
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || '';
 
 const ACTIVE911_BACKFILL_START =
   process.env.ACTIVE911_BACKFILL_START ||
@@ -1844,6 +1845,14 @@ app.get('/alerts', (req, res) => {
   sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/latest');
 });
 
+app.get('/active911/station:station', (req, res) => {
+  sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/latest');
+});
+
+app.get('/alerts/station:station', (req, res) => {
+  sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/latest');
+});
+
 app.get('/api/daily-roster', async (req, res) => {
   try {
     const roster = await fetchDailyRoster(String(req.query.force || '').toLowerCase() === 'true');
@@ -2456,6 +2465,272 @@ app.get('/api/hydrants-status', async (req, res) => {
     console.error('Hydrant status error:', err);
     res.status(500).json({ ok: false, error: err.message });
   }
+});
+
+// ======================================================
+// ACTIVE911 TAKEOVER MAP + WEATHER ROUTES
+// ======================================================
+
+const ACTIVE911_STATIONS = {
+  '1': {
+    id: '1',
+    label: 'STATION 1',
+    address: '6770 Tulane Horn Lake, MS 38637',
+    color: '0x91c900'
+  },
+  '2': {
+    id: '2',
+    label: 'STATION 2',
+    address: '5711 Hwy 51 Horn Lake, MS 38637',
+    color: '0x2e9cff'
+  },
+  '3': {
+    id: '3',
+    label: 'STATION 3',
+    address: '6363 Hwy 301 Walls, MS 38680',
+    color: '0xb25cff'
+  }
+};
+
+const HORN_LAKE_WEATHER = { lat: 34.9554, lon: -90.0348 };
+
+function safeString(value) {
+  return String(value ?? '').trim();
+}
+
+function normalizeActive911StationId(value) {
+  const raw = safeString(value).toLowerCase().replace(/\s+/g, '');
+  if (raw === 'station2' || raw === '2') return '2';
+  if (raw === 'station3' || raw === '3') return '3';
+  return '1';
+}
+
+function active911StationFromRequest(req) {
+  const pathText = safeString(req.path).toLowerCase();
+  if (pathText.includes('station2')) return '2';
+  if (pathText.includes('station3')) return '3';
+  if (pathText.includes('station1')) return '1';
+  return normalizeActive911StationId(req.query.station || process.env.STATION_ID || '1');
+}
+
+function svgPlaceholder(title, message) {
+  const safeTitle = safeString(title).replace(/[<>&"]/g, '');
+  const safeMessage = safeString(message).replace(/[<>&"]/g, '');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="520" viewBox="0 0 1280 520">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#111820"/><stop offset="1" stop-color="#06090d"/></linearGradient></defs>
+<rect width="1280" height="520" fill="url(#g)"/>
+<rect x="20" y="20" width="1240" height="480" rx="22" fill="none" stroke="#3a424f" stroke-width="3"/>
+<text x="640" y="230" text-anchor="middle" fill="#ffffff" font-family="Arial" font-size="48" font-weight="700">${safeTitle}</text>
+<text x="640" y="292" text-anchor="middle" fill="#bfc7d4" font-family="Arial" font-size="28">${safeMessage}</text>
+</svg>`;
+}
+
+function loadTakeoverHydrants() {
+  try {
+    if (!fs.existsSync(HYDRANT_CSV_FILE)) return [];
+
+    const lines = fs.readFileSync(HYDRANT_CSV_FILE, 'utf8').split(/\r?\n/).filter(Boolean);
+
+    return lines.slice(1)
+      .map((line) => {
+        const cols = parseCsvLine(line);
+        const lat = Number(cols[3]);
+        const lon = Number(cols[4]);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+        return { lat, lon };
+      })
+      .filter(Boolean);
+  } catch (err) {
+    console.error('Takeover hydrant load failed:', err.message);
+    return [];
+  }
+}
+
+function nearestTakeoverHydrants(lat, lon, limit = 18) {
+  const a = Number(lat);
+  const b = Number(lon);
+
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return [];
+
+  return loadTakeoverHydrants()
+    .map((hydrant) => ({
+      ...hydrant,
+      distance: Math.hypot(hydrant.lat - a, hydrant.lon - b)
+    }))
+    .sort((x, y) => x.distance - y.distance)
+    .slice(0, limit);
+}
+
+function windDirectionLabel(degrees) {
+  const dir = Number(degrees);
+  if (!Number.isFinite(dir)) return '';
+
+  const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  return dirs[Math.round(dir / 45) % 8];
+}
+
+app.get('/api/weather', async (req, res) => {
+  try {
+    const lat = safeString(req.query.lat || HORN_LAKE_WEATHER.lat);
+    const lon = safeString(req.query.lon || HORN_LAKE_WEATHER.lon);
+    const url =
+      `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
+      '&current=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m' +
+      '&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FChicago';
+    const response = await fetch(url, { headers: { Accept: 'application/json' } });
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(payload.reason || response.statusText);
+    }
+
+    const codeMap = {
+      0: 'Clear',
+      1: 'Mainly Clear',
+      2: 'Partly Cloudy',
+      3: 'Cloudy',
+      45: 'Fog',
+      48: 'Fog',
+      51: 'Light Drizzle',
+      53: 'Drizzle',
+      55: 'Heavy Drizzle',
+      61: 'Light Rain',
+      63: 'Rain',
+      65: 'Heavy Rain',
+      71: 'Light Snow',
+      73: 'Snow',
+      75: 'Heavy Snow',
+      80: 'Rain Showers',
+      81: 'Rain Showers',
+      82: 'Heavy Showers',
+      95: 'Thunderstorm',
+      96: 'Thunderstorm',
+      99: 'Thunderstorm'
+    };
+
+    res.json({
+      ok: true,
+      temp: Math.round(Number(payload.current?.temperature_2m)),
+      condition: codeMap[payload.current?.weather_code] || 'Current Weather',
+      windMph: Math.round(Number(payload.current?.wind_speed_10m)),
+      windDir: windDirectionLabel(payload.current?.wind_direction_10m),
+      time: payload.current?.time || null
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.get('/api/map/streetview', (req, res) => {
+  const lat = safeString(req.query.lat);
+  const lon = safeString(req.query.lon || req.query.lng);
+
+  if (!GOOGLE_MAPS_API_KEY || !lat || !lon) {
+    return res.type('svg').send(svgPlaceholder(
+      'STREET VIEW UNAVAILABLE',
+      !GOOGLE_MAPS_API_KEY ? 'Google Maps API key is not configured.' : 'No coordinates received.'
+    ));
+  }
+
+  const params = new URLSearchParams({
+    size: safeString(req.query.size || '640x260'),
+    fov: safeString(req.query.fov || '120'),
+    pitch: safeString(req.query.pitch || '-2'),
+    source: 'outdoor',
+    location: `${lat},${lon}`,
+    radius: safeString(req.query.radius || '1000'),
+    key: GOOGLE_MAPS_API_KEY
+  });
+
+  res.redirect(`https://maps.googleapis.com/maps/api/streetview?${params.toString()}`);
+});
+
+app.get('/api/map/satellite', (req, res) => {
+  const lat = safeString(req.query.lat);
+  const lon = safeString(req.query.lon || req.query.lng);
+
+  if (!GOOGLE_MAPS_API_KEY || !lat || !lon) {
+    return res.type('svg').send(svgPlaceholder(
+      'SATELLITE VIEW UNAVAILABLE',
+      !GOOGLE_MAPS_API_KEY ? 'Google Maps API key is not configured.' : 'No coordinates received.'
+    ));
+  }
+
+  const params = new URLSearchParams({
+    center: `${lat},${lon}`,
+    zoom: safeString(req.query.zoom || '17'),
+    size: safeString(req.query.size || '640x260'),
+    scale: '2',
+    maptype: 'satellite',
+    markers: `color:red|label:I|${lat},${lon}`,
+    key: GOOGLE_MAPS_API_KEY
+  });
+
+  const hydrants = nearestTakeoverHydrants(lat, lon, Number(req.query.hydrants || 14));
+  if (hydrants.length) {
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    params.append('markers', `icon:${baseUrl}/hydrant-icon.png|${hydrants.map((h) => `${h.lat},${h.lon}`).join('|')}`);
+  }
+
+  res.redirect(`https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`);
+});
+
+async function getDirectionsPolyline(origin, destination) {
+  const params = new URLSearchParams({
+    origin,
+    destination,
+    mode: 'driving',
+    key: GOOGLE_MAPS_API_KEY
+  });
+  const response = await fetch(`https://maps.googleapis.com/maps/api/directions/json?${params.toString()}`);
+  const payload = await response.json();
+
+  if (!response.ok || payload.status !== 'OK') {
+    throw new Error(payload.error_message || payload.status || response.statusText);
+  }
+
+  return payload.routes?.[0]?.overview_polyline?.points || null;
+}
+
+app.get('/api/map/route', async (req, res) => {
+  const lat = safeString(req.query.lat);
+  const lon = safeString(req.query.lon || req.query.lng);
+
+  if (!GOOGLE_MAPS_API_KEY || !lat || !lon) {
+    return res.type('svg').send(svgPlaceholder(
+      'ROUTE UNAVAILABLE',
+      !GOOGLE_MAPS_API_KEY ? 'Google Maps API key is not configured.' : 'No coordinates received.'
+    ));
+  }
+
+  const station = ACTIVE911_STATIONS[active911StationFromRequest(req)] || ACTIVE911_STATIONS['1'];
+  const destination = `${lat},${lon}`;
+  const params = new URLSearchParams({
+    size: safeString(req.query.size || '640x260'),
+    scale: '2',
+    maptype: 'roadmap',
+    markers: `color:red|label:I|${destination}`,
+    key: GOOGLE_MAPS_API_KEY
+  });
+
+  params.append('markers', `color:green|label:${station.id}|${station.address}`);
+
+  try {
+    const polyline = await getDirectionsPolyline(station.address, destination);
+    if (polyline) {
+      params.append('path', `color:${station.color}|weight:6|enc:${polyline}`);
+    }
+  } catch (err) {
+    console.error(`Route map failed for station ${station.id}:`, err.message);
+  }
+
+  res.redirect(`https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`);
+});
+
+app.get('/api/stations', (req, res) => {
+  res.json({ ok: true, stations: ACTIVE911_STATIONS });
 });
 
 // ======================================================
