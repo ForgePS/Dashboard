@@ -33,6 +33,13 @@ function renderSection(section) {
 
   const headers = section?.headers || [];
   const rows = section?.rows || [];
+  const layout = window.DISPLAY_CONFIG.layout || {};
+  const twoColumnAfter = Number(layout.twoColumnAfter || 0);
+
+  document.body.classList.toggle(
+    'two-column-section',
+    twoColumnAfter > 0 && rows.length > twoColumnAfter
+  );
 
   setText('sectionTitle', section?.title || window.DISPLAY_CONFIG.title);
 
