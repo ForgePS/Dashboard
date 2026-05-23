@@ -31,10 +31,10 @@ body {
 }
 
 .doc-page {
-  width: min(1920px, 100%);
-  height: 100vh;
+  width: min(1920px, 100vw);
+  height: min(1080px, 100vh);
   margin: 0 auto;
-  padding: 10px;
+  padding: 8px;
   overflow: hidden;
 }
 
@@ -42,11 +42,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  min-height: 86px;
-  padding: 10px 18px;
+  gap: 18px;
+  height: 66px;
+  min-height: 66px;
+  padding: 6px 14px;
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: 14px;
   background: rgba(8, 13, 20, 0.28);
   backdrop-filter: blur(1px);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
@@ -55,29 +56,29 @@ body {
 .brand {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
   min-width: 0;
 }
 
 .brand img {
-  width: 58px;
-  height: 58px;
+  width: 44px;
+  height: 44px;
   object-fit: contain;
 }
 
 .kicker {
   color: #b9d6ff;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 900;
-  letter-spacing: 7px;
+  letter-spacing: 6px;
   text-transform: uppercase;
 }
 
 h1 {
-  margin: 2px 0 4px;
-  font-size: clamp(32px, 4vw, 54px);
+  margin: 1px 0 2px;
+  font-size: 34px;
   line-height: 0.9;
-  letter-spacing: 8px;
+  letter-spacing: 7px;
   text-transform: uppercase;
   text-shadow:
     0 0 16px rgba(47, 128, 237, 0.35),
@@ -87,20 +88,20 @@ h1 {
 .subline,
 .status {
   color: var(--muted);
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 800;
 }
 
 .status {
   display: grid;
-  gap: 6px;
+  gap: 4px;
   text-align: right;
 }
 
 .live-dot {
   display: inline-block;
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   margin-right: 8px;
   border-radius: 999px;
   background: var(--green);
@@ -110,9 +111,9 @@ h1 {
 .doc-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.18fr) minmax(360px, 0.82fr);
-  gap: 8px;
-  height: calc(100vh - 112px);
-  margin-top: 8px;
+  gap: 7px;
+  height: calc(100% - 73px);
+  margin-top: 7px;
   overflow: hidden;
 }
 
@@ -121,18 +122,18 @@ h1 {
 }
 
 .single-grid .panel {
-  max-width: 1320px;
+  max-width: none;
   width: 100%;
 }
 
 .single-grid .table-wrap {
-  max-height: calc(100vh - 164px);
+  max-height: calc(100% - 30px);
 }
 
 .panel {
   min-height: 0;
   border: 0;
-  border-radius: 16px;
+  border-radius: 12px;
   background: rgba(17, 24, 33, 0.08);
   backdrop-filter: blur(1px);
   overflow: hidden;
@@ -146,14 +147,15 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 6px 2px 8px;
+  gap: 10px;
+  height: 25px;
+  padding: 1px 2px 4px;
 }
 
 h2 {
   margin: 0;
   color: #ffe6a8;
-  font-size: 18px;
+  font-size: 14px;
   letter-spacing: 3px;
   text-transform: uppercase;
   text-shadow:
@@ -163,14 +165,14 @@ h2 {
 
 .table-wrap {
   min-height: 0;
-  max-height: calc(100% - 34px);
+  max-height: calc(100% - 25px);
   overflow: hidden;
 }
 
 table {
   width: 100%;
   border-collapse: separate;
-  border-spacing: 0 8px;
+  border-spacing: 0;
 }
 
 thead {
@@ -179,17 +181,17 @@ thead {
 
 tbody {
   display: grid;
-  gap: 8px;
+  gap: 3px;
 }
 
 tr {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 0;
-  min-height: 42px;
+  min-height: 28px;
   border: 1px solid rgba(216, 236, 255, 0.28);
   border-left: 5px solid var(--blue);
-  border-radius: 10px;
+  border-radius: 8px;
   background:
     linear-gradient(135deg, rgba(47, 128, 237, 0.14), rgba(13, 20, 29, 0.26)),
     rgba(13, 20, 29, 0.26);
@@ -201,12 +203,12 @@ tr {
 
 td {
   min-width: 0;
-  padding: 7px 9px;
+  padding: 3px 6px;
   border-right: 1px solid rgba(216, 236, 255, 0.12);
   color: #ffffff;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 900;
-  line-height: 1.2;
+  line-height: 1.05;
   text-shadow:
     0 0 12px rgba(255, 255, 255, 0.24),
     0 2px 6px rgba(0, 0, 0, 0.8);
@@ -220,9 +222,9 @@ td:last-child {
 td::before {
   content: attr(data-label);
   display: block;
-  margin-bottom: 3px;
+  margin-bottom: 1px;
   color: #b9d6ff;
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 800;
   line-height: 1;
   text-transform: uppercase;
@@ -235,18 +237,18 @@ td::before {
 }
 
 .panel:not(.wide) tr {
-  margin-bottom: 8px;
+  margin-bottom: 3px;
 }
 
 .status-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-width: 112px;
+  min-width: 92px;
   justify-content: center;
-  padding: 5px 10px;
+  padding: 3px 7px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 900;
   line-height: 1;
   text-transform: uppercase;
@@ -282,14 +284,14 @@ td::before {
 }
 
 .empty {
-  min-height: 42px;
-  padding: 12px;
+  min-height: 36px;
+  padding: 10px;
   border: 1px solid rgba(216, 236, 255, 0.2);
   border-left: 5px solid var(--red);
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgba(13, 20, 29, 0.26);
   color: var(--muted);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 900;
 }
 
