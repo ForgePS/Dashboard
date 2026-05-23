@@ -89,6 +89,10 @@ const LIVE_DOCUMENT_CSV_URL =
   process.env.LIVE_DOCUMENT_CSV_URL ||
   'https://docs.google.com/spreadsheets/d/e/2PACX-1vTpXEJN7gWX7uSWqfCpxqsPb1M0hcAIWH_RZlZyeuTuhOYFvDxDqg_6wS6gd7XXsQswn9bcQmFJorUR/pub?gid=0&single=true&output=csv';
 
+const LIVE_DOCUMENT_HTML_URL =
+  process.env.LIVE_DOCUMENT_HTML_URL ||
+  'https://docs.google.com/spreadsheets/d/e/2PACX-1vTpXEJN7gWX7uSWqfCpxqsPb1M0hcAIWH_RZlZyeuTuhOYFvDxDqg_6wS6gd7XXsQswn9bcQmFJorUR/pubhtml/sheet?headers=false&gid=0';
+
 const LIVE_DOCUMENT_REFRESH_MS =
   Number(process.env.LIVE_DOCUMENT_REFRESH_MS || 30000);
 
@@ -1016,6 +1020,61 @@ function rowSlice(row, start, end) {
   return row.slice(start, end).map((value) => String(value || '').trim());
 }
 
+function decodeHtmlEntity(entity) {
+  const value = String(entity || '');
+  const numeric = value.match(/^#(\d+)$/);
+  const hex = value.match(/^#x([0-9a-f]+)$/i);
+
+  if (numeric) return String.fromCodePoint(Number(numeric[1]));
+  if (hex) return String.fromCodePoint(parseInt(hex[1], 16));
+
+  return {
+    amp: '&',
+    lt: '<',
+    gt: '>',
+    quot: '"',
+    apos: "'",
+    nbsp: ' '
+  }[value] || `&${value};`;
+}
+
+function stripHtmlCell(value) {
+  return String(value || '')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&([^;]+);/g, (_, entity) => decodeHtmlEntity(entity))
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function parsePublishedSheetHtmlRows(html) {
+  const tableMatch = String(html || '').match(/<table[\s\S]*?<\/table>/i);
+  if (!tableMatch) return [];
+
+  const rows = [];
+  const rowRegex = /<tr\b[^>]*>([\s\S]*?)<\/tr>/gi;
+  let rowMatch;
+
+  while ((rowMatch = rowRegex.exec(tableMatch[0])) !== null) {
+    const row = [];
+    const cellRegex = /<td\b([^>]*)>([\s\S]*?)<\/td>/gi;
+    let cellMatch;
+
+    while ((cellMatch = cellRegex.exec(rowMatch[1])) !== null) {
+      const attrs = cellMatch[1] || '';
+      const colspan = Math.max(1, Number((attrs.match(/colspan="(\d+)"/i) || [])[1] || 1));
+      const value = stripHtmlCell(cellMatch[2]);
+
+      row.push(value);
+      for (let i = 1; i < colspan; i++) row.push(value);
+    }
+
+    if (row.some((value) => value)) rows.push(row);
+  }
+
+  return rows;
+}
+
 function sectionRows(rows, startIndex, columns, includePredicate) {
   const output = [];
 
@@ -1157,7 +1216,7 @@ function buildLiveDocumentFallback(error) {
 
   return {
     ok: true,
-    title: 'Horn Lake Fire Unit Status',
+    title: 'Unit Status & OOS',
     source: LIVE_DOCUMENT_CSV_URL,
     updated: nowIso(),
     updatedLabel: formatCentralDateTime(new Date()),
@@ -1165,6 +1224,42 @@ function buildLiveDocumentFallback(error) {
     stale: true,
     error,
     sections
+  };
+}
+
+async function fetchLiveDocumentRows() {
+  const csvResponse = await fetch(LIVE_DOCUMENT_CSV_URL, {
+    headers: {
+      Accept: 'text/csv,text/plain'
+    }
+  });
+
+  if (csvResponse.ok) {
+    return {
+      rows: parseCsvText(await csvResponse.text()),
+      source: LIVE_DOCUMENT_CSV_URL
+    };
+  }
+
+  const csvError = `Google Sheet CSV HTTP ${csvResponse.status}`;
+  const htmlResponse = await fetch(LIVE_DOCUMENT_HTML_URL, {
+    headers: {
+      Accept: 'text/html'
+    }
+  });
+
+  if (!htmlResponse.ok) {
+    throw new Error(`${csvError}; HTML HTTP ${htmlResponse.status}`);
+  }
+
+  const rows = parsePublishedSheetHtmlRows(await htmlResponse.text());
+  if (!rows.length) {
+    throw new Error(`${csvError}; HTML table was empty`);
+  }
+
+  return {
+    rows,
+    source: LIVE_DOCUMENT_HTML_URL
   };
 }
 
@@ -1177,23 +1272,12 @@ async function fetchLiveDocument(force = false) {
   }
 
   try {
-    const response = await fetch(LIVE_DOCUMENT_CSV_URL, {
-      headers: {
-        Accept: 'text/csv,text/plain'
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Google Sheet HTTP ${response.status}`);
-    }
-
-    const csv = await response.text();
-    const rows = parseCsvText(csv);
+    const { rows, source } = await fetchLiveDocumentRows();
     const sections = shapeLiveDocumentRows(rows);
     const data = {
       ok: true,
-      title: 'Horn Lake Fire Unit Status',
-      source: LIVE_DOCUMENT_CSV_URL,
+      title: 'Unit Status & OOS',
+      source,
       updated: nowIso(),
       updatedLabel: formatCentralDateTime(new Date()),
       refreshMs: LIVE_DOCUMENT_REFRESH_MS,
@@ -2206,35 +2290,35 @@ app.get('/roster', (req, res) => {
 });
 
 app.get('/live-document', (req, res) => {
-  sendHtmlFileOrFallback(res, 'live-document.html', 'Horn Lake Fire Unit Status', '/api/live-document');
+  sendHtmlFileOrFallback(res, 'live-document.html', 'Unit Status & OOS', '/api/live-document');
 });
 
 app.get('/live-doc', (req, res) => {
-  sendHtmlFileOrFallback(res, 'live-document.html', 'Horn Lake Fire Unit Status', '/api/live-document');
+  sendHtmlFileOrFallback(res, 'live-document.html', 'Unit Status & OOS', '/api/live-document');
 });
 
 app.get('/live-document.html', (req, res) => {
-  sendHtmlFileOrFallback(res, 'live-document.html', 'Horn Lake Fire Unit Status', '/api/live-document');
+  sendHtmlFileOrFallback(res, 'live-document.html', 'Unit Status & OOS', '/api/live-document');
 });
 
 app.get('/training-schedule', (req, res) => {
-  sendHtmlFileOrFallback(res, 'training-schedule.html', 'Horn Lake Training Schedule', '/api/training-schedule');
+  sendHtmlFileOrFallback(res, 'training-schedule.html', 'Training Schedule', '/api/training-schedule');
 });
 
 app.get('/training-schedule.html', (req, res) => {
-  sendHtmlFileOrFallback(res, 'training-schedule.html', 'Horn Lake Training Schedule', '/api/training-schedule');
+  sendHtmlFileOrFallback(res, 'training-schedule.html', 'Training Schedule', '/api/training-schedule');
 });
 
 app.get('/ems-expiration-dates', (req, res) => {
-  sendHtmlFileOrFallback(res, 'ems-expiration-dates.html', 'Horn Lake EMS Expiration Dates', '/api/ems-expiration-dates');
+  sendHtmlFileOrFallback(res, 'ems-expiration-dates.html', 'EMS Expiration Dates', '/api/ems-expiration-dates');
 });
 
 app.get('/ems-expiration-dates.html', (req, res) => {
-  sendHtmlFileOrFallback(res, 'ems-expiration-dates.html', 'Horn Lake EMS Expiration Dates', '/api/ems-expiration-dates');
+  sendHtmlFileOrFallback(res, 'ems-expiration-dates.html', 'EMS Expiration Dates', '/api/ems-expiration-dates');
 });
 
 app.get('/events', (req, res) => {
-  sendHtmlFileOrFallback(res, 'events.html', 'Horn Lake Fire Events', '/api/events');
+  sendHtmlFileOrFallback(res, 'events.html', 'Events', '/api/events');
 });
 
 app.get('/active911', (req, res) => {
