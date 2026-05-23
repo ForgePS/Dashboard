@@ -41,9 +41,12 @@
       </aside>
 
       <section class="center-stack">
-        <article class="image-card">
-          <img id="streetViewImage" alt="Street view facing address" />
-          <div class="map-fallback">Street View waiting for coordinates.</div>
+        <article id="routeCard" class="map-card route-card">
+          <img id="routeImage" alt="Station route map" />
+          <div class="map-fallback">Route map waiting for coordinates.</div>
+          <button id="routeButton" class="route-button" type="button" disabled>
+            Start Route
+          </button>
         </article>
 
         <article class="panel info-panel">
@@ -61,12 +64,9 @@
           <div class="map-fallback">Satellite map waiting for coordinates.</div>
         </article>
 
-        <article id="routeCard" class="map-card route-card">
-          <img id="routeImage" alt="Station route map" />
-          <div class="map-fallback">Route map waiting for coordinates.</div>
-          <button id="routeButton" class="route-button" type="button" disabled>
-            Start Route
-          </button>
+        <article class="image-card">
+          <img id="streetViewImage" alt="Street view facing address" />
+          <div class="map-fallback">Street View waiting for coordinates.</div>
         </article>
       </section>
     </section>
