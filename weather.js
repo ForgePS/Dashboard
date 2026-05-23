@@ -23,7 +23,7 @@ function formatTime(value) {
 }
 
 function forecastDayName(value) {
-  const date = new Date(`${value}T12:00:00`);
+  const date = new Date(`${value}T24:00:00`);
   if (Number.isNaN(date.getTime())) return 'Forecast';
   return date.toLocaleDateString('en-US', { weekday: 'long' });
 }
