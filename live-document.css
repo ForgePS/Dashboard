@@ -295,6 +295,72 @@ td::before {
   font-weight: 900;
 }
 
+.live-document-display .doc-header {
+  height: 82px;
+  min-height: 82px;
+  padding: 8px 16px;
+}
+
+.live-document-display .brand img {
+  width: 52px;
+  height: 52px;
+}
+
+.live-document-display h1 {
+  font-size: 44px;
+}
+
+.live-document-display .subline,
+.live-document-display .status {
+  font-size: 17px;
+}
+
+.live-document-display .doc-grid {
+  height: calc(100% - 89px);
+}
+
+.live-document-display .panel-head {
+  height: 34px;
+}
+
+.live-document-display h2 {
+  font-size: 18px;
+}
+
+.live-document-display .table-wrap {
+  max-height: calc(100% - 34px);
+}
+
+.live-document-display tbody {
+  gap: 5px;
+}
+
+.live-document-display tr {
+  min-height: 42px;
+  border-radius: 10px;
+}
+
+.live-document-display td {
+  padding: 6px 9px;
+  font-size: 16px;
+  line-height: 1.15;
+}
+
+.live-document-display td::before {
+  margin-bottom: 3px;
+  font-size: 10px;
+}
+
+.live-document-display .status-pill {
+  min-width: 112px;
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.live-document-display .panel:not(.wide) tr {
+  margin-bottom: 5px;
+}
+
 @media (max-width: 1050px) {
   body {
     height: auto;
