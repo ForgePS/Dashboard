@@ -3301,6 +3301,40 @@ function roundedWeatherNumber(value, fallback = null) {
   return Number.isFinite(number) ? Math.round(number) : fallback;
 }
 
+function weatherPressureInHg(hPa) {
+  const number = weatherNumber(hPa);
+  return Number.isFinite(number) ? Number((number * 0.02953).toFixed(2)) : null;
+}
+
+function sumRecentHourlyPrecip(hourly, hoursBack) {
+  const now = Date.now();
+  const times = hourly?.time || [];
+  const precipitation = hourly?.precipitation || [];
+  let total = 0;
+
+  times.forEach((time, index) => {
+    const hourTime = new Date(time).getTime();
+    const diffHours = (now - hourTime) / 36e5;
+
+    if (Number.isFinite(diffHours) && diffHours >= 0 && diffHours <= hoursBack) {
+      total += Number(precipitation[index] || 0);
+    }
+  });
+
+  return Number(total.toFixed(2));
+}
+
+function airQualityLabel(aqi) {
+  const value = Number(aqi);
+  if (!Number.isFinite(value)) return '--';
+  if (value <= 50) return `${value} Good`;
+  if (value <= 100) return `${value} Moderate`;
+  if (value <= 150) return `${value} Unhealthy SG`;
+  if (value <= 200) return `${value} Unhealthy`;
+  if (value <= 300) return `${value} Very Unhealthy`;
+  return `${value} Hazardous`;
+}
+
 app.get('/api/weather', async (req, res) => {
   try {
     const point = await resolveMapPoint(req).catch(() => null);
@@ -3316,11 +3350,14 @@ app.get('/api/weather', async (req, res) => {
         'precipitation',
         'weather_code',
         'cloud_cover',
-        'surface_pressure',
+        'pressure_msl',
+        'dew_point_2m',
+        'uv_index',
         'wind_speed_10m',
         'wind_direction_10m',
         'wind_gusts_10m'
       ].join(','),
+      hourly: 'precipitation',
       daily: [
         'weather_code',
         'temperature_2m_max',
@@ -3337,11 +3374,23 @@ app.get('/api/weather', async (req, res) => {
       wind_speed_unit: 'mph',
       precipitation_unit: 'inch',
       timezone: 'America/Chicago',
-      forecast_days: '4'
+      forecast_days: '4',
+      past_days: '1'
     });
     const url = `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
-    const response = await fetch(url, { headers: { Accept: 'application/json' } });
+    const airParams = new URLSearchParams({
+      latitude: lat,
+      longitude: lon,
+      current: 'us_aqi',
+      timezone: 'America/Chicago'
+    });
+    const airUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?${airParams.toString()}`;
+    const [response, airResponse] = await Promise.all([
+      fetch(url, { headers: { Accept: 'application/json' } }),
+      fetch(airUrl, { headers: { Accept: 'application/json' } }).catch(() => null)
+    ]);
     const payload = await response.json();
+    const airPayload = airResponse?.ok ? await airResponse.json() : {};
 
     if (!response.ok) {
       throw new Error(payload.reason || response.statusText);
@@ -3349,6 +3398,8 @@ app.get('/api/weather', async (req, res) => {
 
     const current = payload.current || {};
     const daily = payload.daily || {};
+    const hourly = payload.hourly || {};
+    const airQuality = airPayload.current?.us_aqi;
     const forecast = (daily.time || []).slice(1, 4).map((date, index) => ({
       date,
       condition: weatherConditionLabel(daily.weather_code?.[index + 1]),
@@ -3375,17 +3426,23 @@ app.get('/api/weather', async (req, res) => {
         condition: weatherConditionLabel(current.weather_code),
         feelsLike: roundedWeatherNumber(current.apparent_temperature),
         humidity: roundedWeatherNumber(current.relative_humidity_2m),
-        pressure: weatherNumber(current.surface_pressure),
+        dewPoint: roundedWeatherNumber(current.dew_point_2m),
+        pressure: weatherNumber(current.pressure_msl),
+        pressureInHg: weatherPressureInHg(current.pressure_msl),
         cloudCover: roundedWeatherNumber(current.cloud_cover),
         windMph: roundedWeatherNumber(current.wind_speed_10m),
         windGustMph: roundedWeatherNumber(current.wind_gusts_10m),
         windDir: windDirectionLabel(current.wind_direction_10m),
         precipitationIn: weatherNumber(current.precipitation, 0),
+        precipitation12In: sumRecentHourlyPrecip(hourly, 12),
+        precipitation24In: sumRecentHourlyPrecip(hourly, 24),
         high: roundedWeatherNumber(daily.temperature_2m_max?.[0]),
         low: roundedWeatherNumber(daily.temperature_2m_min?.[0]),
         sunrise: daily.sunrise?.[0] || null,
         sunset: daily.sunset?.[0] || null,
-        uvIndex: weatherNumber(daily.uv_index_max?.[0])
+        uvIndex: weatherNumber(current.uv_index, weatherNumber(daily.uv_index_max?.[0])),
+        airQuality,
+        airQualityLabel: airQualityLabel(airQuality)
       },
       forecast
     });
