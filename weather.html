@@ -4,63 +4,120 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Horn Lake Weather</title>
-  <link rel="stylesheet" href="/weather.css?v=1" />
+  <link rel="stylesheet" href="/weather.css?v=3" />
 </head>
 <body>
-  <main class="weather-page">
-    <header class="weather-header">
-      <div>
-        <h1>Horn Lake Weather</h1>
-        <p>Current Conditions &amp; 3-Day Forecast</p>
-      </div>
-      <div class="weather-status">
-        <span class="live-dot"></span>
-        <span id="statusText">Updating weather...</span>
-        <small id="updatedText">Last Updated --</small>
-      </div>
-    </header>
+  <div class="container">
+    <div class="header">
+      <h1>Horn Lake Weather</h1>
+      <p>Current Conditions &amp; 3-Day Forecast</p>
+    </div>
 
-    <section class="weather-layout">
-      <article class="current-card">
+    <div class="current">
+      <div class="main-card">
         <div class="label">Current Temperature</div>
-        <div id="currentTemp" class="temperature">--</div>
-        <div class="label">High / Low</div>
-        <div id="highLow" class="high-low">-- / --</div>
-        <div id="conditionText" class="condition">Loading...</div>
-        <div id="feelsLike">Feels like --</div>
-      </article>
+        <div class="temp" id="temperature">--°</div>
 
-      <section class="detail-grid">
+        <div class="label">High / Low</div>
+        <div class="value" id="highLow">--° / --°</div>
+
+        <div class="condition" id="condition">Loading...</div>
+        <div class="feels" id="feelsLike">Feels like --°</div>
+      </div>
+
+      <div class="grid">
         <div class="section-title">Sun</div>
-        <article class="tile"><span>Sunrise</span><strong id="sunrise">--</strong></article>
-        <article class="tile"><span>Sunset</span><strong id="sunset">--</strong></article>
+
+        <div class="data-card">
+          <div class="label">Sunrise</div>
+          <div class="value" id="sunrise">--</div>
+        </div>
+
+        <div class="data-card">
+          <div class="label">Sunset</div>
+          <div class="value" id="sunset">--</div>
+        </div>
 
         <div class="section-title">Wind</div>
-        <article class="tile"><span>Wind Speed</span><strong id="windSpeed">-- mph</strong></article>
-        <article class="tile"><span>Wind Gust</span><strong id="windGust">-- mph</strong></article>
-        <article class="tile"><span>Wind Direction</span><strong id="windDirection">--</strong></article>
+
+        <div class="data-card">
+          <div class="label">Wind Speed</div>
+          <div class="value" id="windSpeed">-- mph</div>
+        </div>
+
+        <div class="data-card">
+          <div class="label">Wind Gust</div>
+          <div class="value" id="windGust">-- mph</div>
+        </div>
+
+        <div class="data-card">
+          <div class="label">Wind Direction</div>
+          <div class="value" id="windDirection">--</div>
+        </div>
 
         <div class="section-title">Atmosphere</div>
-        <article class="tile"><span>Humidity</span><strong id="humidity">--%</strong></article>
-        <article class="tile"><span>Pressure</span><strong id="pressure">-- hPa</strong></article>
-        <article class="tile"><span>Cloud Cover</span><strong id="cloudCover">--%</strong></article>
+
+        <div class="data-card">
+          <div class="label">Humidity</div>
+          <div class="value" id="humidity">--%</div>
+        </div>
+
+        <div class="data-card">
+          <div class="label">Dew Point</div>
+          <div class="value" id="dewPoint">--°</div>
+        </div>
+
+        <div class="data-card">
+          <div class="label">Pressure</div>
+          <div class="value" id="pressure">-- inHg</div>
+        </div>
+
+        <div class="data-card">
+          <div class="label">Cloud Cover</div>
+          <div class="value" id="cloudCover">--%</div>
+        </div>
 
         <div class="section-title">Precipitation</div>
-        <article class="tile"><span>Current</span><strong id="precipCurrent">-- in</strong></article>
-        <article class="tile"><span>Forecasted</span><strong id="precipForecast">-- in</strong></article>
-        <article class="tile"><span>Chance</span><strong id="precipChance">--%</strong></article>
+
+        <div class="data-card">
+          <div class="label">Current</div>
+          <div class="value" id="currentPrecip">-- in</div>
+        </div>
+
+        <div class="data-card">
+          <div class="label">Observed 12 Hr</div>
+          <div class="value" id="precip12">-- in</div>
+        </div>
+
+        <div class="data-card">
+          <div class="label">Observed 24 Hr</div>
+          <div class="value" id="precip24">-- in</div>
+        </div>
+
+        <div class="data-card">
+          <div class="label">Forecasted</div>
+          <div class="value" id="forecastPrecip">-- in</div>
+        </div>
 
         <div class="section-title">Safety</div>
-        <article class="tile"><span>UV Index</span><strong id="uvIndex">--</strong></article>
-      </section>
-    </section>
 
-    <section class="forecast-panel">
-      <div class="section-title">3-Day Forecast</div>
-      <div id="forecastGrid" class="forecast-grid"></div>
-    </section>
-  </main>
+        <div class="data-card">
+          <div class="label">Air Quality</div>
+          <div class="value" id="airQuality">--</div>
+        </div>
 
-  <script src="/weather.js?v=1"></script>
+        <div class="data-card">
+          <div class="label">UV Index</div>
+          <div class="value" id="uvIndex">--</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="forecast" id="forecast"></div>
+
+    <div class="updated" id="updated">Updating weather...</div>
+  </div>
+
+  <script src="/weather.js?v=3"></script>
 </body>
 </html>
