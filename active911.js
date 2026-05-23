@@ -20,6 +20,7 @@ const ALERT_SOUND_ENABLED = new URLSearchParams(window.location.search).get('sou
 let activeIncidentSent = '';
 let lastRenderedAlertKey = '';
 let alertAudioContext = null;
+let currentWeatherIncident = null;
 
 const TYPE_LABELS = {
   MEDICAL: 'MEDICAL',
@@ -287,6 +288,7 @@ function setMapImages(incident) {
 function setWaiting(message = 'Waiting for Active911 alert') {
   dispatchTime.textContent = '--';
   activeIncidentSent = '';
+  currentWeatherIncident = null;
   updateCountdown();
   dispatchType.textContent = 'Waiting';
   dispatchPlace.textContent = '';
@@ -295,9 +297,6 @@ function setWaiting(message = 'Waiting for Active911 alert') {
   incidentDetails.textContent = 'Waiting for incident information.';
   specialNotes.textContent = '';
   specialNotes.classList.remove('visible');
-  weatherTemp.textContent = '--';
-  weatherSummary.textContent = 'Live feed';
-  windText.textContent = 'Active911 connected';
   setMapImages(null);
 }
 
@@ -351,6 +350,7 @@ async function loadLatestAlert() {
     specialNotes.textContent = latest.specialNotes || '';
     specialNotes.classList.toggle('visible', Boolean(latest.specialNotes));
 
+    currentWeatherIncident = latest;
     await loadWeather(latest);
     if (isNewRenderedAlert) {
       playAlertSound(alertKey);
@@ -365,6 +365,8 @@ async function loadLatestAlert() {
 }
 
 loadLatestAlert();
+loadWeather();
 setInterval(loadLatestAlert, 15000);
+setInterval(() => loadWeather(currentWeatherIncident), 60000);
 setInterval(updateCountdown, 1000);
 

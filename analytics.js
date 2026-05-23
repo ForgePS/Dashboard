@@ -229,7 +229,8 @@ function renderDailyChart(daily) {
 }
 
 function renderDashboard(data) {
-  setText('statusText', 'Live analytics connected');
+  const active911Error = data.active911?.lastPollError;
+  setText('statusText', active911Error ? 'Active911 feed needs credentials' : 'Live analytics connected');
   setText('lastUpdated', `Last Updated ${data.updatedLabel || '--'}`);
   renderKpis(data);
   renderDailyChart(data.daily || []);

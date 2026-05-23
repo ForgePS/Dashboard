@@ -25,6 +25,7 @@ let screenWakeLock = null;
 let currentDirectionsUrl = '';
 let currentIncidentDestination = '';
 let currentPreFirePlanUrl = '';
+let currentWeatherIncident = null;
 
 const TYPE_LABELS = {
   MEDICAL: 'MEDICAL',
@@ -416,6 +417,7 @@ function setMapImages(incident) {
 function setWaiting(message = 'Waiting for Active911 alert') {
   dispatchTime.textContent = '--';
   activeIncidentSent = '';
+  currentWeatherIncident = null;
   updateCountdown();
   dispatchType.textContent = 'Waiting';
   dispatchPlace.textContent = '';
@@ -425,9 +427,6 @@ function setWaiting(message = 'Waiting for Active911 alert') {
   specialNotes.textContent = '';
   specialNotes.classList.remove('visible');
   setPreFirePlanButton(null);
-  weatherTemp.textContent = '--';
-  weatherSummary.textContent = 'Live feed';
-  windText.textContent = 'Active911 connected';
   setMapImages(null);
 }
 
@@ -482,6 +481,7 @@ async function loadLatestAlert() {
     specialNotes.classList.toggle('visible', Boolean(latest.specialNotes));
     setPreFirePlanButton(latest.preFirePlan);
 
+    currentWeatherIncident = latest;
     await loadWeather(latest);
     if (isNewRenderedAlert) {
       playAlertSound(alertKey);
@@ -499,6 +499,8 @@ keepIpadAwake();
 setupDirectionsTapTargets();
 setupPreFirePlanButton();
 loadLatestAlert();
+loadWeather();
 setInterval(loadLatestAlert, 15000);
+setInterval(() => loadWeather(currentWeatherIncident), 60000);
 setInterval(updateCountdown, 1000);
 
