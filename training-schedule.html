@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Horn Lake Fire Live Document</title>
-  <link rel="stylesheet" href="/live-document.css?v=3" />
+  <title>Horn Lake Training Schedule</title>
+  <link rel="stylesheet" href="/live-document.css?v=4" />
 </head>
 <body>
   <main class="doc-page">
@@ -13,8 +13,8 @@
         <img src="/horn-lake-logo.png" alt="Horn Lake Fire Department" />
         <div>
           <div class="kicker">Horn Lake Fire Department</div>
-          <h1>Live Document</h1>
-          <div id="documentDate" class="subline">Loading document</div>
+          <h1>Training Schedule</h1>
+          <div id="documentDate" class="subline">Loading schedule</div>
         </div>
       </div>
       <div class="status">
@@ -23,23 +23,22 @@
       </div>
     </header>
 
-    <section class="doc-grid">
+    <section class="doc-grid single-grid">
       <article class="panel wide">
         <div class="panel-head">
-          <h2 id="unitStatusTitle">Unit Status</h2>
+          <h2 id="sectionTitle">Training Schedule</h2>
         </div>
-        <div id="unitStatusTable" class="table-wrap"></div>
-      </article>
-
-      <article class="panel">
-        <div class="panel-head">
-          <h2 id="oosTitle">OOS Equipment</h2>
-        </div>
-        <div id="oosTable" class="table-wrap"></div>
+        <div id="sectionTable" class="table-wrap"></div>
       </article>
     </section>
   </main>
 
-  <script src="/live-document.js?v=3"></script>
+  <script>
+    window.DISPLAY_CONFIG = {
+      title: 'Training Schedule',
+      apiPath: '/api/training-schedule'
+    };
+  </script>
+  <script src="/document-section.js?v=1"></script>
 </body>
 </html>

@@ -92,6 +92,20 @@ const LIVE_DOCUMENT_CSV_URL =
 const LIVE_DOCUMENT_REFRESH_MS =
   Number(process.env.LIVE_DOCUMENT_REFRESH_MS || 30000);
 
+const TRAINING_SCHEDULE_CSV_URL =
+  process.env.TRAINING_SCHEDULE_CSV_URL ||
+  'https://docs.google.com/spreadsheets/d/e/2PACX-1vTpXEJN7gWX7uSWqfCpxqsPb1M0hcAIWH_RZlZyeuTuhOYFvDxDqg_6wS6gd7XXsQswn9bcQmFJorUR/pub?gid=807010823&single=true&output=csv';
+
+const TRAINING_SCHEDULE_REFRESH_MS =
+  Number(process.env.TRAINING_SCHEDULE_REFRESH_MS || 30000);
+
+const EMS_EXPIRATION_CSV_URL =
+  process.env.EMS_EXPIRATION_CSV_URL ||
+  'https://docs.google.com/spreadsheets/d/e/2PACX-1vTpXEJN7gWX7uSWqfCpxqsPb1M0hcAIWH_RZlZyeuTuhOYFvDxDqg_6wS6gd7XXsQswn9bcQmFJorUR/pub?gid=1789702326&single=true&output=csv';
+
+const EMS_EXPIRATION_REFRESH_MS =
+  Number(process.env.EMS_EXPIRATION_REFRESH_MS || 30000);
+
 const EVENTS_CSV_URL =
   process.env.EVENTS_CSV_URL ||
   'https://docs.google.com/spreadsheets/d/e/2PACX-1vS23hz49iXdY-BTcTRNGqS1OESOQ_hHvVcTTGs8cbIf-zanzJ8Fln05jK7GwPZBW7auVUidMyqXxIC0/pub?gid=663103771&single=true&output=csv';
@@ -317,6 +331,16 @@ let dailyRosterCache = {
   data: null
 };
 let liveDocumentCache = {
+  loadedAt: null,
+  error: null,
+  data: null
+};
+let trainingScheduleCache = {
+  loadedAt: null,
+  error: null,
+  data: null
+};
+let emsExpirationCache = {
   loadedAt: null,
   error: null,
   data: null
@@ -1049,6 +1073,7 @@ function shapeLiveDocumentRows(rows) {
   const cleanRows = compactCsvRows(rows);
   const oosIndex = cleanRows.findIndex((row) => row[0] === 'OOS Equipment');
   const oosHeaderIndex = oosIndex >= 0 ? oosIndex + 1 : -1;
+  const inlineOosIndex = cleanRows[0]?.findIndex((value) => String(value || '').trim() === 'OOS Equipment') ?? -1;
 
   const unitStatus = {
     title: cleanRows[0]?.[0] || 'Unit Status',
@@ -1064,7 +1089,11 @@ function shapeLiveDocumentRows(rows) {
     )
   };
 
-  const oosEquipment = {
+  const oosEquipment = inlineOosIndex >= 0 ? {
+    title: cleanRows[0][inlineOosIndex] || 'OOS Equipment',
+    headers: rowSlice(cleanRows[1] || [], inlineOosIndex, inlineOosIndex + 3),
+    rows: sectionRows(cleanRows, 2, [inlineOosIndex, inlineOosIndex + 3], (values) => values[0])
+  } : {
     title: oosIndex >= 0 ? cleanRows[oosIndex][0] : 'OOS Equipment',
     headers: oosHeaderIndex >= 0 ? rowSlice(cleanRows[oosHeaderIndex] || [], 0, 3) : [],
     rows: []
@@ -1076,7 +1105,7 @@ function shapeLiveDocumentRows(rows) {
     rows: []
   };
 
-  if (oosHeaderIndex >= 0) {
+  if (inlineOosIndex < 0 && oosHeaderIndex >= 0) {
     for (let i = oosHeaderIndex + 1; i < cleanRows.length; i++) {
       const row = cleanRows[i];
       const oosValues = rowSlice(row, 0, 3);
@@ -1141,6 +1170,141 @@ async function fetchLiveDocument(force = false) {
     if (liveDocumentCache.data) {
       return {
         ...liveDocumentCache.data,
+        stale: true,
+        error: err.message
+      };
+    }
+
+    throw err;
+  }
+}
+
+function shapeTrainingScheduleRows(rows) {
+  const cleanRows = compactCsvRows(rows);
+  const title = cleanRows[0]?.[0] || 'Training Schedule';
+  const dataRows = cleanRows.slice(1).filter((row) => row[0]);
+
+  return {
+    title,
+    headers: ['Name', 'Course', 'Date', 'Status'],
+    rows: sortAndFilterTrainingRows(
+      dataRows.map((row) => rowSlice(row, 0, 4))
+    )
+  };
+}
+
+async function fetchTrainingSchedule(force = false) {
+  const now = Date.now();
+  const loadedAt = trainingScheduleCache.loadedAt ? new Date(trainingScheduleCache.loadedAt).getTime() : 0;
+
+  if (!force && trainingScheduleCache.data && now - loadedAt < TRAINING_SCHEDULE_REFRESH_MS) {
+    return trainingScheduleCache.data;
+  }
+
+  try {
+    const response = await fetch(TRAINING_SCHEDULE_CSV_URL, {
+      headers: {
+        Accept: 'text/csv,text/plain'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Google Sheet HTTP ${response.status}`);
+    }
+
+    const csv = await response.text();
+    const rows = parseCsvText(csv);
+    const section = shapeTrainingScheduleRows(rows);
+    const data = {
+      ok: true,
+      title: section.title,
+      source: TRAINING_SCHEDULE_CSV_URL,
+      updated: nowIso(),
+      updatedLabel: formatCentralDateTime(new Date()),
+      refreshMs: TRAINING_SCHEDULE_REFRESH_MS,
+      section
+    };
+
+    trainingScheduleCache = {
+      loadedAt: nowIso(),
+      error: null,
+      data
+    };
+
+    return data;
+  } catch (err) {
+    trainingScheduleCache.error = err.message;
+
+    if (trainingScheduleCache.data) {
+      return {
+        ...trainingScheduleCache.data,
+        stale: true,
+        error: err.message
+      };
+    }
+
+    throw err;
+  }
+}
+
+function shapeEmsExpirationRows(rows) {
+  const cleanRows = compactCsvRows(rows);
+  const title = cleanRows[0]?.[0] || 'EMS Expiration Dates';
+  const headers = rowSlice(cleanRows[1] || [], 0, 3);
+  const dataRows = cleanRows.slice(2).filter((row) => row[0]);
+
+  return {
+    title,
+    headers: headers.length ? headers : ['Name', 'Certification', 'Expiration Date'],
+    rows: dataRows.map((row) => rowSlice(row, 0, 3))
+  };
+}
+
+async function fetchEmsExpirations(force = false) {
+  const now = Date.now();
+  const loadedAt = emsExpirationCache.loadedAt ? new Date(emsExpirationCache.loadedAt).getTime() : 0;
+
+  if (!force && emsExpirationCache.data && now - loadedAt < EMS_EXPIRATION_REFRESH_MS) {
+    return emsExpirationCache.data;
+  }
+
+  try {
+    const response = await fetch(EMS_EXPIRATION_CSV_URL, {
+      headers: {
+        Accept: 'text/csv,text/plain'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Google Sheet HTTP ${response.status}`);
+    }
+
+    const csv = await response.text();
+    const rows = parseCsvText(csv);
+    const section = shapeEmsExpirationRows(rows);
+    const data = {
+      ok: true,
+      title: section.title,
+      source: EMS_EXPIRATION_CSV_URL,
+      updated: nowIso(),
+      updatedLabel: formatCentralDateTime(new Date()),
+      refreshMs: EMS_EXPIRATION_REFRESH_MS,
+      section
+    };
+
+    emsExpirationCache = {
+      loadedAt: nowIso(),
+      error: null,
+      data
+    };
+
+    return data;
+  } catch (err) {
+    emsExpirationCache.error = err.message;
+
+    if (emsExpirationCache.data) {
+      return {
+        ...emsExpirationCache.data,
         stale: true,
         error: err.message
       };
@@ -1987,6 +2151,14 @@ app.get('/live-doc', (req, res) => {
   sendHtmlFileOrFallback(res, 'live-document.html', 'Horn Lake Fire Unit Status', '/api/live-document');
 });
 
+app.get('/training-schedule', (req, res) => {
+  sendHtmlFileOrFallback(res, 'training-schedule.html', 'Horn Lake Training Schedule', '/api/training-schedule');
+});
+
+app.get('/ems-expiration-dates', (req, res) => {
+  sendHtmlFileOrFallback(res, 'ems-expiration-dates.html', 'Horn Lake EMS Expiration Dates', '/api/ems-expiration-dates');
+});
+
 app.get('/events', (req, res) => {
   sendHtmlFileOrFallback(res, 'events.html', 'Horn Lake Fire Events', '/api/events');
 });
@@ -2053,6 +2225,32 @@ app.get('/api/live-document', async (req, res) => {
       ok: false,
       error: err.message,
       source: LIVE_DOCUMENT_CSV_URL
+    });
+  }
+});
+
+app.get('/api/training-schedule', async (req, res) => {
+  try {
+    const schedule = await fetchTrainingSchedule(String(req.query.force || '').toLowerCase() === 'true');
+    res.json(schedule);
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      error: err.message,
+      source: TRAINING_SCHEDULE_CSV_URL
+    });
+  }
+});
+
+app.get('/api/ems-expiration-dates', async (req, res) => {
+  try {
+    const expirations = await fetchEmsExpirations(String(req.query.force || '').toLowerCase() === 'true');
+    res.json(expirations);
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      error: err.message,
+      source: EMS_EXPIRATION_CSV_URL
     });
   }
 });

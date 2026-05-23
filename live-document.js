@@ -28,6 +28,17 @@ function cellValue(value, header) {
   return clean || '--';
 }
 
+function formatDocumentDate(value) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+
+  return parsed.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  });
+}
+
 function renderTable(targetId, section) {
   const target = document.getElementById(targetId);
   if (!target) return;
@@ -48,7 +59,7 @@ function renderTable(targetId, section) {
       <tbody>
         ${rows.map((row) => `
           <tr>
-            ${headers.map((header, index) => `<td>${cellValue(row[index], header)}</td>`).join('')}
+            ${headers.map((header, index) => `<td data-label="${escapeHtml(header)}">${cellValue(row[index], header)}</td>`).join('')}
           </tr>
         `).join('')}
       </tbody>
@@ -61,15 +72,12 @@ function renderDocument(data) {
 
   setText('statusText', data.stale ? 'Showing cached data' : 'Live data connected');
   setText('updatedText', `Last Updated ${data.updatedLabel || '--'}`);
+  setText('documentDate', formatDocumentDate(data.updated || data.updatedAt) || data.updatedLabel || 'Live document');
   setText('unitStatusTitle', sections.unitStatus?.title || 'Unit Status');
-  setText('trainingTitle', sections.trainingSchedule?.title || 'Training Schedule');
   setText('oosTitle', sections.oosEquipment?.title || 'OOS Equipment');
-  setText('emsTitle', sections.emsExpirations?.title || 'EMS Expiration Dates');
 
   renderTable('unitStatusTable', sections.unitStatus);
-  renderTable('trainingTable', sections.trainingSchedule);
   renderTable('oosTable', sections.oosEquipment);
-  renderTable('emsTable', sections.emsExpirations);
 }
 
 async function refreshDocument(force = false) {
