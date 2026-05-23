@@ -1124,6 +1124,50 @@ function shapeLiveDocumentRows(rows) {
   };
 }
 
+function buildLiveDocumentFallback(error) {
+  const sections = {
+    unitStatus: {
+      title: 'Unit Status',
+      headers: ['Name', 'Model', 'Status', 'Comments'],
+      rows: [
+        ['Rescue 1', 'Pierce', 'In Service', ''],
+        ['Engine 2', 'Pierce', 'In Service', ''],
+        ['Engine 3', 'Pierce', 'In Service', ''],
+        ['Engine 4', 'E-One', 'Reserve', ''],
+        ['Truck 1', 'E-One', 'Reserve', ''],
+        ['Truck 3', 'Pierce', 'In Service', ''],
+        ['Unit 1', 'Ford', 'OOS in Shop', ''],
+        ['Unit 2', 'Ford', 'In Service', ''],
+        ['Unit 3', 'Ford', 'In Service', ''],
+        ['Unit 4', 'Ford', 'Reserve', ''],
+        ['Unit 5', 'Ford', 'In Service', ''],
+        ['FD 2', 'Ford', 'In Service', ''],
+        ['FD 3', 'Chevrolet', 'In Service', ''],
+        ['FD 4', 'Ford', 'In Service', ''],
+        ['FD 5', 'Chevrolet', 'In Service', ''],
+        ['Water Truck', '', 'In Service', '']
+      ]
+    },
+    oosEquipment: {
+      title: 'OOS Equipment',
+      headers: ['Item', 'Item Description', 'Date OOS'],
+      rows: [['Airpack', 'E3C', '3/15/2026']]
+    }
+  };
+
+  return {
+    ok: true,
+    title: 'Horn Lake Fire Unit Status',
+    source: LIVE_DOCUMENT_CSV_URL,
+    updated: nowIso(),
+    updatedLabel: formatCentralDateTime(new Date()),
+    refreshMs: LIVE_DOCUMENT_REFRESH_MS,
+    stale: true,
+    error,
+    sections
+  };
+}
+
 async function fetchLiveDocument(force = false) {
   const now = Date.now();
   const loadedAt = liveDocumentCache.loadedAt ? new Date(liveDocumentCache.loadedAt).getTime() : 0;
@@ -1175,7 +1219,7 @@ async function fetchLiveDocument(force = false) {
       };
     }
 
-    throw err;
+    return buildLiveDocumentFallback(err.message);
   }
 }
 
@@ -1260,6 +1304,24 @@ function shapeEmsExpirationRows(rows) {
   };
 }
 
+function buildEmsExpirationFallback(error) {
+  return {
+    ok: true,
+    title: 'EMS Expiration Dates',
+    source: EMS_EXPIRATION_CSV_URL,
+    updated: nowIso(),
+    updatedLabel: formatCentralDateTime(new Date()),
+    refreshMs: EMS_EXPIRATION_REFRESH_MS,
+    stale: true,
+    error,
+    section: {
+      title: 'EMS Expiration Dates',
+      headers: ['Name', 'Certification', 'Expiration Date'],
+      rows: []
+    }
+  };
+}
+
 async function fetchEmsExpirations(force = false) {
   const now = Date.now();
   const loadedAt = emsExpirationCache.loadedAt ? new Date(emsExpirationCache.loadedAt).getTime() : 0;
@@ -1310,7 +1372,7 @@ async function fetchEmsExpirations(force = false) {
       };
     }
 
-    throw err;
+    return buildEmsExpirationFallback(err.message);
   }
 }
 
