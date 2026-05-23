@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Active911 Alert Takeover - iPad</title>
-  <link rel="stylesheet" href="/active911-ipad.css?v=2" />
+  <link rel="stylesheet" href="/active911-ipad.css?v=3" />
 </head>
 <body>
   <main class="dispatch-board">
@@ -61,14 +61,17 @@
           <div class="map-fallback">Satellite map waiting for coordinates.</div>
         </article>
 
-        <article class="map-card">
+        <article id="routeCard" class="map-card route-card">
           <img id="routeImage" alt="Station route map" />
           <div class="map-fallback">Route map waiting for coordinates.</div>
+          <button id="routeButton" class="route-button" type="button" disabled>
+            Start Route
+          </button>
         </article>
       </section>
     </section>
   </main>
 
-  <script src="/active911-ipad.js?v=2"></script>
+  <script src="/active911-ipad.js?v=3"></script>
 </body>
 </html>

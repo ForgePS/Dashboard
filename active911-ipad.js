@@ -15,6 +15,8 @@ const specialNotes = document.getElementById('specialNotes');
 const streetViewImage = document.getElementById('streetViewImage');
 const satelliteImage = document.getElementById('satelliteImage');
 const routeImage = document.getElementById('routeImage');
+const routeCard = document.getElementById('routeCard');
+const routeButton = document.getElementById('routeButton');
 const ACTIVE911_TAKEOVER_DURATION_MS =
   Number(new URLSearchParams(window.location.search).get('durationMinutes') || 5) * 60 * 1000;
 const ALERT_SOUND_ENABLED = new URLSearchParams(window.location.search).get('sound') !== '0';
@@ -265,35 +267,51 @@ function directionsUrlForIncident(incident) {
   const destination = mapsDestination(incident);
   if (!destination) return '';
 
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`;
+  return googleNavigationUrl(destination);
+}
+
+function googleNavigationUrl(destination, origin = '') {
+  const url = new URL('https://www.google.com/maps/dir/');
+  url.searchParams.set('api', '1');
+  url.searchParams.set('destination', destination);
+  url.searchParams.set('travelmode', 'driving');
+  url.searchParams.set('dir_action', 'navigate');
+
+  if (origin) {
+    url.searchParams.set('origin', origin);
+  }
+
+  return url.toString();
+}
+
+function setRouteButtonState(label, disabled = false) {
+  if (!routeButton) return;
+  routeButton.textContent = label;
+  routeButton.disabled = disabled;
 }
 
 function openCurrentDirections() {
   if (!currentIncidentDestination) return;
 
   const openDirections = (origin) => {
-    const url = new URL('https://www.google.com/maps/dir/');
-    url.searchParams.set('api', '1');
-    url.searchParams.set('destination', currentIncidentDestination);
-    url.searchParams.set('travelmode', 'driving');
-
-    if (origin) {
-      url.searchParams.set('origin', origin);
-    }
-
-    window.open(url.toString(), '_blank', 'noopener');
+    window.location.assign(googleNavigationUrl(currentIncidentDestination, origin));
   };
 
+  setRouteButtonState('Locating...', true);
+
   if (!navigator.geolocation) {
+    setRouteButtonState('Start Route');
     openDirections('');
     return;
   }
 
   navigator.geolocation.getCurrentPosition(
     (position) => {
+      setRouteButtonState('Start Route');
       openDirections(`${position.coords.latitude},${position.coords.longitude}`);
     },
     () => {
+      setRouteButtonState('Start Route');
       openDirections('');
     },
     {
@@ -321,10 +339,7 @@ function openPreFirePlan() {
 }
 
 function setupDirectionsTapTargets() {
-  const tapTargets = [
-    satelliteImage?.closest('.map-card'),
-    routeImage?.closest('.map-card')
-  ].filter(Boolean);
+  const tapTargets = [routeCard].filter(Boolean);
 
   for (const target of tapTargets) {
     target.setAttribute('role', 'button');
@@ -337,6 +352,14 @@ function setupDirectionsTapTargets() {
         event.preventDefault();
         openCurrentDirections();
       }
+    });
+  }
+
+  if (routeButton) {
+    routeButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openCurrentDirections();
     });
   }
 }
@@ -395,6 +418,7 @@ function setMapImages(incident) {
   currentIncidentDestination = mapsDestination(incident);
   currentDirectionsUrl = directionsUrlForIncident(incident);
   document.body.classList.toggle('has-directions', Boolean(currentDirectionsUrl));
+  setRouteButtonState(currentDirectionsUrl ? 'Start Route' : 'Route Waiting', !currentDirectionsUrl);
 
   if (!query) {
     streetViewImage.removeAttribute('src');
