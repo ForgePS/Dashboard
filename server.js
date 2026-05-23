@@ -2155,7 +2155,15 @@ app.get('/training-schedule', (req, res) => {
   sendHtmlFileOrFallback(res, 'training-schedule.html', 'Horn Lake Training Schedule', '/api/training-schedule');
 });
 
+app.get('/training-schedule.html', (req, res) => {
+  sendHtmlFileOrFallback(res, 'training-schedule.html', 'Horn Lake Training Schedule', '/api/training-schedule');
+});
+
 app.get('/ems-expiration-dates', (req, res) => {
+  sendHtmlFileOrFallback(res, 'ems-expiration-dates.html', 'Horn Lake EMS Expiration Dates', '/api/ems-expiration-dates');
+});
+
+app.get('/ems-expiration-dates.html', (req, res) => {
   sendHtmlFileOrFallback(res, 'ems-expiration-dates.html', 'Horn Lake EMS Expiration Dates', '/api/ems-expiration-dates');
 });
 
