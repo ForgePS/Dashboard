@@ -2151,6 +2151,10 @@ app.get('/live-doc', (req, res) => {
   sendHtmlFileOrFallback(res, 'live-document.html', 'Horn Lake Fire Unit Status', '/api/live-document');
 });
 
+app.get('/live-document.html', (req, res) => {
+  sendHtmlFileOrFallback(res, 'live-document.html', 'Horn Lake Fire Unit Status', '/api/live-document');
+});
+
 app.get('/training-schedule', (req, res) => {
   sendHtmlFileOrFallback(res, 'training-schedule.html', 'Horn Lake Training Schedule', '/api/training-schedule');
 });
