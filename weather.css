@@ -1,0 +1,256 @@
+:root {
+  --bg: #05080d;
+  --panel: #111827;
+  --panel-soft: #162033;
+  --line: rgba(148, 163, 184, 0.28);
+  --text: #ffffff;
+  --muted: #b8c4d6;
+  --gold: #ffe100;
+  --blue: #2f80ed;
+  --green: #28d96c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  background:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.035) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.035) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.035) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.035) 75%),
+    #030509;
+  background-position: 0 0, 0 14px, 14px -14px, -14px 0;
+  background-size: 28px 28px;
+  color: var(--text);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.weather-page {
+  display: grid;
+  grid-template-rows: 86px minmax(0, 1fr) 236px;
+  gap: 14px;
+  width: min(1920px, 100vw);
+  height: min(1080px, 100vh);
+  margin: 0 auto;
+  padding: 14px 72px 18px;
+}
+
+.weather-header {
+  display: flex;
+  align-items: start;
+  justify-content: center;
+  position: relative;
+  text-align: center;
+}
+
+.weather-header h1 {
+  margin: 0;
+  color: #fff;
+  font-size: 46px;
+  line-height: 1;
+  letter-spacing: 2px;
+  text-shadow: 4px 4px 0 #000;
+}
+
+.weather-header p {
+  margin: 4px 0 0;
+  font-size: 18px;
+  font-weight: 800;
+  text-shadow: 2px 2px 0 #000;
+}
+
+.weather-status {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  display: grid;
+  gap: 3px;
+  justify-items: end;
+  color: #dbeafe;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.weather-status small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.live-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--green);
+  box-shadow: 0 0 16px rgba(40, 217, 108, 0.9);
+}
+
+.weather-layout {
+  display: grid;
+  grid-template-columns: 386px minmax(0, 1fr);
+  gap: 14px;
+  min-height: 0;
+}
+
+.current-card,
+.tile,
+.forecast-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(20, 30, 48, 0.96), rgba(11, 17, 28, 0.96)),
+    var(--panel);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 14px 30px rgba(0, 0, 0, 0.35);
+}
+
+.current-card {
+  min-height: 0;
+  padding: 24px 20px;
+}
+
+.label,
+.tile span,
+.forecast-card span {
+  color: var(--muted);
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.temperature {
+  margin: 3px 0 28px;
+  font-size: 74px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.high-low {
+  margin-top: 6px;
+  font-size: 32px;
+  font-weight: 900;
+}
+
+.condition {
+  margin-top: 18px;
+  color: var(--gold);
+  font-size: 28px;
+  font-weight: 900;
+}
+
+#feelsLike {
+  margin-top: 10px;
+  color: #e5e7eb;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: minmax(88px, auto);
+  gap: 12px 10px;
+  align-content: start;
+  min-height: 0;
+}
+
+.section-title {
+  grid-column: 1 / -1;
+  align-self: end;
+  color: var(--gold);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  line-height: 1;
+  text-transform: uppercase;
+  text-shadow: 3px 3px 0 #000;
+}
+
+.tile {
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  min-height: 88px;
+  padding: 14px 12px;
+}
+
+.tile strong {
+  color: #fff;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.forecast-panel {
+  min-height: 0;
+}
+
+.forecast-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.forecast-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 16px;
+  min-height: 180px;
+  padding: 18px 20px;
+}
+
+.forecast-card h2 {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #fff;
+  font-size: 28px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.forecast-card .forecast-condition {
+  grid-column: 1 / -1;
+  color: var(--gold);
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.forecast-card strong {
+  color: #fff;
+  font-size: 24px;
+}
+
+@media (max-width: 1100px) {
+  body {
+    overflow: auto;
+  }
+
+  .weather-page {
+    height: auto;
+    padding: 16px;
+    grid-template-rows: auto;
+  }
+
+  .weather-header,
+  .weather-layout,
+  .forecast-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .weather-status {
+    position: static;
+    margin-top: 10px;
+    justify-items: center;
+  }
+}

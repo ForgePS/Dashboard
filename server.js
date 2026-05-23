@@ -2321,6 +2321,10 @@ app.get('/events', (req, res) => {
   sendHtmlFileOrFallback(res, 'events.html', 'Events', '/api/events');
 });
 
+app.get('/weather', (req, res) => {
+  sendHtmlFileOrFallback(res, 'weather.html', 'Horn Lake Weather', '/api/weather');
+});
+
 app.get('/active911', (req, res) => {
   sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/latest');
 });
@@ -3259,15 +3263,83 @@ function windDirectionLabel(degrees) {
   return dirs[Math.round(dir / 45) % 8];
 }
 
+function weatherConditionLabel(code) {
+  const codeMap = {
+    0: 'Clear',
+    1: 'Mainly Clear',
+    2: 'Partly Cloudy',
+    3: 'Cloudy',
+    45: 'Fog',
+    48: 'Fog',
+    51: 'Light Drizzle',
+    53: 'Drizzle',
+    55: 'Heavy Drizzle',
+    61: 'Light Rain',
+    63: 'Rain',
+    65: 'Heavy Rain',
+    71: 'Light Snow',
+    73: 'Snow',
+    75: 'Heavy Snow',
+    80: 'Rain Showers',
+    81: 'Rain Showers',
+    82: 'Heavy Showers',
+    95: 'Thunderstorm',
+    96: 'Thunderstorm',
+    99: 'Thunderstorm'
+  };
+
+  return codeMap[code] || 'Current Weather';
+}
+
+function weatherNumber(value, fallback = null) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function roundedWeatherNumber(value, fallback = null) {
+  const number = weatherNumber(value, fallback);
+  return Number.isFinite(number) ? Math.round(number) : fallback;
+}
+
 app.get('/api/weather', async (req, res) => {
   try {
     const point = await resolveMapPoint(req).catch(() => null);
     const lat = safeString(point?.lat || HORN_LAKE_WEATHER.lat);
     const lon = safeString(point?.lon || HORN_LAKE_WEATHER.lon);
-    const url =
-      `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
-      '&current=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m' +
-      '&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FChicago';
+    const params = new URLSearchParams({
+      latitude: lat,
+      longitude: lon,
+      current: [
+        'temperature_2m',
+        'relative_humidity_2m',
+        'apparent_temperature',
+        'precipitation',
+        'weather_code',
+        'cloud_cover',
+        'surface_pressure',
+        'wind_speed_10m',
+        'wind_direction_10m',
+        'wind_gusts_10m'
+      ].join(','),
+      daily: [
+        'weather_code',
+        'temperature_2m_max',
+        'temperature_2m_min',
+        'sunrise',
+        'sunset',
+        'precipitation_sum',
+        'precipitation_probability_max',
+        'wind_speed_10m_max',
+        'wind_gusts_10m_max',
+        'uv_index_max'
+      ].join(','),
+      temperature_unit: 'fahrenheit',
+      wind_speed_unit: 'mph',
+      precipitation_unit: 'inch',
+      timezone: 'America/Chicago',
+      forecast_days: '4'
+    });
+    const url = `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
     const response = await fetch(url, { headers: { Accept: 'application/json' } });
     const payload = await response.json();
 
@@ -3275,37 +3347,47 @@ app.get('/api/weather', async (req, res) => {
       throw new Error(payload.reason || response.statusText);
     }
 
-    const codeMap = {
-      0: 'Clear',
-      1: 'Mainly Clear',
-      2: 'Partly Cloudy',
-      3: 'Cloudy',
-      45: 'Fog',
-      48: 'Fog',
-      51: 'Light Drizzle',
-      53: 'Drizzle',
-      55: 'Heavy Drizzle',
-      61: 'Light Rain',
-      63: 'Rain',
-      65: 'Heavy Rain',
-      71: 'Light Snow',
-      73: 'Snow',
-      75: 'Heavy Snow',
-      80: 'Rain Showers',
-      81: 'Rain Showers',
-      82: 'Heavy Showers',
-      95: 'Thunderstorm',
-      96: 'Thunderstorm',
-      99: 'Thunderstorm'
-    };
+    const current = payload.current || {};
+    const daily = payload.daily || {};
+    const forecast = (daily.time || []).slice(1, 4).map((date, index) => ({
+      date,
+      condition: weatherConditionLabel(daily.weather_code?.[index + 1]),
+      high: roundedWeatherNumber(daily.temperature_2m_max?.[index + 1]),
+      low: roundedWeatherNumber(daily.temperature_2m_min?.[index + 1]),
+      precipitationIn: weatherNumber(daily.precipitation_sum?.[index + 1], 0),
+      precipitationProbability: roundedWeatherNumber(daily.precipitation_probability_max?.[index + 1]),
+      windMph: roundedWeatherNumber(daily.wind_speed_10m_max?.[index + 1]),
+      gustMph: roundedWeatherNumber(daily.wind_gusts_10m_max?.[index + 1]),
+      uvIndex: weatherNumber(daily.uv_index_max?.[index + 1])
+    }));
 
     res.json({
       ok: true,
-      temp: Math.round(Number(payload.current?.temperature_2m)),
-      condition: codeMap[payload.current?.weather_code] || 'Current Weather',
-      windMph: Math.round(Number(payload.current?.wind_speed_10m)),
-      windDir: windDirectionLabel(payload.current?.wind_direction_10m),
-      time: payload.current?.time || null
+      updated: nowIso(),
+      updatedLabel: formatCentralDateTime(new Date()),
+      temp: roundedWeatherNumber(current.temperature_2m),
+      condition: weatherConditionLabel(current.weather_code),
+      windMph: roundedWeatherNumber(current.wind_speed_10m),
+      windDir: windDirectionLabel(current.wind_direction_10m),
+      time: current.time || null,
+      current: {
+        temp: roundedWeatherNumber(current.temperature_2m),
+        condition: weatherConditionLabel(current.weather_code),
+        feelsLike: roundedWeatherNumber(current.apparent_temperature),
+        humidity: roundedWeatherNumber(current.relative_humidity_2m),
+        pressure: weatherNumber(current.surface_pressure),
+        cloudCover: roundedWeatherNumber(current.cloud_cover),
+        windMph: roundedWeatherNumber(current.wind_speed_10m),
+        windGustMph: roundedWeatherNumber(current.wind_gusts_10m),
+        windDir: windDirectionLabel(current.wind_direction_10m),
+        precipitationIn: weatherNumber(current.precipitation, 0),
+        high: roundedWeatherNumber(daily.temperature_2m_max?.[0]),
+        low: roundedWeatherNumber(daily.temperature_2m_min?.[0]),
+        sunrise: daily.sunrise?.[0] || null,
+        sunset: daily.sunset?.[0] || null,
+        uvIndex: weatherNumber(daily.uv_index_max?.[0])
+      },
+      forecast
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });

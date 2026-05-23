@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Horn Lake Weather</title>
+  <link rel="stylesheet" href="/weather.css?v=1" />
+</head>
+<body>
+  <main class="weather-page">
+    <header class="weather-header">
+      <div>
+        <h1>Horn Lake Weather</h1>
+        <p>Current Conditions &amp; 3-Day Forecast</p>
+      </div>
+      <div class="weather-status">
+        <span class="live-dot"></span>
+        <span id="statusText">Updating weather...</span>
+        <small id="updatedText">Last Updated --</small>
+      </div>
+    </header>
+
+    <section class="weather-layout">
+      <article class="current-card">
+        <div class="label">Current Temperature</div>
+        <div id="currentTemp" class="temperature">--</div>
+        <div class="label">High / Low</div>
+        <div id="highLow" class="high-low">-- / --</div>
+        <div id="conditionText" class="condition">Loading...</div>
+        <div id="feelsLike">Feels like --</div>
+      </article>
+
+      <section class="detail-grid">
+        <div class="section-title">Sun</div>
+        <article class="tile"><span>Sunrise</span><strong id="sunrise">--</strong></article>
+        <article class="tile"><span>Sunset</span><strong id="sunset">--</strong></article>
+
+        <div class="section-title">Wind</div>
+        <article class="tile"><span>Wind Speed</span><strong id="windSpeed">-- mph</strong></article>
+        <article class="tile"><span>Wind Gust</span><strong id="windGust">-- mph</strong></article>
+        <article class="tile"><span>Wind Direction</span><strong id="windDirection">--</strong></article>
+
+        <div class="section-title">Atmosphere</div>
+        <article class="tile"><span>Humidity</span><strong id="humidity">--%</strong></article>
+        <article class="tile"><span>Pressure</span><strong id="pressure">-- hPa</strong></article>
+        <article class="tile"><span>Cloud Cover</span><strong id="cloudCover">--%</strong></article>
+
+        <div class="section-title">Precipitation</div>
+        <article class="tile"><span>Current</span><strong id="precipCurrent">-- in</strong></article>
+        <article class="tile"><span>Forecasted</span><strong id="precipForecast">-- in</strong></article>
+        <article class="tile"><span>Chance</span><strong id="precipChance">--%</strong></article>
+
+        <div class="section-title">Safety</div>
+        <article class="tile"><span>UV Index</span><strong id="uvIndex">--</strong></article>
+      </section>
+    </section>
+
+    <section class="forecast-panel">
+      <div class="section-title">3-Day Forecast</div>
+      <div id="forecastGrid" class="forecast-grid"></div>
+    </section>
+  </main>
+
+  <script src="/weather.js?v=1"></script>
+</body>
+</html>
