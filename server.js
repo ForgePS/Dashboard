@@ -9,6 +9,8 @@ const fs = require('fs');
 const buffer = require('@turf/buffer').default;
 const booleanPointInPolygon = require('@turf/boolean-point-in-polygon').default;
 const { point } = require('@turf/helpers');
+const { initializeApp, getApps } = require('firebase-admin/app');
+const { FieldValue, getFirestore } = require('firebase-admin/firestore');
 
 const app = express();
 
@@ -74,6 +76,10 @@ const INCIDENT_HISTORY_FILE =
   process.env.INCIDENT_HISTORY_FILE ||
   path.join(DATA_DIR, 'incident-history.json');
 
+const LIVE_INCIDENTS_COLLECTION =
+  process.env.LIVE_INCIDENTS_COLLECTION ||
+  'dashboardLiveIncidents';
+
 const DAILY_ROSTER_FILE =
   process.env.DAILY_ROSTER_FILE ||
   path.join(DATA_DIR, 'daily-roster.json');
@@ -117,7 +123,7 @@ const EVENTS_REFRESH_MS = Number(process.env.EVENTS_REFRESH_MS || 30000);
 
 const HISTORICAL_INCIDENTS_CSV_FILE =
   process.env.HISTORICAL_INCIDENTS_CSV_FILE ||
-  path.join(__dirname, 'historical-incidents.csv');
+  path.join(__dirname, 'historical-incidents-start.csv');
 
 const HISTORICAL_MONTHLY_CSV_FILE =
   process.env.HISTORICAL_MONTHLY_CSV_FILE ||
@@ -126,6 +132,10 @@ const HISTORICAL_MONTHLY_CSV_FILE =
 const HISTORICAL_CALL_TYPE_CSV_FILE =
   process.env.HISTORICAL_CALL_TYPE_CSV_FILE ||
   path.join(__dirname, 'historical-call-type-volume.csv');
+
+const HISTORICAL_ADDRESS_CSV_FILE =
+  process.env.HISTORICAL_ADDRESS_CSV_FILE ||
+  path.join(__dirname, 'historical-address-volume.csv');
 
 const HISTORICAL_LIVE_START =
   process.env.HISTORICAL_LIVE_START ||
@@ -149,6 +159,12 @@ const ACTIVE911_REFRESH_TOKEN = process.env.ACTIVE911_REFRESH_TOKEN || '';
 const ACTIVE911_TOKEN_URL =
   process.env.ACTIVE911_TOKEN_URL ||
   'https://access.active911.com/interface/open_api/token.php';
+const ACTIVE911_CREDENTIALS_COLLECTION =
+  process.env.ACTIVE911_CREDENTIALS_COLLECTION ||
+  'dashboardRuntime';
+const ACTIVE911_CREDENTIALS_DOC =
+  process.env.ACTIVE911_CREDENTIALS_DOC ||
+  'active911Credentials';
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || '';
 const SPECIAL_ADDRESS_NOTES_FILE =
   process.env.SPECIAL_ADDRESS_NOTES_FILE ||
@@ -168,6 +184,8 @@ const ANALYTICS_HISTORY_START =
 const ACTIVE911_BACKFILL_LIMIT = Number(process.env.ACTIVE911_BACKFILL_LIMIT || 10000);
 
 let active911AccessToken = ACTIVE911_ACCESS_TOKEN;
+let active911RefreshToken = ACTIVE911_REFRESH_TOKEN;
+let active911CredentialsLoaded = false;
 const csvCache = new Map();
 
 const INCIDENT_TYPE_CATEGORIES = {
@@ -327,6 +345,62 @@ function saveJsonFile(file, data) {
   }
 }
 
+let firestoreDb = null;
+
+try {
+  if (!getApps().length) initializeApp();
+  firestoreDb = getFirestore();
+} catch (err) {
+  console.error('Firestore persistence is unavailable:', err.message);
+}
+
+function incidentDocId(id) {
+  return Buffer.from(String(id || ''), 'utf8').toString('base64url');
+}
+
+function isActive911Source(source) {
+  return String(source || '').startsWith('active911-');
+}
+
+async function persistIncident(incident) {
+  if (!firestoreDb || !incident?.id) return;
+  if (!isActive911Source(incident.source)) return;
+
+  try {
+    await firestoreDb
+      .collection(LIVE_INCIDENTS_COLLECTION)
+      .doc(incidentDocId(incident.id))
+      .set(
+        {
+          ...incident,
+          persistedAt: FieldValue.serverTimestamp()
+        },
+        { merge: true }
+      );
+  } catch (err) {
+    console.error(`Failed to persist incident ${incident.id}:`, err.message);
+  }
+}
+
+async function loadPersistedIncidents() {
+  if (!firestoreDb) return [];
+
+  try {
+    const snapshot = await firestoreDb
+      .collection(LIVE_INCIDENTS_COLLECTION)
+      .orderBy('sent', 'desc')
+      .limit(MAX_INCIDENT_HISTORY)
+      .get();
+
+    return snapshot.docs
+      .map((doc) => doc.data())
+      .filter((incident) => incident?.id && isActive911Source(incident.source));
+  } catch (err) {
+    console.error('Failed to load persisted live incidents:', err.message);
+    return [];
+  }
+}
+
 let incidentHistory = loadJsonFile(INCIDENT_HISTORY_FILE, []);
 let seenIncidentIds = new Set(incidentHistory.map((i) => i.id).filter(Boolean));
 let dailyRosterCache = {
@@ -358,7 +432,8 @@ const active911Debug = {
   pollingEnabled: ACTIVE911_POLLING_ENABLED,
   alertsUrl: ACTIVE911_ALERTS_URL,
   hasAccessToken: Boolean(active911AccessToken),
-  hasRefreshToken: Boolean(ACTIVE911_REFRESH_TOKEN),
+  hasRefreshToken: Boolean(active911RefreshToken),
+  hasRefreshCredentials: Boolean(active911RefreshToken && ACTIVE911_CLIENT_ID),
   pollCount: 0,
   lastPollAt: null,
   lastPollSuccessAt: null,
@@ -366,22 +441,102 @@ const active911Debug = {
   lastPollAdded: 0,
   lastPollChecked: 0,
   lastTokenRefreshAt: null,
+  lastCredentialLoadAt: null,
+  lastCredentialSaveAt: null,
   lastIngestAt: null,
   lastIngestSource: null,
   incidentCount: incidentHistory.length
 };
 
+function hasActive911RefreshCredentials() {
+  return Boolean(active911RefreshToken && ACTIVE911_CLIENT_ID);
+}
+
+function updateActive911CredentialDebug() {
+  active911Debug.hasAccessToken = Boolean(active911AccessToken);
+  active911Debug.hasRefreshToken = Boolean(active911RefreshToken);
+  active911Debug.hasRefreshCredentials = hasActive911RefreshCredentials();
+}
+
+async function loadActive911CredentialState({ force = false } = {}) {
+  if (active911CredentialsLoaded && !force) return;
+  active911CredentialsLoaded = true;
+
+  if (!firestoreDb) {
+    updateActive911CredentialDebug();
+    return;
+  }
+
+  try {
+    const snapshot = await firestoreDb
+      .collection(ACTIVE911_CREDENTIALS_COLLECTION)
+      .doc(ACTIVE911_CREDENTIALS_DOC)
+      .get();
+
+    const data = snapshot.exists ? snapshot.data() : null;
+    if (data?.refreshToken) {
+      active911RefreshToken = data.refreshToken;
+    }
+    if (data?.accessToken) {
+      active911AccessToken = data.accessToken;
+    }
+    active911Debug.lastCredentialLoadAt = nowIso();
+  } catch (err) {
+    console.error('Failed to load Active911 credential state:', err.message);
+  }
+
+  updateActive911CredentialDebug();
+}
+
+async function saveActive911CredentialState(payload) {
+  if (!firestoreDb) return;
+
+  const nextRefreshToken = payload?.refresh_token || payload?.refreshToken || '';
+  const nextAccessToken = payload?.access_token || payload?.accessToken || '';
+  if (!nextRefreshToken && !nextAccessToken) return;
+
+  const patch = {
+    updatedAt: FieldValue.serverTimestamp()
+  };
+
+  if (nextRefreshToken) {
+    active911RefreshToken = nextRefreshToken;
+    patch.refreshToken = nextRefreshToken;
+  }
+
+  if (nextAccessToken) {
+    patch.accessToken = nextAccessToken;
+  }
+
+  try {
+    await firestoreDb
+      .collection(ACTIVE911_CREDENTIALS_COLLECTION)
+      .doc(ACTIVE911_CREDENTIALS_DOC)
+      .set(patch, { merge: true });
+    active911Debug.lastCredentialSaveAt = nowIso();
+  } catch (err) {
+    console.error('Failed to save Active911 credential state:', err.message);
+  }
+
+  updateActive911CredentialDebug();
+}
+
 async function refreshActive911Token() {
-  if (!ACTIVE911_REFRESH_TOKEN || !ACTIVE911_CLIENT_ID || !ACTIVE911_CLIENT_SECRET) {
+  await loadActive911CredentialState();
+
+  if (!hasActive911RefreshCredentials()) {
     throw new Error('Active911 refresh credentials are not fully configured');
   }
 
   const body = new URLSearchParams({
     grant_type: 'refresh_token',
-    refresh_token: ACTIVE911_REFRESH_TOKEN,
-    client_id: ACTIVE911_CLIENT_ID,
-    client_secret: ACTIVE911_CLIENT_SECRET
+    refresh_token: active911RefreshToken,
+    client_id: ACTIVE911_CLIENT_ID
   });
+
+  if (ACTIVE911_CLIENT_SECRET) {
+    body.set('client_secret', ACTIVE911_CLIENT_SECRET);
+  }
 
   const response = await fetch(ACTIVE911_TOKEN_URL, {
     method: 'POST',
@@ -399,14 +554,17 @@ async function refreshActive911Token() {
   }
 
   active911AccessToken = payload.access_token;
-  active911Debug.hasAccessToken = true;
   active911Debug.lastTokenRefreshAt = nowIso();
+  await saveActive911CredentialState(payload);
+  updateActive911CredentialDebug();
 
   return active911AccessToken;
 }
 
 async function active911Fetch(url, options = {}, retry = true) {
-  if (!active911AccessToken && ACTIVE911_REFRESH_TOKEN) {
+  await loadActive911CredentialState();
+
+  if (!active911AccessToken && hasActive911RefreshCredentials()) {
     await refreshActive911Token();
   }
 
@@ -423,7 +581,7 @@ async function active911Fetch(url, options = {}, retry = true) {
     }
   });
 
-  if (response.status === 401 && retry && ACTIVE911_REFRESH_TOKEN) {
+  if (response.status === 401 && retry && hasActive911RefreshCredentials()) {
     await refreshActive911Token();
     return active911Fetch(url, options, false);
   }
@@ -583,7 +741,7 @@ function normalizeAlertPayload(raw, source) {
   };
 }
 
-function addIncident(raw, source = 'unknown') {
+async function addIncident(raw, source = 'unknown') {
   const incident = normalizeAlertPayload(raw, source);
 
   if (!incident.id) return null;
@@ -595,6 +753,7 @@ function addIncident(raw, source = 'unknown') {
   seenIncidentIds = new Set(incidentHistory.map((i) => i.id).filter(Boolean));
 
   saveJsonFile(INCIDENT_HISTORY_FILE, incidentHistory);
+  await persistIncident(incident);
 
   active911Debug.lastIngestAt = nowIso();
   active911Debug.lastIngestSource = source;
@@ -878,7 +1037,7 @@ async function pollActive911() {
 
       try {
         const fullAlert = await fetchAlertDetail(alertRef);
-        const incident = addIncident(fullAlert, 'active911-poll');
+        const incident = await addIncident(fullAlert, 'active911-poll');
         if (incident) added++;
       } catch (detailErr) {
         console.error(`Failed to fetch Active911 alert detail ${alertRef?.id || ''}: ${detailErr.message}`);
@@ -1800,6 +1959,31 @@ function loadHistoricalCallTypeRows() {
     .filter(Boolean);
 }
 
+function loadHistoricalAddressRows() {
+  return readCsvRows(HISTORICAL_ADDRESS_CSV_FILE)
+    .map((row) => {
+      const address = getCsvValue(row, ['address', 'location', 'incident_address']);
+      const city = getCsvValue(row, ['city']);
+      const calls = parseCount(getCsvValue(row, [
+        'total_number_of_alerts',
+        'total alerts',
+        'alerts',
+        'calls',
+        'count',
+        'total'
+      ]));
+
+      if (!address || !calls) return null;
+
+      return {
+        address: String(address || '').toUpperCase(),
+        city: String(city || '').toUpperCase(),
+        calls
+      };
+    })
+    .filter(Boolean);
+}
+
 function getHistoricalMonthlyAnalyticsRows() {
   const start = parseCentralDateTime(ANALYTICS_HISTORY_START);
   const startParts = Number.isNaN(start.getTime()) ? { key: '2026-01' } : getCentralMonthParts(start);
@@ -1808,12 +1992,13 @@ function getHistoricalMonthlyAnalyticsRows() {
     .filter((row) => row.monthKey >= startParts.key);
 }
 
-function getAnalyticsHistory(options = {}) {
+async function getAnalyticsHistory(options = {}) {
   const start = parseCentralDateTime(ANALYTICS_HISTORY_START);
   const startMs = start.getTime();
   const historicalIncidentRows = options.historicalIncidentRows || loadHistoricalIncidentRows();
   const historicalMonthlyRows = options.historicalMonthlyRows || getHistoricalMonthlyAnalyticsRows();
   const historicalCallTypeRows = options.historicalCallTypeRows || loadHistoricalCallTypeRows();
+  const persistedIncidentRows = options.persistedIncidentRows || await loadPersistedIncidents();
   const liveStartText = HISTORICAL_LIVE_START ||
     (historicalIncidentRows.length || historicalMonthlyRows.length || historicalCallTypeRows.length
       ? getCurrentCentralDateStart()
@@ -1821,7 +2006,8 @@ function getAnalyticsHistory(options = {}) {
   const liveStart = liveStartText ? parseCentralDateTime(liveStartText) : null;
   const liveStartMs = liveStart && !Number.isNaN(liveStart.getTime()) ? liveStart.getTime() : null;
 
-  const combined = [...historicalIncidentRows, ...incidentHistory];
+  const memoryActive911Rows = incidentHistory.filter((incident) => isActive911Source(incident.source));
+  const combined = [...historicalIncidentRows, ...persistedIncidentRows, ...memoryActive911Rows];
   const unique = new Map();
 
   for (const incident of combined) {
@@ -1936,15 +2122,18 @@ function generateTypeCounts(history, monthlyRows = [], callTypeRows = []) {
 
 function generateBusiestAddresses(history) {
   const counts = {};
+  const cities = {};
 
   for (const incident of history) {
     const address = (incident.address || '').trim();
     if (!address) continue;
+
     counts[address] = (counts[address] || 0) + 1;
+    if (incident.city) cities[address] = incident.city;
   }
 
   return Object.entries(counts)
-    .map(([address, calls]) => ({ address, calls }))
+    .map(([address, calls]) => ({ address, city: cities[address] || '', calls }))
     .sort((a, b) => b.calls - a.calls)
     .slice(0, 10);
 }
@@ -2020,14 +2209,18 @@ function generateDailyStats(history, monthlyRows = []) {
   return months;
 }
 
-function buildAnalyticsDashboard(recentLimit = 5) {
+async function buildAnalyticsDashboard(recentLimit = 5) {
   const historicalIncidentRows = loadHistoricalIncidentRows();
   const monthlyRows = getHistoricalMonthlyAnalyticsRows();
-  const callTypeRows = historicalIncidentRows.length ? [] : loadHistoricalCallTypeRows();
-  const history = getAnalyticsHistory({
+  const callTypeFileRows = loadHistoricalCallTypeRows();
+  const callTypeRows = historicalIncidentRows.length ? [] : callTypeFileRows;
+  const addressRows = loadHistoricalAddressRows();
+  const persistedIncidentRows = await loadPersistedIncidents();
+  const history = await getAnalyticsHistory({
     historicalIncidentRows,
     historicalMonthlyRows: monthlyRows,
-    historicalCallTypeRows: callTypeRows
+    historicalCallTypeRows: callTypeRows,
+    persistedIncidentRows
   });
 
   return {
@@ -2038,7 +2231,7 @@ function buildAnalyticsDashboard(recentLimit = 5) {
     dateRange: getIncidentDateRange(history),
     totals: generateTotals(history, monthlyRows, callTypeRows),
     typeCounts: generateTypeCounts(history, monthlyRows, callTypeRows),
-    busiestAddresses: generateBusiestAddresses(history),
+    busiestAddresses: generateBusiestAddresses(history, addressRows),
     recent: history.slice(0, recentLimit).map((item) => ({
       type: item.type || 'UNKNOWN',
       rawType: item.rawType || '',
@@ -2057,11 +2250,16 @@ function buildAnalyticsDashboard(recentLimit = 5) {
       incidentsFile: HISTORICAL_INCIDENTS_CSV_FILE,
       monthlyFile: HISTORICAL_MONTHLY_CSV_FILE,
       callTypeFile: HISTORICAL_CALL_TYPE_CSV_FILE,
+      addressFile: HISTORICAL_ADDRESS_CSV_FILE,
       incidentRows: historicalIncidentRows.length,
       monthlyRows: monthlyRows.length,
-      callTypeRows: callTypeRows.length,
+      callTypeRows: callTypeFileRows.length,
+      callTypeRowsUsed: callTypeRows.length,
+      addressRows: addressRows.length,
+      liveIncidentRows: persistedIncidentRows.length,
+      memoryIncidentRows: incidentHistory.length,
       liveStart: HISTORICAL_LIVE_START ||
-        (historicalIncidentRows.length || monthlyRows.length || callTypeRows.length
+        (historicalIncidentRows.length || monthlyRows.length || callTypeRows.length || addressRows.length
           ? getCurrentCentralDateStart()
           : null)
     },
@@ -2171,7 +2369,7 @@ async function buildActive911TakeoverPayload(recentLimit = 5) {
         const fullAlert = await fetchAlertDetail(alertRef);
         const incident = normalizeAlertPayload(fullAlert, 'active911-takeover');
         recent.push(formatTakeoverIncident(incident));
-        addIncident(fullAlert, 'active911-takeover');
+        await addIncident(fullAlert, 'active911-takeover');
       } catch (err) {
         const incident = normalizeAlertPayload(alertRef, 'active911-takeover-list');
         recent.push(formatTakeoverIncident(incident));
@@ -2442,20 +2640,20 @@ app.get('/api/health', (req, res) => {
 
 app.get('/health', (req, res) => res.redirect('/api/health'));
 
-app.get('/api/analytics-dashboard', (req, res) => {
-  res.json(buildAnalyticsDashboard(5));
+app.get('/api/analytics-dashboard', async (req, res) => {
+  res.json(await buildAnalyticsDashboard(5));
 });
 
-app.get('/api/dashboard', (req, res) => {
-  res.json(buildAnalyticsDashboard(5));
+app.get('/api/dashboard', async (req, res) => {
+  res.json(await buildAnalyticsDashboard(5));
 });
 
-app.get('/api/analytics', (req, res) => {
-  res.json(buildAnalyticsDashboard(5));
+app.get('/api/analytics', async (req, res) => {
+  res.json(await buildAnalyticsDashboard(5));
 });
 
-app.get('/api/latest', (req, res) => {
-  res.json(buildAnalyticsDashboard(5));
+app.get('/api/latest', async (req, res) => {
+  res.json(await buildAnalyticsDashboard(5));
 });
 
 app.get('/api/active911-takeover', async (req, res) => {
@@ -2463,13 +2661,13 @@ app.get('/api/active911-takeover', async (req, res) => {
   res.json(dashboard);
 });
 
-app.get('/api/analytics-refresh', (req, res) => {
-  const dashboard = buildAnalyticsDashboard(5);
+app.get('/api/analytics-refresh', async (req, res) => {
+  const dashboard = await buildAnalyticsDashboard(5);
   res.json({ ...dashboard, refreshed: true });
 });
 
-app.get('/api/analytics-debug', (req, res) => {
-  const dashboard = buildAnalyticsDashboard(5);
+app.get('/api/analytics-debug', async (req, res) => {
+  const dashboard = await buildAnalyticsDashboard(5);
   res.json({
     ok: true,
     message: 'Analytics debug route is working.',
@@ -2483,17 +2681,20 @@ app.get('/api/analytics-debug', (req, res) => {
   });
 });
 
-app.get('/api/historical-debug', (req, res) => {
+app.get('/api/historical-debug', async (req, res) => {
   try {
     const historicalIncidentRows = loadHistoricalIncidentRows();
     const monthlyRows = getHistoricalMonthlyAnalyticsRows();
-    const callTypeRows = historicalIncidentRows.length ? [] : loadHistoricalCallTypeRows();
-    const history = getAnalyticsHistory({
+    const callTypeFileRows = loadHistoricalCallTypeRows();
+    const callTypeRows = historicalIncidentRows.length ? [] : callTypeFileRows;
+    const addressRows = loadHistoricalAddressRows();
+    const persistedIncidentRows = await loadPersistedIncidents();
+    const history = await getAnalyticsHistory({
       historicalIncidentRows,
       historicalMonthlyRows: monthlyRows,
-      historicalCallTypeRows: callTypeRows
+      historicalCallTypeRows: callTypeRows,
+      persistedIncidentRows
     });
-
     res.json({
       ok: true,
       files: {
@@ -2510,8 +2711,19 @@ app.get('/api/historical-debug', (req, res) => {
         callType: {
           path: HISTORICAL_CALL_TYPE_CSV_FILE,
           exists: fs.existsSync(HISTORICAL_CALL_TYPE_CSV_FILE),
-          rows: callTypeRows.length
+          rows: callTypeFileRows.length,
+          rowsUsedInTotals: callTypeRows.length
+        },
+        address: {
+          path: HISTORICAL_ADDRESS_CSV_FILE,
+          exists: fs.existsSync(HISTORICAL_ADDRESS_CSV_FILE),
+          rows: addressRows.length
         }
+      },
+      liveIncidents: {
+        collection: LIVE_INCIDENTS_COLLECTION,
+        persistedRows: persistedIncidentRows.length,
+        memoryRows: incidentHistory.length
       },
       analyticsRows: history.length,
       dateRange: getIncidentDateRange(history),
@@ -2533,7 +2745,7 @@ app.get('/api/historical-debug', (req, res) => {
   }
 });
 
-app.get('/api/test-alert', (req, res) => {
+app.get('/api/test-alert', async (req, res) => {
   const item = {
     id: `test-${Date.now()}`,
     type: String(req.query.type || 'EMS').toUpperCase(),
@@ -2542,22 +2754,22 @@ app.get('/api/test-alert', (req, res) => {
     sent: req.query.sent ? new Date(String(req.query.sent)).toISOString() : nowIso()
   };
 
-  const incident = addIncident(item, 'manual-test');
+  const incident = await addIncident(item, 'manual-test');
   res.json({ ok: true, incident, history: incidentHistory });
 });
 
-app.post('/api/active911-webhook', (req, res) => {
-  const incident = addIncident(req.body, 'active911-webhook');
+app.post('/api/active911-webhook', async (req, res) => {
+  const incident = await addIncident(req.body, 'active911-webhook');
   res.json({ ok: true, added: Boolean(incident), incident, recentCount: incidentHistory.length });
 });
 
-app.post('/active911-webhook', (req, res) => {
-  const incident = addIncident(req.body, 'active911-webhook');
+app.post('/active911-webhook', async (req, res) => {
+  const incident = await addIncident(req.body, 'active911-webhook');
   res.json({ ok: true, added: Boolean(incident), incident, recentCount: incidentHistory.length });
 });
 
-app.post('/api/alerts', (req, res) => {
-  const incident = addIncident(req.body, 'api-alerts');
+app.post('/api/alerts', async (req, res) => {
+  const incident = await addIncident(req.body, 'api-alerts');
   res.json({ ok: true, added: Boolean(incident), incident, recentCount: incidentHistory.length });
 });
 
@@ -3072,6 +3284,27 @@ async function geocodeAddressForMaps(address) {
   return result;
 }
 
+async function rebuildAnalyticsFromHistory() {
+  // Load the historical incident file/data
+  // Recalculate:
+  // - total calls
+  // - fire calls
+  // - EMS calls
+  // - other calls
+  // - monthly call volume
+  // - incident type breakdown
+  // - recent incidents
+  // - busiest addresses
+
+  analyticsData = buildAnalyticsDataFromHistory(historicalEvents);
+
+  console.log("Analytics rebuilt:", {
+    total: analyticsData?.totals?.total,
+    fire: analyticsData?.totals?.fire,
+    ems: analyticsData?.totals?.ems,
+    other: analyticsData?.totals?.other
+  });
+}
 async function resolveMapPoint(req) {
   const lat = safeString(req.query.lat);
   const lon = safeString(req.query.lon || req.query.lng);
@@ -3685,7 +3918,7 @@ app.get('/api/active911-backfill', async (req, res) => {
 
         try {
           const fullAlert = await fetchAlertDetail(alertRef);
-          const incident = addIncident(fullAlert, 'active911-backfill');
+          const incident = await addIncident(fullAlert, 'active911-backfill');
           if (incident) added++;
           else duplicates++;
         } catch (err) {
@@ -3697,7 +3930,7 @@ app.get('/api/active911-backfill', async (req, res) => {
       page++;
     }
 
-    const analyticsHistory = getAnalyticsHistory();
+    const analyticsHistory = await getAnalyticsHistory();
 
     res.json({
       ok: true,
@@ -3747,18 +3980,30 @@ app.use('/api', (req, res) => {
 // START SERVER
 // ======================================================
 
-if (ACTIVE911_POLLING_ENABLED && (active911AccessToken || ACTIVE911_REFRESH_TOKEN)) {
-  pollActive911();
-  setInterval(pollActive911, ACTIVE911_POLL_MS);
-  console.log('Active911 polling enabled');
-} else {
-  console.log('Active911 polling not started. Check Active911 credentials and ACTIVE911_POLLING_ENABLED.');
+let backgroundWorkStarted = false;
+
+function startBackgroundWork() {
+  if (backgroundWorkStarted) return;
+  backgroundWorkStarted = true;
+
+  if (ACTIVE911_POLLING_ENABLED && (active911AccessToken || active911RefreshToken || firestoreDb)) {
+    pollActive911();
+    setInterval(pollActive911, ACTIVE911_POLL_MS);
+    console.log('Active911 polling enabled');
+  } else {
+    console.log('Active911 polling not started. Check Active911 credentials and ACTIVE911_POLLING_ENABLED.');
+  }
 }
 
-app.listen(PORT, () => {
-  console.log('');
-  console.log('========================================');
-  console.log(`Horn Lake Fire Analytics + Hydrants + Active911 running on ${PORT}`);
-  console.log('========================================');
-  console.log('');
-});
+if (require.main === module) {
+  startBackgroundWork();
+  app.listen(PORT, () => {
+    console.log('');
+    console.log('========================================');
+    console.log(`Horn Lake Fire Analytics + Hydrants + Active911 running on ${PORT}`);
+    console.log('========================================');
+    console.log('');
+  });
+}
+
+module.exports = { app, startBackgroundWork };
