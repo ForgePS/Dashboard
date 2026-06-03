@@ -144,6 +144,8 @@ const HISTORICAL_LIVE_START =
 const MAX_INCIDENT_HISTORY = Number(process.env.MAX_INCIDENT_HISTORY || 5000);
 const ACTIVE911_POLL_MS = Number(process.env.ACTIVE911_POLL_MS || 15000);
 const ACTIVE911_POLL_DETAIL_LIMIT = Number(process.env.ACTIVE911_POLL_DETAIL_LIMIT || 1000);
+const ANALYTICS_DASHBOARD_CACHE_MS = Number(process.env.ANALYTICS_DASHBOARD_CACHE_MS || 30000);
+const ACTIVE911_TAKEOVER_CACHE_MS = Number(process.env.ACTIVE911_TAKEOVER_CACHE_MS || 5000);
 
 const ACTIVE911_ACCESS_TOKEN = process.env.ACTIVE911_ACCESS_TOKEN || '';
 const ACTIVE911_ALERTS_URL =
@@ -403,6 +405,14 @@ async function loadPersistedIncidents() {
 
 let incidentHistory = loadJsonFile(INCIDENT_HISTORY_FILE, []);
 let seenIncidentIds = new Set(incidentHistory.map((i) => i.id).filter(Boolean));
+let analyticsDashboardCache = {
+  loadedAt: 0,
+  data: null
+};
+let active911TakeoverCache = {
+  loadedAt: 0,
+  data: null
+};
 let dailyRosterCache = {
   loadedAt: null,
   error: null,
@@ -2299,6 +2309,23 @@ async function buildAnalyticsDashboard(recentLimit = 5) {
   };
 }
 
+async function getCachedAnalyticsDashboard(recentLimit = 5, force = false) {
+  const now = Date.now();
+  if (!force && analyticsDashboardCache.data && now - analyticsDashboardCache.loadedAt < ANALYTICS_DASHBOARD_CACHE_MS) {
+    return {
+      ...analyticsDashboardCache.data,
+      cached: true
+    };
+  }
+
+  const data = await buildAnalyticsDashboard(recentLimit);
+  analyticsDashboardCache = {
+    loadedAt: Date.now(),
+    data
+  };
+  return data;
+}
+
 function normalizeAddressKey(value) {
   return String(value || '')
     .toUpperCase()
@@ -2436,6 +2463,23 @@ async function buildActive911TakeoverPayload(recentLimit = 5) {
       active911: active911Debug
     };
   }
+}
+
+async function getCachedActive911TakeoverPayload(recentLimit = 5, force = false) {
+  const now = Date.now();
+  if (!force && active911TakeoverCache.data && now - active911TakeoverCache.loadedAt < ACTIVE911_TAKEOVER_CACHE_MS) {
+    return {
+      ...active911TakeoverCache.data,
+      cached: true
+    };
+  }
+
+  const data = await buildActive911TakeoverPayload(recentLimit);
+  active911TakeoverCache = {
+    loadedAt: Date.now(),
+    data
+  };
+  return data;
 }
 
 // ======================================================
@@ -2690,28 +2734,28 @@ app.get('/api/health', (req, res) => {
 app.get('/health', (req, res) => res.redirect('/api/health'));
 
 app.get('/api/analytics-dashboard', async (req, res) => {
-  res.json(await buildAnalyticsDashboard(5));
+  res.json(await getCachedAnalyticsDashboard(5, String(req.query.force || '').toLowerCase() === 'true'));
 });
 
 app.get('/api/dashboard', async (req, res) => {
-  res.json(await buildAnalyticsDashboard(5));
+  res.json(await getCachedAnalyticsDashboard(5, String(req.query.force || '').toLowerCase() === 'true'));
 });
 
 app.get('/api/analytics', async (req, res) => {
-  res.json(await buildAnalyticsDashboard(5));
+  res.json(await getCachedAnalyticsDashboard(5, String(req.query.force || '').toLowerCase() === 'true'));
 });
 
 app.get('/api/latest', async (req, res) => {
-  res.json(await buildAnalyticsDashboard(5));
+  res.json(await getCachedAnalyticsDashboard(5, String(req.query.force || '').toLowerCase() === 'true'));
 });
 
 app.get('/api/active911-takeover', async (req, res) => {
-  const dashboard = await buildActive911TakeoverPayload(5);
+  const dashboard = await getCachedActive911TakeoverPayload(5, String(req.query.force || '').toLowerCase() === 'true');
   res.json(dashboard);
 });
 
 app.get('/api/analytics-refresh', async (req, res) => {
-  const dashboard = await buildAnalyticsDashboard(5);
+  const dashboard = await getCachedAnalyticsDashboard(5, true);
   res.json({ ...dashboard, refreshed: true });
 });
 

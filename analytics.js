@@ -31,6 +31,8 @@ const CATEGORY_LABELS = {
 const numberFormat = new Intl.NumberFormat('en-US');
 const ACTIVE911_TAKEOVER_DURATION_MS =
   Number(new URLSearchParams(window.location.search).get('takeoverMinutes') || 5) * 60 * 1000;
+const ANALYTICS_TAKEOVER_ENABLED =
+  new URLSearchParams(window.location.search).get('takeover') === '1';
 let dailyChart;
 let lastTakeoverAlertId = sessionStorage.getItem('lastTakeoverAlertId') || '';
 
@@ -301,6 +303,8 @@ async function checkActive911Takeover() {
 }
 
 refreshAnalytics();
-checkActive911Takeover();
 setInterval(refreshAnalytics, 15000);
-setInterval(checkActive911Takeover, 15000);
+if (ANALYTICS_TAKEOVER_ENABLED) {
+  checkActive911Takeover();
+  setInterval(checkActive911Takeover, 15000);
+}
