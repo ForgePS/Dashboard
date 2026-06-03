@@ -1699,11 +1699,45 @@ function formatEventDate(value) {
   return formatShortEventDate(date);
 }
 
+function parseEventEndDate(value) {
+  const text = String(value || '').trim();
+  if (!text) return null;
+
+  const start = parseEventDate(text);
+  if (!start) return null;
+
+  const monthMatch = text.match(/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/i);
+  const days = [...text.matchAll(/\b(\d{1,2})(?:st|nd|rd|th)?\b/g)]
+    .map((match) => Number(match[1]))
+    .filter((day) => day >= 1 && day <= 31);
+
+  if (monthMatch && days.length > 1) {
+    const end = new Date(start);
+    end.setDate(days[days.length - 1]);
+    end.setHours(23, 59, 59, 999);
+    return Number.isNaN(end.getTime()) ? start : end;
+  }
+
+  const end = new Date(start);
+  end.setHours(23, 59, 59, 999);
+  return end;
+}
+
 function getEventMonthKey(value) {
   const date = parseEventDate(value);
   if (!date) return '';
 
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function removePastEvents(events) {
+  const todayStart = parseCentralDateTime(getCurrentCentralDateStart());
+  if (Number.isNaN(todayStart.getTime())) return events;
+
+  return events.filter((event) => {
+    if (!Number.isFinite(event.endSortTime)) return true;
+    return event.endSortTime >= todayStart.getTime();
+  });
 }
 
 function shapeEventRows(rows) {
@@ -1721,6 +1755,7 @@ function shapeEventRows(rows) {
 
       const title = getCsvValue(row, ['title', 'event', 'event_name', 'name']);
       const date = getCsvValue(row, ['date', 'event_date', 'start_date']);
+      const endDate = getCsvValue(row, ['end_date', 'end date', 'end', 'end_day']);
       const time = getCsvValue(row, ['time', 'event_time', 'start_time']);
       const location = getCsvValue(row, ['location', 'place', 'venue']);
       const category = getCsvValue(row, ['category', 'type', 'event_type']);
@@ -1728,6 +1763,7 @@ function shapeEventRows(rows) {
       const notes = getCsvValue(row, ['notes', 'description', 'details']);
       const owner = getCsvValue(row, ['owner', 'contact', 'lead']);
       const sortDate = parseEventDate(date);
+      const parsedEndDate = parseEventDate(endDate) || parseEventEndDate(date) || sortDate;
       const fallbackTitle = [category, location, date]
         .map((value) => String(value || '').trim())
         .filter(Boolean)
@@ -1746,7 +1782,8 @@ function shapeEventRows(rows) {
         status: status || 'Scheduled',
         notes,
         owner,
-        sortTime: sortDate ? sortDate.getTime() : Number.MAX_SAFE_INTEGER
+        sortTime: sortDate ? sortDate.getTime() : Number.MAX_SAFE_INTEGER,
+        endSortTime: parsedEndDate ? parsedEndDate.getTime() : Number.MAX_SAFE_INTEGER
       };
     })
     .filter((event) => {
@@ -1766,6 +1803,7 @@ function shapeEventRows(rows) {
         return text && text !== '--' && text !== 'Scheduled';
       });
     })
+    .filter((event) => removePastEvents([event]).length)
     .sort((a, b) => a.sortTime - b.sortTime);
 }
 
