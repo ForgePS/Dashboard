@@ -450,6 +450,95 @@ td::before {
   letter-spacing: 1.4px;
 }
 
+.ems-certifications-display .doc-header {
+  height: 92px;
+  min-height: 92px;
+  padding: 10px 18px;
+}
+
+.ems-certifications-display .brand img {
+  width: 58px;
+  height: 58px;
+}
+
+.ems-certifications-display h1 {
+  font-size: 46px;
+}
+
+.ems-certifications-display .subline,
+.ems-certifications-display .status {
+  font-size: 18px;
+}
+
+.ems-certifications-display .doc-grid {
+  height: calc(100% - 101px);
+  margin-top: 9px;
+}
+
+.ems-certifications-display .panel-head {
+  height: 46px;
+  padding-bottom: 8px;
+}
+
+.ems-certifications-display h2 {
+  font-size: 24px;
+  letter-spacing: 4px;
+}
+
+.ems-certifications-display .table-wrap {
+  max-height: calc(100% - 46px);
+}
+
+.ems-certifications-display tbody {
+  gap: 9px;
+}
+
+.ems-certifications-display tr {
+  grid-template-columns: minmax(260px, 1.15fr) minmax(230px, 1fr) minmax(210px, 0.8fr);
+  min-height: 72px;
+  border-left-width: 7px;
+  border-radius: 12px;
+}
+
+.ems-certifications-display td {
+  display: flex;
+  min-height: 70px;
+  flex-direction: column;
+  justify-content: center;
+  padding: 9px 16px;
+  font-size: 24px;
+  line-height: 1.08;
+}
+
+.ems-certifications-display td::before {
+  margin-bottom: 6px;
+  font-size: 12px;
+  letter-spacing: 2px;
+}
+
+.ems-certifications-display.two-column-section tbody {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ems-certifications-display.two-column-section tr {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 0.78fr);
+  min-height: 50px;
+}
+
+.ems-certifications-display.two-column-section td {
+  min-height: 0;
+  padding: 6px 8px;
+  font-size: 15px;
+  line-height: 1.05;
+}
+
+.ems-certifications-display.two-column-section td::before {
+  margin-bottom: 3px;
+  font-size: 8px;
+  letter-spacing: 1.4px;
+}
+
 @media (max-width: 1050px) {
   body {
     height: auto;
