@@ -2411,6 +2411,9 @@ async function buildActive911TakeoverPayload(recentLimit = 5) {
 // ======================================================
 
 const HYDRANT_CSV_FILE = process.env.HYDRANT_CSV_FILE || path.join(__dirname, 'Hydrant Locations.csv');
+const HYDRANT_JSON_FILE =
+  process.env.HYDRANT_JSON_FILE ||
+  path.join(__dirname, 'public', 'hydrants.json');
 const HYDRANT_CSV_URL =
   process.env.HYDRANT_CSV_URL ||
   '';
@@ -2432,6 +2435,12 @@ let cachedBoundarySource = null;
 let hydrantCsvCache = {
   loadedAt: null,
   raw: null,
+  source: null,
+  error: null
+};
+let hydrantJsonCache = {
+  loadedAt: null,
+  rows: null,
   source: null,
   error: null
 };
@@ -2932,7 +2941,79 @@ function parseHydrantRowsFromCsvText(raw, defaultStatus = 'AVAILABLE') {
   });
 }
 
+function normalizeHydrantJsonRow(row, index) {
+  const locationId = row.location_id || row.hydrant_id || row.official_hydrant_id || row.id || `H-${index + 1}`;
+  const locationName = row.location || row.address || row.location_name || row.description || '';
+  const provider = normalizeHydrantProvider(row.provider || row.water_assoc || row.water_provider || '');
+  const providerFinal =
+    provider === 'Unknown' ? guessProviderFromLocation({ ...row, location: locationName }) : provider;
+
+  return {
+    ...row,
+    location_id: locationId,
+    hydrant_id: row.hydrant_id || row.official_hydrant_id || locationId,
+    location: locationName,
+    location_name: row.location_name || locationName,
+    description: row.description || row.additional || '',
+    lat: row.lat || row.latitude || '',
+    lon: row.lon || row.lng || row.longitude || '',
+    provider: providerFinal,
+    status: normalizeHydrantStatus(row.status || row.hydrant_status || 'AVAILABLE'),
+    flow_gpm: row.flow_gpm || row.gpm || row.flow_result || '',
+    static_psi: row.static_psi || row.psi || '',
+    last_checked: row.last_checked || row.last_inspection || row.inspection_date || '',
+    issue: row.issue || '',
+    alternate_supply: row.alternate_supply || row.alternate || '',
+    notes: row.notes || ''
+  };
+}
+
+async function loadHydrantJsonRows(force = false) {
+  const now = Date.now();
+  const loadedAt = hydrantJsonCache.loadedAt ? new Date(hydrantJsonCache.loadedAt).getTime() : 0;
+
+  if (!force && hydrantJsonCache.rows && now - loadedAt < HYDRANT_CSV_REFRESH_MS) {
+    return hydrantJsonCache;
+  }
+
+  if (!fs.existsSync(HYDRANT_JSON_FILE)) {
+    hydrantJsonCache = {
+      loadedAt: nowIso(),
+      rows: null,
+      source: HYDRANT_JSON_FILE,
+      error: 'Hydrant JSON file not found'
+    };
+    return hydrantJsonCache;
+  }
+
+  try {
+    const data = JSON.parse(fs.readFileSync(HYDRANT_JSON_FILE, 'utf8'));
+    const rows = (Array.isArray(data) ? data : data.hydrants || [])
+      .map(normalizeHydrantJsonRow)
+      .filter((hydrant) => hydrant.location_id || hydrant.hydrant_id);
+
+    hydrantJsonCache = {
+      loadedAt: nowIso(),
+      rows,
+      source: HYDRANT_JSON_FILE,
+      error: null
+    };
+  } catch (err) {
+    hydrantJsonCache = {
+      loadedAt: nowIso(),
+      rows: null,
+      source: HYDRANT_JSON_FILE,
+      error: err.message
+    };
+  }
+
+  return hydrantJsonCache;
+}
+
 async function loadHydrantStatusRows(force = false) {
+  const jsonData = await loadHydrantJsonRows(force);
+  if (jsonData.rows?.length) return jsonData.rows;
+
   const csvData = await loadHydrantCsvText(force);
   return parseHydrantRowsFromCsvText(csvData.raw, 'AVAILABLE');
 }
@@ -3114,7 +3195,15 @@ async function buildHydrantStatusDashboard() {
   const allHydrants = await loadHydrantStatusRows();
   const problemHydrants = await loadProblematicHydrantRows();
   const problemLookup = buildHydrantLookup(problemHydrants);
-  const boundaryInfo = await loadHornLakeBoundary();
+  const usingAppHydrantJson = Boolean(hydrantJsonCache.rows?.length);
+  const boundaryInfo = usingAppHydrantJson
+    ? {
+        boundary: null,
+        bufferedBoundary: null,
+        loadedAt: hydrantJsonCache.loadedAt,
+        source: 'app hydrants json'
+      }
+    : await loadHornLakeBoundary();
   const insideHydrants = [];
   const bufferHydrants = [];
 
@@ -3123,12 +3212,12 @@ async function buildHydrantStatusDashboard() {
       .map((key) => problemLookup.get(key))
       .find(Boolean);
     const hydrated = applyProblemHydrantStatus(hydrant, problemHydrant);
-    const jurisdiction = getHydrantJurisdiction(
-      hydrated,
-      boundaryInfo.boundary,
-      boundaryInfo.bufferedBoundary
-    );
+    if (usingAppHydrantJson) {
+      insideHydrants.push({ ...hydrated, jurisdiction: 'CITY' });
+      continue;
+    }
 
+    const jurisdiction = getHydrantJurisdiction(hydrated, boundaryInfo.boundary, boundaryInfo.bufferedBoundary);
     if (jurisdiction === 'CITY') insideHydrants.push({ ...hydrated, jurisdiction });
     else if (jurisdiction === 'BUFFER') bufferHydrants.push({ ...hydrated, jurisdiction });
   }
@@ -3184,7 +3273,9 @@ async function buildHydrantStatusDashboard() {
     updated: nowIso(),
     updatedLabel: formatCentralDateTime(new Date()),
     title: 'Out of Service Hydrants',
-    source: hydrantCsvCache.source || HYDRANT_CSV_FILE,
+    source: hydrantJsonCache.source || hydrantCsvCache.source || HYDRANT_CSV_FILE,
+    jsonFile: HYDRANT_JSON_FILE,
+    jsonError: hydrantJsonCache.error,
     problemSource: problematicHydrantCsvCache.source || PROBLEMATIC_HYDRANTS_CSV_URL,
     refreshMs: HYDRANT_CSV_REFRESH_MS,
     csvFile: HYDRANT_CSV_FILE,
