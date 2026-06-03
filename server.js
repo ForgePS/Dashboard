@@ -1999,10 +1999,7 @@ async function getAnalyticsHistory(options = {}) {
   const historicalMonthlyRows = options.historicalMonthlyRows || getHistoricalMonthlyAnalyticsRows();
   const historicalCallTypeRows = options.historicalCallTypeRows || loadHistoricalCallTypeRows();
   const persistedIncidentRows = options.persistedIncidentRows || await loadPersistedIncidents();
-  const liveStartText = HISTORICAL_LIVE_START ||
-    (historicalIncidentRows.length || historicalMonthlyRows.length || historicalCallTypeRows.length
-      ? getCurrentCentralDateStart()
-      : '');
+  const liveStartText = HISTORICAL_LIVE_START || '';
   const liveStart = liveStartText ? parseCentralDateTime(liveStartText) : null;
   const liveStartMs = liveStart && !Number.isNaN(liveStart.getTime()) ? liveStart.getTime() : null;
 
@@ -2258,10 +2255,7 @@ async function buildAnalyticsDashboard(recentLimit = 5) {
       addressRows: addressRows.length,
       liveIncidentRows: persistedIncidentRows.length,
       memoryIncidentRows: incidentHistory.length,
-      liveStart: HISTORICAL_LIVE_START ||
-        (historicalIncidentRows.length || monthlyRows.length || callTypeRows.length || addressRows.length
-          ? getCurrentCentralDateStart()
-          : null)
+      liveStart: HISTORICAL_LIVE_START || null
     },
     active911: active911Debug
   };

@@ -10,7 +10,7 @@ const providerNames = [
 
 const statusColors = {
   available: '#2f80ed',
-  oos: '#e3342f',
+  oos: '#050505',
   'low-flow': '#f97316',
   'under-repair': '#f2c94c',
   testing: '#f2c94c',
@@ -81,9 +81,10 @@ async function loadHydrants() {
 
 function render(data) {
   const summary = data.summary || {};
+  const outOfServiceHydrants = safeArray(data.hydrants).filter(h => normStatus(h.status) === 'oos');
 
   setText('totalHydrants', fmt(summary.total));
-  setText('oosHydrants', fmt(summary.oos));
+  setText('oosHydrants', fmt(outOfServiceHydrants.length || summary.oos));
   setText('repairHydrants', fmt(summary.underRepair + summary.testing));
 
   setText(
@@ -98,8 +99,8 @@ function render(data) {
   );
 
   renderProviders(data.byProvider || {});
-  renderNotes(safeArray(data.notes));
-  renderMap(safeArray(data.hydrants));
+  renderNotes(outOfServiceHydrants);
+  renderMap(outOfServiceHydrants);
 }
 
 function renderProviders(byProvider) {
@@ -152,11 +153,7 @@ function renderNotes(items) {
 
   box.innerHTML = items.slice(0, 8).map(h => `
     <div class="note-card">
-      <h3>${h.hydrant_id || h.location_id || 'HYDRANT'} - ${h.provider || 'Unknown'}</h3>
-      <span class="status-tag ${normStatus(h.status)}">${labelStatus(h.status)}</span>
-      <p>${h.location || h.location_name || 'Location not listed'}</p>
-      <p>${h.issue || h.notes || 'No issue listed.'}</p>
-      <p><strong>Alternate:</strong> ${h.alternate_supply || 'Not listed'}</p>
+      <h3>${h.hydrant_id || h.location_id || 'HYDRANT'} - ${h.location || h.location_name || 'Address not listed'}</h3>
     </div>
   `).join('');
 }

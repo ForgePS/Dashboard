@@ -8,6 +8,7 @@
   --muted: #aab6c8;
 
   --red: #e3342f;
+  --oos: #050505;
   --orange: #f97316;
   --blue: #2f80ed;
   --green: #27ae60;
@@ -335,7 +336,7 @@ h1 {
 }
 
 .hydrant-card.oos {
-  border-left-color: var(--red);
+  border-left-color: var(--oos);
 }
 
 .hydrant-card.low-flow {
@@ -368,7 +369,7 @@ h1 {
 }
 
 .status-tag.oos {
-  background: var(--red);
+  background: var(--oos);
 }
 
 .status-tag.low-flow {
@@ -409,7 +410,7 @@ h1 {
 }
 
 .dot.available { background: var(--blue); }
-.dot.oos { background: var(--red); }
+.dot.oos { background: var(--oos); }
 .dot.lowflow { background: var(--orange); }
 .dot.repair { background: var(--yellow); }
 .dot.unknown { background: var(--gray); }
