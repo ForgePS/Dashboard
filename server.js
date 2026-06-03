@@ -2508,6 +2508,14 @@ app.get('/mvix', (req, res) => {
   sendHtmlFileOrFallback(res, 'mvix-playback.html', 'MVIX Playback With Active911 Override', '/api/active911-takeover');
 });
 
+app.get('/station:station/mvix', (req, res) => {
+  sendHtmlFileOrFallback(res, 'mvix-playback.html', 'MVIX Playback With Active911 Override', '/api/active911-takeover');
+});
+
+app.get('/mvix/station:station', (req, res) => {
+  sendHtmlFileOrFallback(res, 'mvix-playback.html', 'MVIX Playback With Active911 Override', '/api/active911-takeover');
+});
+
 app.get('/station1', (req, res) => {
   sendHtmlFileOrFallback(res, 'analytics.html', 'Horn Lake Fire Analytics', '/api/analytics-dashboard');
 });
