@@ -461,6 +461,11 @@ td::before {
   height: 58px;
 }
 
+.ems-certifications-display .kicker {
+  font-size: 15px;
+  letter-spacing: 0.24em;
+}
+
 .ems-certifications-display h1 {
   font-size: 46px;
 }
