@@ -60,6 +60,7 @@ function normalizeHydrantProvider(value) {
 
   if (p.includes('horn lake water association')) return 'Horn Lake Water Association';
   if (p.includes('city of horn lake') || p === 'horn lake water' || p === 'horn lake') return 'Horn Lake Water';
+  if (p.includes('southaven')) return 'Southaven Water';
   if (p.includes('days') || p.includes('day')) return 'Days Water';
   if (p.includes('walls') || p.includes('wall')) return 'Walls Water Association';
 
@@ -157,7 +158,8 @@ function buildHydrantStatusDashboard() {
     'Horn Lake Water': { total: 0, available: 0, oos: 0, lowFlow: 0, underRepair: 0, testing: 0 },
     'Horn Lake Water Association': { total: 0, available: 0, oos: 0, lowFlow: 0, underRepair: 0, testing: 0 },
     'Days Water': { total: 0, available: 0, oos: 0, lowFlow: 0, underRepair: 0, testing: 0 },
-    'Walls Water Association': { total: 0, available: 0, oos: 0, lowFlow: 0, underRepair: 0, testing: 0 }
+    'Walls Water Association': { total: 0, available: 0, oos: 0, lowFlow: 0, underRepair: 0, testing: 0 },
+    'Southaven Water': { total: 0, available: 0, oos: 0, lowFlow: 0, underRepair: 0, testing: 0 }
   };
 
   for (const h of hydrants) {

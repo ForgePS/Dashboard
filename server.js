@@ -2917,6 +2917,7 @@ function normalizeHydrantProvider(value) {
   const p = String(value || '').trim().toLowerCase();
   if (p.includes('horn lake water association')) return 'Horn Lake Water Association';
   if (p.includes('city of horn lake') || p === 'horn lake water' || p === 'horn lake') return 'Horn Lake Water';
+  if (p.includes('southaven')) return 'Southaven Water';
   if (p.includes('days') || p.includes('day')) return 'Days Water';
   if (p.includes('walls') || p.includes('wall')) return 'Walls Water Association';
   return value ? String(value).trim() : 'Unknown';
@@ -3327,7 +3328,8 @@ async function buildHydrantStatusDashboard() {
     'Horn Lake Water': blankProviderSummary(),
     'Horn Lake Water Association': blankProviderSummary(),
     'Days Water': blankProviderSummary(),
-    'Walls Water Association': blankProviderSummary()
+    'Walls Water Association': blankProviderSummary(),
+    'Southaven Water': blankProviderSummary()
   };
 
   for (const hydrant of insideHydrants) {

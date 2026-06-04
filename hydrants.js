@@ -6,7 +6,8 @@ const providerNames = [
   'Horn Lake Water',
   'Horn Lake Water Association',
   'Days Water',
-  'Walls Water Association'
+  'Walls Water Association',
+  'Southaven Water'
 ];
 
 const statusColors = {
@@ -161,7 +162,6 @@ function renderNotes(items) {
   box.innerHTML = items.slice(0, 8).map(h => `
     <div class="note-card">
       <h3>${h.hydrant_id || h.location_id || 'HYDRANT'} - ${h.location || h.location_name || 'Address not listed'}</h3>
-      <p>Provider: ${h.provider || 'Unknown Provider'}</p>
     </div>
   `).join('');
 }
