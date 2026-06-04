@@ -58,9 +58,10 @@ function normalizeHydrantStatus(value) {
 function normalizeHydrantProvider(value) {
   const p = String(value || '').trim().toLowerCase();
 
-  if (p.includes('horn')) return 'Horn Lake Water';
+  if (p.includes('horn lake water association')) return 'Horn Lake Water Association';
+  if (p.includes('city of horn lake') || p === 'horn lake water' || p === 'horn lake') return 'Horn Lake Water';
   if (p.includes('days') || p.includes('day')) return 'Days Water';
-  if (p.includes('walls') || p.includes('wall')) return 'Walls Water';
+  if (p.includes('walls') || p.includes('wall')) return 'Walls Water Association';
 
   return value ? String(value).trim() : 'Unknown';
 }
@@ -68,7 +69,7 @@ function normalizeHydrantProvider(value) {
 function guessProviderFromLocation(row) {
   const text = `${row.location || ''} ${row.location_name || ''} ${row.description || ''}`.toLowerCase();
 
-  if (text.includes('walls')) return 'Walls Water';
+  if (text.includes('walls')) return 'Walls Water Association';
   if (text.includes('day') || text.includes('days')) return 'Days Water';
 
   return 'Horn Lake Water';
@@ -154,12 +155,13 @@ function buildHydrantStatusDashboard() {
 
   const byProvider = {
     'Horn Lake Water': { total: 0, available: 0, oos: 0, lowFlow: 0, underRepair: 0, testing: 0 },
+    'Horn Lake Water Association': { total: 0, available: 0, oos: 0, lowFlow: 0, underRepair: 0, testing: 0 },
     'Days Water': { total: 0, available: 0, oos: 0, lowFlow: 0, underRepair: 0, testing: 0 },
-    'Walls Water': { total: 0, available: 0, oos: 0, lowFlow: 0, underRepair: 0, testing: 0 }
+    'Walls Water Association': { total: 0, available: 0, oos: 0, lowFlow: 0, underRepair: 0, testing: 0 }
   };
 
   for (const h of hydrants) {
-    const provider = byProvider[h.provider] ? h.provider : 'Horn Lake Water';
+    const provider = h.provider || 'Unknown';
 
     if (!byProvider[provider]) {
       byProvider[provider] = { total: 0, available: 0, oos: 0, lowFlow: 0, underRepair: 0, testing: 0 };

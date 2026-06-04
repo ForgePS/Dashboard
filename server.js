@@ -2915,9 +2915,10 @@ function normalizeHydrantStatus(value) {
 
 function normalizeHydrantProvider(value) {
   const p = String(value || '').trim().toLowerCase();
-  if (p.includes('horn')) return 'Horn Lake Water';
+  if (p.includes('horn lake water association')) return 'Horn Lake Water Association';
+  if (p.includes('city of horn lake') || p === 'horn lake water' || p === 'horn lake') return 'Horn Lake Water';
   if (p.includes('days') || p.includes('day')) return 'Days Water';
-  if (p.includes('walls') || p.includes('wall')) return 'Walls Water';
+  if (p.includes('walls') || p.includes('wall')) return 'Walls Water Association';
   return value ? String(value).trim() : 'Unknown';
 }
 
@@ -3324,12 +3325,14 @@ async function buildHydrantStatusDashboard() {
 
   const byProvider = {
     'Horn Lake Water': blankProviderSummary(),
+    'Horn Lake Water Association': blankProviderSummary(),
     'Days Water': blankProviderSummary(),
-    'Walls Water': blankProviderSummary()
+    'Walls Water Association': blankProviderSummary()
   };
 
   for (const hydrant of insideHydrants) {
-    const provider = byProvider[hydrant.provider] ? hydrant.provider : 'Horn Lake Water';
+    const provider = hydrant.provider || 'Unknown';
+    if (!byProvider[provider]) byProvider[provider] = blankProviderSummary();
     byProvider[provider].total++;
     applyStatusCount(summary, byProvider[provider], String(hydrant.status || '').toUpperCase());
   }

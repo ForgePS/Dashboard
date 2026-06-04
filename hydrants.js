@@ -4,8 +4,9 @@ let hydrantMapFramed = false;
 
 const providerNames = [
   'Horn Lake Water',
+  'Horn Lake Water Association',
   'Days Water',
-  'Walls Water'
+  'Walls Water Association'
 ];
 
 const statusColors = {
@@ -107,7 +108,12 @@ function renderProviders(byProvider) {
   const box = document.getElementById('providerGrid');
   if (!box) return;
 
-  box.innerHTML = providerNames.map(provider => {
+  const providers = [
+    ...providerNames,
+    ...Object.keys(byProvider).filter(provider => !providerNames.includes(provider)).sort()
+  ];
+
+  box.innerHTML = providers.map(provider => {
     const p = byProvider[provider] || {
       total: 0,
       oos: 0,
@@ -145,7 +151,7 @@ function renderNotes(items) {
     box.innerHTML = `
       <div class="note-card">
         <h3>No OOS Hydrants</h3>
-        <p>No problematic hydrants are currently listed.</p>
+        <p>No out of service hydrants are currently listed.</p>
       </div>
     `;
     return;
@@ -154,6 +160,7 @@ function renderNotes(items) {
   box.innerHTML = items.slice(0, 8).map(h => `
     <div class="note-card">
       <h3>${h.hydrant_id || h.location_id || 'HYDRANT'} - ${h.location || h.location_name || 'Address not listed'}</h3>
+      <p>Provider: ${h.provider || 'Unknown Provider'}</p>
     </div>
   `).join('');
 }
