@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Horn Lake Fire Department RMS</title>
+  <link rel="stylesheet" href="/rms/rms.css" />
+</head>
+<body>
+  <div class="rms-shell">
+    <aside class="rms-sidebar">
+      <div class="rms-brand">
+        <img src="/horn-lake-logo.png" alt="Horn Lake Fire Department" />
+        <div>
+          <strong>Horn Lake Fire Department</strong>
+          <span>RMS</span>
+        </div>
+      </div>
+      <nav id="sectionNav" class="section-nav" aria-label="RMS sections"></nav>
+    </aside>
+
+    <main class="rms-main">
+      <header class="rms-header">
+        <div>
+          <p class="kicker">Records Management Software</p>
+          <h1 id="sectionTitle">Dashboard</h1>
+        </div>
+        <div class="header-actions">
+          <input id="searchInput" type="search" placeholder="Search RMS" />
+          <button id="addRecordBtn" class="primary" type="button">Add Record</button>
+        </div>
+      </header>
+
+      <section id="statsGrid" class="stats-grid"></section>
+      <section id="workspace" class="workspace"></section>
+    </main>
+  </div>
+
+  <dialog id="recordModal" class="modal">
+    <form id="recordForm" method="dialog">
+      <header class="modal-head">
+        <div>
+          <p class="kicker" id="modalSection">Record</p>
+          <h2 id="modalTitle">Add Record</h2>
+        </div>
+        <button class="icon-button" type="submit" value="cancel" aria-label="Close">x</button>
+      </header>
+      <div id="modalFields" class="form-grid"></div>
+      <footer class="modal-actions">
+        <button class="secondary" type="submit" value="cancel">Cancel</button>
+        <button class="primary" type="submit" value="save">Save</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <script src="/rms/rms.js"></script>
+</body>
+</html>

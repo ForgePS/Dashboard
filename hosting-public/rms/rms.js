@@ -1,0 +1,571 @@
+const APP_KEY = 'hlfdRmsData';
+const sections = [
+  { id: 'dashboard', icon: 'DB', title: 'Dashboard' },
+  { id: 'incidents', icon: 'IN', title: 'Incidents' },
+  { id: 'nfirs', icon: 'NF', title: 'NFIRS' },
+  { id: 'personnel', icon: 'PE', title: 'Personnel' },
+  { id: 'training', icon: 'TR', title: 'Training' },
+  { id: 'preplans', icon: 'PP', title: 'Preplans' },
+  { id: 'inspections', icon: 'FI', title: 'Inspections' },
+  { id: 'hydrants', icon: 'HY', title: 'Hydrants' },
+  { id: 'inventory', icon: 'IV', title: 'Inventory' },
+  { id: 'maintenance', icon: 'MT', title: 'Maintenance' },
+  { id: 'reports', icon: 'RP', title: 'Reports' },
+  { id: 'admin', icon: 'AD', title: 'Admin' }
+];
+
+const apparatusNames = [
+  'Rescue 1', 'Engine 2', 'Engine 3', 'Engine 4', 'Truck 1', 'Truck 3',
+  'Unit 1', 'Unit 2', 'Unit 3', 'Unit 4', 'Unit 5', 'NW1',
+  '100', '101', '104', '105', '106', '107',
+  'FD 2', 'FD 3', 'FD 4', 'FD 5', 'Water Truck'
+];
+
+const serviceItems = [
+  'Oil change', 'Fuel filter replacement', 'Air filter inspection', 'Brake inspection',
+  'Tire inspection', 'Battery test', 'Fluid level check', 'Pump test',
+  'Hose bed inspection', 'Lights and siren check', 'Hydraulic system inspection',
+  'Ladder inspection', 'Oxygen system check', 'Radio check', 'Clean and detail'
+];
+
+const maintenanceParts = [
+  ['Engine oil filter', 'FLT-1001'], ['Fuel filter', 'FLT-1002'], ['Air filter', 'FLT-1003'],
+  ['Wiper blades', 'GEN-2401'], ['Brake pads', 'BRK-4100'], ['Scene light bulb', 'ELC-2108'],
+  ['Pump packing kit', 'PMP-3302'], ['Battery', 'BAT-31HD'], ['Coolant', 'FLD-5002']
+];
+
+const schemas = {
+  incidents: [
+    ['incidentNumber', 'Incident Number'], ['date', 'Date', 'date'], ['type', 'Incident Type'],
+    ['address', 'Address'], ['station', 'Station', 'select', ['Station 1', 'Station 2', 'Station 3']],
+    ['apparatus', 'Apparatus'], ['officer', 'Officer'], ['status', 'Status', 'select', ['Open', 'Complete', 'Needs Review']],
+    ['notes', 'Narrative', 'textarea']
+  ],
+  nfirs: [
+    ['incidentNumber', 'Incident Number'], ['module', 'NFIRS Module', 'select', ['Basic', 'Fire', 'EMS', 'Hazmat', 'Wildland']],
+    ['propertyUse', 'Property Use'], ['actionsTaken', 'Actions Taken'], ['casualties', 'Casualties'],
+    ['reviewStatus', 'Review Status', 'select', ['Draft', 'Ready for Review', 'Submitted']],
+    ['notes', 'Notes', 'textarea']
+  ],
+  personnel: [
+    ['name', 'Name'], ['rank', 'Rank'], ['employeeId', 'Employee ID'], ['station', 'Station', 'select', ['Station 1', 'Station 2', 'Station 3']],
+    ['shift', 'Shift', 'select', ['A Shift', 'B Shift', 'C Shift', 'Day Staff']], ['phone', 'Phone'],
+    ['email', 'Email'], ['status', 'Status', 'select', ['Active', 'Reserve', 'Leave', 'Inactive']],
+    ['certifications', 'Certifications', 'textarea']
+  ],
+  training: [
+    ['course', 'Course'], ['date', 'Date', 'date'], ['instructor', 'Instructor'], ['hours', 'Hours', 'number'],
+    ['category', 'Category', 'select', ['Fire', 'EMS', 'Driver', 'Officer', 'Hazmat', 'Technical Rescue']],
+    ['members', 'Members'], ['status', 'Status', 'select', ['Scheduled', 'Completed', 'Needs Documentation']],
+    ['notes', 'Notes', 'textarea']
+  ],
+  preplans: [
+    ['occupancy', 'Occupancy'], ['address', 'Address'], ['contact', 'Contact'], ['phone', 'Phone'],
+    ['hazards', 'Hazards', 'textarea'], ['hydrants', 'Hydrants'], ['knoxBox', 'Knox Box'],
+    ['lastReviewed', 'Last Reviewed', 'date'], ['status', 'Status', 'select', ['Current', 'Needs Review', 'Draft']]
+  ],
+  inspections: [
+    ['business', 'Business'], ['address', 'Address'], ['inspectionDate', 'Inspection Date', 'date'],
+    ['inspector', 'Inspector'], ['type', 'Type', 'select', ['Annual', 'Reinspection', 'Complaint', 'New Business']],
+    ['violations', 'Violations', 'textarea'], ['status', 'Status', 'select', ['Passed', 'Corrections Needed', 'Scheduled']],
+    ['followUp', 'Follow Up', 'date']
+  ],
+  hydrants: [
+    ['hydrantId', 'Hydrant ID'], ['address', 'Nearest Address'], ['flowGpm', 'Flow GPM', 'number'],
+    ['mainSize', 'Main Size'], ['lastService', 'Last Service', 'date'], ['condition', 'Condition', 'select', ['Good', 'Needs Paint', 'Needs Repair', 'Out of Service']],
+    ['notes', 'Notes', 'textarea']
+  ],
+  inventory: [
+    ['item', 'Item'], ['category', 'Category', 'select', ['EMS', 'Firefighting', 'PPE', 'Station Supply', 'Tool', 'Radio']],
+    ['quantity', 'Quantity', 'number'], ['minimum', 'Minimum Stock', 'number'], ['location', 'Location', 'select', ['Station 1', 'Station 2', 'Station 3', 'Warehouse']],
+    ['vendor', 'Vendor'], ['partNumber', 'Part Number'], ['notes', 'Notes', 'textarea']
+  ],
+  reports: [
+    ['name', 'Report Name'], ['type', 'Type', 'select', ['Incident', 'Training', 'Maintenance', 'Inspection', 'Inventory']],
+    ['dateRange', 'Date Range'], ['owner', 'Owner'], ['status', 'Status', 'select', ['Draft', 'Ready', 'Archived']],
+    ['notes', 'Notes', 'textarea']
+  ],
+  admin: [
+    ['setting', 'Setting'], ['owner', 'Owner'], ['category', 'Category', 'select', ['Users', 'Permissions', 'Workflow', 'Notifications', 'Data']],
+    ['status', 'Status', 'select', ['Active', 'Review', 'Disabled']], ['notes', 'Notes', 'textarea']
+  ]
+};
+
+const seed = {
+  incidents: [
+    { incidentNumber: 'HL-260604-001', date: '2026-06-04', type: 'Medical Assist', address: 'Goodman Rd W', station: 'Station 1', apparatus: 'Rescue 1', officer: 'Battalion 100', status: 'Open', notes: 'Initial record awaiting final narrative.' }
+  ],
+  nfirs: [
+    { incidentNumber: 'HL-260604-001', module: 'EMS', propertyUse: 'Street', actionsTaken: 'Patient care', casualties: '0', reviewStatus: 'Draft', notes: '' }
+  ],
+  personnel: [
+    { name: 'Battalion 100', rank: 'Battalion Chief', employeeId: '100', station: 'Station 1', shift: 'Day Staff', phone: '', email: '', status: 'Active', certifications: 'Command, Fire Officer' }
+  ],
+  training: [
+    { course: 'Driver Operator Review', date: '2026-06-04', instructor: 'Training Officer', hours: '2', category: 'Driver', members: 'Engine companies', status: 'Scheduled', notes: '' }
+  ],
+  preplans: [],
+  inspections: [],
+  hydrants: [],
+  inventory: [
+    { item: 'Nitrile Gloves', category: 'EMS', quantity: '24', minimum: '12', location: 'Station 1', vendor: 'Medical Supply', partNumber: 'EMS-GLV-L', notes: '' }
+  ],
+  reports: [],
+  admin: [],
+  maintenance: apparatusNames.map(name => ({
+    name,
+    type: apparatusType(name),
+    status: 'Needs Data',
+    location: 'Station 1',
+    make: '',
+    model: '',
+    year: '',
+    vin: '',
+    mileage: '',
+    engineHours: '',
+    serviceLogs: [],
+    fuelLogs: [],
+    parts: maintenanceParts.map(([part, number]) => ({ part, number })),
+    selectedServiceItems: [],
+    operatingHours: 0,
+    failures: 0,
+    repairHours: 0,
+    downtime: 0,
+    testCycles: 0,
+    notes: ''
+  }))
+};
+
+let data = loadData();
+let activeSection = 'dashboard';
+let maintenanceMode = 'fleet';
+let editing = null;
+
+const nav = document.getElementById('sectionNav');
+const title = document.getElementById('sectionTitle');
+const statsGrid = document.getElementById('statsGrid');
+const workspace = document.getElementById('workspace');
+const searchInput = document.getElementById('searchInput');
+const addRecordBtn = document.getElementById('addRecordBtn');
+const modal = document.getElementById('recordModal');
+const form = document.getElementById('recordForm');
+const modalFields = document.getElementById('modalFields');
+const modalTitle = document.getElementById('modalTitle');
+const modalSection = document.getElementById('modalSection');
+
+function apparatusType(name) {
+  if (name.startsWith('Engine')) return 'Pumper';
+  if (name.startsWith('Truck')) return 'Ladder Truck';
+  if (name.startsWith('Rescue')) return 'Ambulance';
+  if (name === 'Water Truck') return 'Support Vehicle';
+  if (name.startsWith('Unit') || name === 'NW1') return 'Support Vehicle';
+  return 'Fleet';
+}
+
+function loadData() {
+  const saved = localStorage.getItem(APP_KEY);
+  if (!saved) return structuredClone(seed);
+  try {
+    const parsed = JSON.parse(saved);
+    return { ...structuredClone(seed), ...parsed, maintenance: mergeMaintenance(parsed.maintenance) };
+  } catch {
+    return structuredClone(seed);
+  }
+}
+
+function mergeMaintenance(saved = []) {
+  return apparatusNames.map(name => {
+    const found = saved.find(item => item.name === name) || {};
+    return { ...seed.maintenance.find(item => item.name === name), ...found };
+  });
+}
+
+function saveData() {
+  localStorage.setItem(APP_KEY, JSON.stringify(data));
+}
+
+function esc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function money(value) {
+  const number = Number(value || 0);
+  return number.toLocaleString([], { style: 'currency', currency: 'USD' });
+}
+
+function calc95(item) {
+  const mtbf = item.failures > 0 ? Number(item.operatingHours || 0) / Number(item.failures || 1) : Number(item.operatingHours || 0);
+  const mttr = item.failures > 0 ? Number(item.repairHours || 0) / Number(item.failures || 1) : 0;
+  const availability = (Number(item.operatingHours || 0) + Number(item.downtime || 0)) > 0
+    ? (Number(item.operatingHours || 0) / (Number(item.operatingHours || 0) + Number(item.downtime || 0))) * 100
+    : 0;
+  const required = Math.ceil(Math.log(1 - .95) / Math.log(.95));
+  const passes = Number(item.testCycles || 0) >= required && Number(item.failures || 0) === 0 && availability >= 95;
+  return { mtbf, mttr, availability, required, passes };
+}
+
+function serviceCost(item) {
+  return (item.serviceLogs || []).reduce((sum, log) => sum + Number(log.cost || 0), 0);
+}
+
+function fuelCost(item) {
+  return (item.fuelLogs || []).reduce((sum, log) => sum + Number(log.cost || 0), 0);
+}
+
+function renderNav() {
+  nav.innerHTML = sections.map(section => `
+    <button class="nav-button ${section.id === activeSection ? 'active' : ''}" data-section="${section.id}" type="button">
+      <span class="nav-icon">${section.icon}</span>
+      <span>${section.title}</span>
+    </button>
+  `).join('');
+}
+
+function setSection(id) {
+  activeSection = id;
+  title.textContent = sections.find(section => section.id === id)?.title || 'RMS';
+  searchInput.value = '';
+  render();
+}
+
+function renderStats(cards) {
+  statsGrid.innerHTML = cards.map(card => `
+    <article class="stat-card"><span>${esc(card.label)}</span><strong>${esc(card.value)}</strong></article>
+  `).join('');
+}
+
+function render() {
+  renderNav();
+  addRecordBtn.style.display = activeSection === 'dashboard' || activeSection === 'maintenance' ? 'none' : '';
+  if (activeSection === 'dashboard') return renderDashboard();
+  if (activeSection === 'maintenance') return renderMaintenance();
+  renderRecords(activeSection);
+}
+
+function renderDashboard() {
+  const openIncidents = data.incidents.filter(item => item.status !== 'Complete').length;
+  const maintenanceSpend = data.maintenance.reduce((sum, item) => sum + serviceCost(item) + fuelCost(item), 0);
+  renderStats([
+    { label: 'Open Incidents', value: openIncidents },
+    { label: 'Apparatus', value: data.maintenance.length },
+    { label: 'Personnel', value: data.personnel.length },
+    { label: 'Fleet Expense', value: money(maintenanceSpend) }
+  ]);
+
+  const latestLogs = data.maintenance.flatMap(item => (item.serviceLogs || []).map(log => ({ ...log, apparatus: item.name })))
+    .sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 6);
+
+  workspace.innerHTML = `
+    <div class="dashboard-grid">
+      <section class="panel">
+        <h2>Department Work Queue</h2>
+        <div class="queue-list">
+          ${queueItem('Incidents needing review', `${openIncidents} open`)}
+          ${queueItem('NFIRS drafts', `${data.nfirs.filter(item => item.reviewStatus !== 'Submitted').length} records`)}
+          ${queueItem('Fire inspections', `${data.inspections.filter(item => item.status !== 'Passed').length} pending`)}
+          ${queueItem('Maintenance logs', `${latestLogs.length} recent entries`)}
+          ${queueItem('Inventory below minimum', `${lowInventory().length} items`)}
+        </div>
+      </section>
+      <section class="panel">
+        <h2>Recent Maintenance</h2>
+        <div class="queue-list">
+          ${latestLogs.length ? latestLogs.map(log => queueItem(`${log.apparatus} - ${log.items?.join(', ') || 'Service'}`, `${log.date || 'No date'} by ${log.by || 'Not listed'}`)).join('') : '<p class="muted">No service logs yet.</p>'}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function queueItem(name, detail) {
+  return `<div class="queue-item"><div><strong>${esc(name)}</strong><br><small>${esc(detail)}</small></div><span class="pill blue">Open</span></div>`;
+}
+
+function lowInventory() {
+  return data.inventory.filter(item => Number(item.quantity || 0) <= Number(item.minimum || 0));
+}
+
+function renderRecords(sectionId) {
+  const records = filterRecords(data[sectionId] || []);
+  renderStats([
+    { label: 'Records', value: records.length },
+    { label: 'Open', value: records.filter(item => !['Complete', 'Submitted', 'Passed', 'Current', 'Archived'].includes(item.status || item.reviewStatus)).length },
+    { label: 'This Section', value: sections.find(section => section.id === sectionId).title },
+    { label: 'Saved In Browser', value: 'Yes' }
+  ]);
+
+  workspace.innerHTML = `
+    <section class="record-grid">
+      ${records.map((record, index) => recordCard(sectionId, record, index)).join('') || emptyPanel(sectionId)}
+    </section>
+  `;
+}
+
+function filterRecords(records) {
+  const q = searchInput.value.trim().toLowerCase();
+  if (!q) return records;
+  return records.filter(record => Object.values(record).join(' ').toLowerCase().includes(q));
+}
+
+function recordCard(sectionId, record, index) {
+  const primary = record.incidentNumber || record.name || record.course || record.occupancy || record.business || record.hydrantId || record.item || record.setting || record.address || 'Record';
+  const secondary = record.date || record.inspectionDate || record.lastReviewed || record.lastService || record.station || record.category || '';
+  const status = record.status || record.reviewStatus || record.condition || 'Draft';
+  const statusClass = /complete|submitted|passed|current|good|active/i.test(status) ? 'green' : /needed|out|draft|review/i.test(status) ? 'amber' : 'blue';
+  return `
+    <article class="record-card">
+      <header>
+        <div><strong>${esc(primary)}</strong><small>${esc(secondary)}</small></div>
+        <span class="pill ${statusClass}">${esc(status)}</span>
+      </header>
+      <p class="muted">${esc(record.address || record.notes || record.certifications || record.violations || 'No additional notes entered.')}</p>
+      <div class="pill-row">
+        ${Object.entries(record).slice(0, 4).map(([key, value]) => value ? `<span class="pill">${esc(key)}: ${esc(value)}</span>` : '').join('')}
+      </div>
+      <button class="small-button" type="button" data-edit-section="${sectionId}" data-edit-index="${index}">Edit</button>
+    </article>
+  `;
+}
+
+function emptyPanel(sectionId) {
+  return `<article class="panel wide-card"><h2>No Records Yet</h2><p class="muted">${esc(sections.find(section => section.id === sectionId).title)} records will appear here when they are added.</p></article>`;
+}
+
+function renderMaintenance() {
+  const fleet = filterRecords(data.maintenance);
+  const expenses = data.maintenance.reduce((sum, item) => sum + serviceCost(item) + fuelCost(item), 0);
+  const passing = data.maintenance.filter(item => calc95(item).passes).length;
+  renderStats([
+    { label: 'Apparatus', value: data.maintenance.length },
+    { label: '95/95 Passing', value: passing },
+    { label: 'Service Expense', value: money(data.maintenance.reduce((sum, item) => sum + serviceCost(item), 0)) },
+    { label: 'Fuel Expense', value: money(expenses - data.maintenance.reduce((sum, item) => sum + serviceCost(item), 0)) }
+  ]);
+
+  workspace.innerHTML = `
+    <section class="panel">
+      <div class="tabs">
+        ${['fleet', 'service', 'fuel', 'parts'].map(mode => `<button class="tab-button ${maintenanceMode === mode ? 'active' : ''}" data-maint-mode="${mode}" type="button">${modeTitle(mode)}</button>`).join('')}
+      </div>
+    </section>
+    <section class="maintenance-grid">
+      ${fleet.map((item, index) => apparatusCard(item, index)).join('')}
+    </section>
+  `;
+}
+
+function modeTitle(mode) {
+  return ({ fleet: 'Fleet', service: 'Maintenance Logs', fuel: 'Fuel Logs', parts: 'Parts' })[mode];
+}
+
+function apparatusCard(item, index) {
+  const metric = calc95(item);
+  const lastService = (item.serviceLogs || []).slice(-1)[0];
+  const lastFuel = (item.fuelLogs || []).slice(-1)[0];
+  let detail = `${item.make || 'Make not set'} ${item.model || ''}`.trim();
+  if (maintenanceMode === 'service') detail = `${(item.serviceLogs || []).length} service logs, ${money(serviceCost(item))}`;
+  if (maintenanceMode === 'fuel') detail = `${(item.fuelLogs || []).length} fuel entries, ${money(fuelCost(item))}`;
+  if (maintenanceMode === 'parts') detail = `${(item.parts || []).length} normal maintenance parts`;
+  return `
+    <article class="apparatus-card" data-apparatus-index="${index}">
+      <header>
+        <div><strong>${esc(item.name)}</strong><small>${esc(detail || item.type)}</small></div>
+        <span class="pill ${item.status === 'In Service' ? 'green' : item.status === 'Reserve' ? 'blue' : 'amber'}">${esc(item.status)}</span>
+      </header>
+      <div class="pill-row">
+        <span class="pill">${esc(item.type)}</span>
+        <span class="pill">${esc(item.location)}</span>
+        ${item.vin ? `<span class="pill">VIN: ${esc(item.vin)}</span>` : ''}
+      </div>
+      <div class="metric-box">
+        <span>95/95 Apparatus Report</span>
+        <b>${metric.passes ? 'Meets' : 'Tracking'}</b>
+        <small>${metric.availability.toFixed(1)}% availability | ${item.testCycles || 0}/${metric.required} cycles</small>
+      </div>
+      <small>${esc(lastService ? `Last service ${lastService.date || ''} by ${lastService.by || 'not listed'}` : lastFuel ? `Last fuel ${lastFuel.date || ''}` : 'Click to update this apparatus.')}</small>
+    </article>
+  `;
+}
+
+function openGenericModal(sectionId, index = null) {
+  editing = { sectionId, index };
+  const schema = schemas[sectionId];
+  const record = index === null ? {} : data[sectionId][index];
+  modalSection.textContent = sections.find(section => section.id === sectionId).title;
+  modalTitle.textContent = index === null ? 'Add Record' : 'Edit Record';
+  modalFields.innerHTML = schema.map(([key, label, type = 'text', options = []]) => fieldHtml(key, label, type, options, record[key])).join('');
+  modal.showModal();
+}
+
+function openMaintenanceModal(index) {
+  const item = data.maintenance[index];
+  editing = { sectionId: 'maintenance', index };
+  modalSection.textContent = 'Maintenance';
+  modalTitle.textContent = `${item.name}`;
+  modalFields.innerHTML = maintenanceFields(item);
+  modal.showModal();
+}
+
+function fieldHtml(key, label, type = 'text', options = [], value = '') {
+  if (type === 'textarea') {
+    return `<div class="form-field full"><label for="${key}">${label}</label><textarea id="${key}" name="${key}">${esc(value)}</textarea></div>`;
+  }
+  if (type === 'select') {
+    return `<div class="form-field"><label for="${key}">${label}</label><select id="${key}" name="${key}">${options.map(option => `<option ${option === value ? 'selected' : ''}>${esc(option)}</option>`).join('')}</select></div>`;
+  }
+  return `<div class="form-field"><label for="${key}">${label}</label><input id="${key}" name="${key}" type="${type}" value="${esc(value)}" /></div>`;
+}
+
+function maintenanceFields(item) {
+  if (maintenanceMode === 'service') return serviceFields(item);
+  if (maintenanceMode === 'fuel') return fuelFields(item);
+  if (maintenanceMode === 'parts') return partsFields(item);
+  return `
+    ${fieldHtml('name', 'Apparatus', 'text', [], item.name)}
+    ${fieldHtml('type', 'Apparatus Type', 'select', ['Pumper', 'Ladder Truck', 'Brush Truck', 'Ambulance', 'Fleet', 'Support Vehicle'], item.type)}
+    ${fieldHtml('status', 'Status', 'select', ['Needs Data', 'In Service', 'Reserve', 'In Shop', 'Out of Service', 'Needs Inspection'], item.status)}
+    ${fieldHtml('location', 'Location', 'select', ['Station 1', 'Station 2', 'Station 3'], item.location)}
+    ${fieldHtml('make', 'Make', 'text', [], item.make)}
+    ${fieldHtml('model', 'Model', 'text', [], item.model)}
+    ${fieldHtml('year', 'Year', 'number', [], item.year)}
+    ${fieldHtml('vin', 'VIN', 'text', [], item.vin)}
+    ${fieldHtml('mileage', 'Mileage', 'number', [], item.mileage)}
+    ${fieldHtml('engineHours', 'Engine Hours', 'number', [], item.engineHours)}
+    ${fieldHtml('operatingHours', 'Operating Hours', 'number', [], item.operatingHours)}
+    ${fieldHtml('failures', 'Failures', 'number', [], item.failures)}
+    ${fieldHtml('repairHours', 'Repair Hours', 'number', [], item.repairHours)}
+    ${fieldHtml('downtime', 'Downtime Hours', 'number', [], item.downtime)}
+    ${fieldHtml('testCycles', 'Successful Test Cycles', 'number', [], item.testCycles)}
+    <div class="form-field full"><label>Standard Service Items</label><div class="check-grid">${serviceItems.map(service => `<label><input type="checkbox" name="selectedServiceItems" value="${esc(service)}" ${item.selectedServiceItems?.includes(service) ? 'checked' : ''}>${esc(service)}</label>`).join('')}</div></div>
+    ${fieldHtml('notes', 'Notes', 'textarea', [], item.notes)}
+  `;
+}
+
+function serviceFields(item) {
+  const history = (item.serviceLogs || []).slice().reverse().map(log => `<div class="queue-item"><div><strong>${esc(log.date || 'No date')} - ${esc(log.items?.join(', ') || 'Service')}</strong><br><small>${esc(log.by || 'Not listed')} | ${money(log.cost)} | Invoice: ${esc(log.invoice || 'None')}</small></div></div>`).join('');
+  return `
+    ${fieldHtml('serviceDate', 'Service Date', 'date', [], new Date().toISOString().slice(0, 10))}
+    ${fieldHtml('serviceBy', 'Completed By')}
+    ${fieldHtml('serviceCost', 'Cost', 'number')}
+    ${fieldHtml('serviceInvoice', 'Invoice File Name')}
+    <div class="form-field full"><label>Service Items</label><div class="check-grid">${serviceItems.map(service => `<label><input type="checkbox" name="serviceItems" value="${esc(service)}">${esc(service)}</label>`).join('')}</div></div>
+    ${fieldHtml('serviceNotes', 'Service Notes', 'textarea')}
+    <div class="form-field full"><label>Summary Log</label><div class="queue-list">${history || '<p class="muted">No service logs yet.</p>'}</div></div>
+  `;
+}
+
+function fuelFields(item) {
+  const history = (item.fuelLogs || []).slice().reverse().map(log => `<div class="queue-item"><div><strong>${esc(log.date || 'No date')} - ${esc(log.gallons || 0)} gallons</strong><br><small>${money(log.cost)} | ${esc(log.vendor || 'No vendor')} | ${esc(log.by || 'Not listed')}</small></div></div>`).join('');
+  return `
+    ${fieldHtml('fuelDate', 'Fuel Date', 'date', [], new Date().toISOString().slice(0, 10))}
+    ${fieldHtml('fuelGallons', 'Gallons', 'number')}
+    ${fieldHtml('fuelCost', 'Cost', 'number')}
+    ${fieldHtml('fuelOdometer', 'Odometer', 'number')}
+    ${fieldHtml('fuelVendor', 'Vendor')}
+    ${fieldHtml('fuelBy', 'Entered By')}
+    <div class="form-field full"><label>Fuel History</label><div class="queue-list">${history || '<p class="muted">No fuel logs yet.</p>'}</div></div>
+  `;
+}
+
+function partsFields(item) {
+  const rows = (item.parts || []).map((part, index) => `
+    <div class="queue-item">
+      <input name="partName${index}" value="${esc(part.part)}" />
+      <input name="partNumber${index}" value="${esc(part.number)}" />
+    </div>
+  `).join('');
+  return `
+    <div class="form-field full"><label>Normally Purchased Maintenance Parts</label><div class="queue-list" id="partsRows">${rows}</div></div>
+    ${fieldHtml('newPartName', 'Add Part Name')}
+    ${fieldHtml('newPartNumber', 'Add Part Number')}
+  `;
+}
+
+function saveGenericRecord(formData) {
+  const { sectionId, index } = editing;
+  const schema = schemas[sectionId];
+  const record = {};
+  schema.forEach(([key]) => record[key] = formData.get(key) || '');
+  if (index === null) data[sectionId].push(record);
+  else data[sectionId][index] = record;
+}
+
+function saveMaintenanceRecord(formData) {
+  const item = data.maintenance[editing.index];
+  if (maintenanceMode === 'service') {
+    item.serviceLogs = item.serviceLogs || [];
+    item.serviceLogs.push({
+      date: formData.get('serviceDate'),
+      by: formData.get('serviceBy'),
+      cost: formData.get('serviceCost'),
+      invoice: formData.get('serviceInvoice'),
+      items: formData.getAll('serviceItems'),
+      notes: formData.get('serviceNotes')
+    });
+    item.testCycles = Number(item.testCycles || 0) + 1;
+    return;
+  }
+  if (maintenanceMode === 'fuel') {
+    item.fuelLogs = item.fuelLogs || [];
+    item.fuelLogs.push({
+      date: formData.get('fuelDate'),
+      gallons: formData.get('fuelGallons'),
+      cost: formData.get('fuelCost'),
+      odometer: formData.get('fuelOdometer'),
+      vendor: formData.get('fuelVendor'),
+      by: formData.get('fuelBy')
+    });
+    return;
+  }
+  if (maintenanceMode === 'parts') {
+    const parts = [];
+    (item.parts || []).forEach((part, index) => {
+      const name = formData.get(`partName${index}`);
+      const number = formData.get(`partNumber${index}`);
+      if (name || number) parts.push({ part: name, number });
+    });
+    if (formData.get('newPartName') || formData.get('newPartNumber')) {
+      parts.push({ part: formData.get('newPartName'), number: formData.get('newPartNumber') });
+    }
+    item.parts = parts;
+    return;
+  }
+  ['name', 'type', 'status', 'location', 'make', 'model', 'year', 'vin', 'mileage', 'engineHours', 'operatingHours', 'failures', 'repairHours', 'downtime', 'testCycles', 'notes'].forEach(key => {
+    item[key] = formData.get(key) || '';
+  });
+  item.selectedServiceItems = formData.getAll('selectedServiceItems');
+}
+
+nav.addEventListener('click', event => {
+  const button = event.target.closest('[data-section]');
+  if (button) setSection(button.dataset.section);
+});
+
+workspace.addEventListener('click', event => {
+  const editButton = event.target.closest('[data-edit-section]');
+  if (editButton) return openGenericModal(editButton.dataset.editSection, Number(editButton.dataset.editIndex));
+  const modeButton = event.target.closest('[data-maint-mode]');
+  if (modeButton) {
+    maintenanceMode = modeButton.dataset.maintMode;
+    renderMaintenance();
+    return;
+  }
+  const apparatus = event.target.closest('[data-apparatus-index]');
+  if (apparatus) openMaintenanceModal(Number(apparatus.dataset.apparatusIndex));
+});
+
+addRecordBtn.addEventListener('click', () => openGenericModal(activeSection));
+searchInput.addEventListener('input', render);
+
+form.addEventListener('submit', event => {
+  if (event.submitter?.value !== 'save') return;
+  event.preventDefault();
+  const formData = new FormData(form);
+  if (editing.sectionId === 'maintenance') saveMaintenanceRecord(formData);
+  else saveGenericRecord(formData);
+  saveData();
+  modal.close();
+  render();
+});
+
+render();
