@@ -138,7 +138,7 @@ const seed = {
 };
 
 let data = loadData();
-let activeSection = 'dashboard';
+let activeSection = initialSection();
 let maintenanceMode = 'fleet';
 let editing = null;
 
@@ -236,7 +236,17 @@ function setSection(id) {
   activeSection = id;
   title.textContent = sections.find(section => section.id === id)?.title || 'RMS';
   searchInput.value = '';
+  const url = new URL(window.location.href);
+  if (id === 'dashboard') url.searchParams.delete('section');
+  else url.searchParams.set('section', id);
+  window.history.replaceState({}, '', url);
   render();
+}
+
+function initialSection() {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get('section');
+  return sections.some(section => section.id === requested) ? requested : 'dashboard';
 }
 
 function renderStats(cards) {
@@ -284,6 +294,11 @@ function renderDashboard() {
         <div class="queue-list">
           ${latestLogs.length ? latestLogs.map(log => queueItem(`${log.apparatus} - ${log.items?.join(', ') || 'Service'}`, `${log.date || 'No date'} by ${log.by || 'Not listed'}`)).join('') : '<p class="muted">No service logs yet.</p>'}
         </div>
+      </section>
+      <section class="panel wide-card">
+        <h2>Apparatus Use Metrics</h2>
+        <p class="muted">Log total call time by apparatus and feed those run hours into Maintenance 95/95 reports.</p>
+        <button class="primary" data-jump-section="admin" type="button">Open Admin Use Metrics</button>
       </section>
     </div>
   `;
@@ -609,6 +624,8 @@ nav.addEventListener('click', event => {
 });
 
 workspace.addEventListener('click', event => {
+  const jumpButton = event.target.closest('[data-jump-section]');
+  if (jumpButton) return setSection(jumpButton.dataset.jumpSection);
   const editButton = event.target.closest('[data-edit-section]');
   if (editButton) return openGenericModal(editButton.dataset.editSection, Number(editButton.dataset.editIndex));
   const modeButton = event.target.closest('[data-maint-mode]');
