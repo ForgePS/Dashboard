@@ -160,7 +160,7 @@ const ACTIVE911_CLIENT_SECRET = process.env.ACTIVE911_CLIENT_SECRET || '';
 const ACTIVE911_REFRESH_TOKEN = process.env.ACTIVE911_REFRESH_TOKEN || '';
 const ACTIVE911_TOKEN_URL =
   process.env.ACTIVE911_TOKEN_URL ||
-  'https://access.active911.com/interface/open_api/token.php';
+  'https://console.active911.com/interface/dev/api_access.php';
 const ACTIVE911_CREDENTIALS_COLLECTION =
   process.env.ACTIVE911_CREDENTIALS_COLLECTION ||
   'dashboardRuntime';
@@ -443,7 +443,9 @@ const active911Debug = {
   alertsUrl: ACTIVE911_ALERTS_URL,
   hasAccessToken: Boolean(active911AccessToken),
   hasRefreshToken: Boolean(active911RefreshToken),
-  hasRefreshCredentials: Boolean(active911RefreshToken && ACTIVE911_CLIENT_ID),
+  hasClientId: Boolean(ACTIVE911_CLIENT_ID),
+  hasClientSecret: Boolean(ACTIVE911_CLIENT_SECRET),
+  hasRefreshCredentials: Boolean(active911RefreshToken),
   pollCount: 0,
   lastPollAt: null,
   lastPollSuccessAt: null,
@@ -459,12 +461,14 @@ const active911Debug = {
 };
 
 function hasActive911RefreshCredentials() {
-  return Boolean(active911RefreshToken && ACTIVE911_CLIENT_ID);
+  return Boolean(active911RefreshToken);
 }
 
 function updateActive911CredentialDebug() {
   active911Debug.hasAccessToken = Boolean(active911AccessToken);
   active911Debug.hasRefreshToken = Boolean(active911RefreshToken);
+  active911Debug.hasClientId = Boolean(ACTIVE911_CLIENT_ID);
+  active911Debug.hasClientSecret = Boolean(ACTIVE911_CLIENT_SECRET);
   active911Debug.hasRefreshCredentials = hasActive911RefreshCredentials();
 }
 
@@ -539,14 +543,8 @@ async function refreshActive911Token() {
   }
 
   const body = new URLSearchParams({
-    grant_type: 'refresh_token',
-    refresh_token: active911RefreshToken,
-    client_id: ACTIVE911_CLIENT_ID
+    refresh_token: active911RefreshToken
   });
-
-  if (ACTIVE911_CLIENT_SECRET) {
-    body.set('client_secret', ACTIVE911_CLIENT_SECRET);
-  }
 
   const response = await fetch(ACTIVE911_TOKEN_URL, {
     method: 'POST',
