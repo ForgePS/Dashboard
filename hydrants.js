@@ -83,6 +83,7 @@ async function loadHydrants() {
 function render(data) {
   const summary = data.summary || {};
   const outOfServiceHydrants = safeArray(data.hydrants).filter(h => normStatus(h.status) === 'oos');
+  const listedOutOfServiceHydrants = outOfServiceHydrants.filter(h => !isPHydrant(h));
 
   setText('totalHydrants', fmt(summary.total));
   setText('oosHydrants', fmt(outOfServiceHydrants.length || summary.oos));
@@ -100,20 +101,20 @@ function render(data) {
   );
 
   renderProviders(data.byProvider || {});
-  renderNotes(outOfServiceHydrants);
+  renderNotes(listedOutOfServiceHydrants);
   renderMap(outOfServiceHydrants);
+}
+
+function isPHydrant(hydrant) {
+  const id = String(hydrant?.hydrant_id || hydrant?.location_id || '').trim().toUpperCase();
+  return /P$/.test(id);
 }
 
 function renderProviders(byProvider) {
   const box = document.getElementById('providerGrid');
   if (!box) return;
 
-  const providers = [
-    ...providerNames,
-    ...Object.keys(byProvider).filter(provider => !providerNames.includes(provider)).sort()
-  ];
-
-  box.innerHTML = providers.map(provider => {
+  box.innerHTML = providerNames.map(provider => {
     const p = byProvider[provider] || {
       total: 0,
       oos: 0,
