@@ -1,0 +1,2533 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Maintenance Dashboard</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17202a;
+      --muted: #667085;
+      --line: #d7dee8;
+      --panel: #ffffff;
+      --bg: #f4f7fa;
+      --nav: #182332;
+      --green: #167a55;
+      --green-soft: #dff4ea;
+      --amber: #a15c00;
+      --amber-soft: #fff0cf;
+      --red: #bb2d3b;
+      --red-soft: #fde3e5;
+      --blue: #1e5f99;
+      --blue-soft: #dfedf8;
+      --steel: #596575;
+      --shadow: 0 16px 40px rgba(18, 32, 46, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    .shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr);
+    }
+
+    .side {
+      background: var(--nav);
+      color: #f8fbff;
+      padding: 24px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      font-size: 18px;
+    }
+
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      background: #f9c74f;
+      color: #17202a;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+    }
+
+    .nav-list {
+      display: grid;
+      gap: 6px;
+    }
+
+    .nav-item {
+      border: 0;
+      background: transparent;
+      color: #dce6f0;
+      min-height: 42px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 12px;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .nav-item.active {
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+    }
+
+    .nav-item:focus-visible {
+      outline: 3px solid rgba(249, 199, 79, 0.42);
+      outline-offset: 2px;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 99px;
+      background: currentColor;
+      flex: 0 0 auto;
+    }
+
+    .side-status {
+      margin-top: auto;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 8px;
+      padding: 14px;
+      color: #dce6f0;
+    }
+
+    .side-status strong {
+      display: block;
+      color: #ffffff;
+      margin-bottom: 5px;
+    }
+
+    .main {
+      min-width: 0;
+      padding: 28px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 4vw, 44px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      max-width: 760px;
+      line-height: 1.5;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--ink);
+      border-radius: 8px;
+      min-height: 40px;
+      padding: 0 14px;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(16, 24, 40, 0.04);
+    }
+
+    .btn.primary {
+      background: #1f6f5d;
+      color: #ffffff;
+      border-color: #1f6f5d;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+
+    .stat {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      min-height: 112px;
+      display: grid;
+      align-content: space-between;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 28px;
+      margin-top: 8px;
+    }
+
+    .stat small {
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .work-area {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.65fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0 0 12px;
+    }
+
+    .section-title h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .apparatus-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .apparatus-card,
+    .calc-card,
+    .queue {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .apparatus-card {
+      padding: 16px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .apparatus-card.parts-clickable {
+      cursor: pointer;
+    }
+
+    .apparatus-card.parts-clickable:focus-visible,
+    .apparatus-card.parts-clickable:hover {
+      border-color: var(--blue);
+      box-shadow: 0 18px 48px rgba(30, 95, 153, 0.16);
+    }
+
+    .card-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .icon-btn {
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      border-radius: 8px;
+      min-height: 34px;
+      padding: 0 10px;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .apparatus-name {
+      margin: 0 0 3px;
+      font-size: 17px;
+    }
+
+    .apparatus-type {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status-pill {
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .status-pill.pass {
+      color: var(--green);
+      background: var(--green-soft);
+    }
+
+    .status-pill.watch {
+      color: var(--amber);
+      background: var(--amber-soft);
+    }
+
+    .status-pill.fail {
+      color: var(--red);
+      background: var(--red-soft);
+    }
+
+    .status-pill.pending {
+      color: var(--steel);
+      background: #edf1f6;
+    }
+
+    .status-pill.service {
+      color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    .status-pill.out {
+      color: var(--red);
+      background: var(--red-soft);
+    }
+
+    .gauge {
+      width: 132px;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      margin: 0 auto;
+      background: conic-gradient(var(--green) var(--value), #e8edf3 0);
+      position: relative;
+    }
+
+    .gauge::before {
+      content: "";
+      position: absolute;
+      inset: 12px;
+      background: #ffffff;
+      border-radius: 50%;
+      border: 1px solid #edf1f6;
+    }
+
+    .gauge-value {
+      position: relative;
+      text-align: center;
+      font-weight: 900;
+      font-size: 26px;
+    }
+
+    .gauge-value span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .details {
+      display: grid;
+      gap: 8px;
+      border-top: 1px solid var(--line);
+      padding-top: 12px;
+    }
+
+    .rule-report {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f8fafc;
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .rule-report.pass {
+      border-color: #98d8bc;
+      background: var(--green-soft);
+    }
+
+    .rule-report.watch {
+      border-color: #f1c36d;
+      background: var(--amber-soft);
+    }
+
+    .rule-report.fail {
+      border-color: #f0a4ad;
+      background: var(--red-soft);
+    }
+
+    .rule-report.pending {
+      border-color: #c9d2dd;
+      background: #edf1f6;
+    }
+
+    .rule-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .rule-head strong {
+      font-size: 14px;
+    }
+
+    .rule-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .rule-grid span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .rule-grid strong {
+      display: block;
+      margin-top: 2px;
+      font-size: 14px;
+    }
+
+    .parts-list {
+      border-top: 1px solid var(--line);
+      padding-top: 12px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .parts-list h4 {
+      margin: 0;
+      font-size: 13px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .part-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 10px;
+      background: #f8fafc;
+      font-size: 13px;
+    }
+
+    .part-row strong,
+    .part-row span {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .part-row span {
+      color: var(--muted);
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .part-editor {
+      display: grid;
+      gap: 10px;
+    }
+
+    .part-editor-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr) auto;
+      gap: 10px;
+      align-items: end;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #f8fafc;
+    }
+
+    .part-editor-row .field {
+      min-width: 0;
+    }
+
+    .detail-row {
+      display: grid;
+      grid-template-columns: 112px minmax(0, 1fr);
+      gap: 8px;
+      align-items: baseline;
+      font-size: 13px;
+    }
+
+    .detail-row span {
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .detail-row strong {
+      min-width: 0;
+      overflow-wrap: anywhere;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .metric {
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .metric strong {
+      font-size: 18px;
+    }
+
+    .calc-card {
+      padding: 18px;
+      position: sticky;
+      top: 20px;
+    }
+
+    .calc-card h2 {
+      margin: 0 0 8px;
+      font-size: 20px;
+    }
+
+    .calc-card p {
+      margin: 0 0 16px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      color: #465160;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    input,
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+      color: var(--ink);
+      min-height: 42px;
+      padding: 0 11px;
+    }
+
+    input:focus,
+    select:focus {
+      outline: 3px solid rgba(30, 95, 153, 0.18);
+      border-color: var(--blue);
+    }
+
+    .result-band {
+      margin-top: 16px;
+      border-radius: 8px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      display: grid;
+      gap: 12px;
+    }
+
+    .result-band.pass {
+      background: var(--green-soft);
+      border-color: #98d8bc;
+    }
+
+    .result-band.watch {
+      background: var(--amber-soft);
+      border-color: #f1c36d;
+    }
+
+    .result-band.fail {
+      background: var(--red-soft);
+      border-color: #f0a4ad;
+    }
+
+    .result-band.pending {
+      background: #edf1f6;
+      border-color: #c9d2dd;
+    }
+
+    .result-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .result-top strong {
+      font-size: 20px;
+    }
+
+    .formula {
+      color: var(--steel);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .mini-results {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .mini {
+      background: rgba(255, 255, 255, 0.62);
+      border: 1px solid rgba(89, 101, 117, 0.18);
+      border-radius: 8px;
+      padding: 10px;
+      min-width: 0;
+    }
+
+    .mini span {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .mini strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 17px;
+    }
+
+    .queue {
+      margin-top: 18px;
+      padding: 16px;
+    }
+
+    .queue-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .queue-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 10px;
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .queue-item strong {
+      color: var(--ink);
+      display: block;
+    }
+
+    .priority {
+      width: 10px;
+      height: 34px;
+      border-radius: 99px;
+      background: var(--green);
+    }
+
+    .priority.amber {
+      background: #d88a18;
+    }
+
+    .priority.red {
+      background: var(--red);
+    }
+
+    .tag {
+      border-radius: 999px;
+      background: var(--blue-soft);
+      color: var(--blue);
+      padding: 5px 9px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .view-hidden {
+      display: none;
+    }
+
+    .empty-state {
+      background: var(--panel);
+      border: 1px dashed #aeb8c5;
+      border-radius: 8px;
+      padding: 22px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .empty-state strong {
+      display: block;
+      color: var(--ink);
+      font-size: 18px;
+      margin-bottom: 6px;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.48);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      z-index: 20;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      width: min(920px, 100%);
+      max-height: min(760px, calc(100vh - 36px));
+      overflow: auto;
+      background: #ffffff;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      box-shadow: 0 24px 80px rgba(18, 32, 46, 0.28);
+    }
+
+    .modal-head,
+    .modal-foot {
+      position: sticky;
+      background: #ffffff;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .modal-head {
+      top: 0;
+    }
+
+    .modal-foot {
+      bottom: 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 0;
+      justify-content: flex-end;
+    }
+
+    .modal-head h2 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .modal-body {
+      padding: 18px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .form-section {
+      display: grid;
+      gap: 12px;
+    }
+
+    .form-section h3 {
+      margin: 0;
+      font-size: 15px;
+    }
+
+    .form-report {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #f8fafc;
+      display: grid;
+      gap: 10px;
+    }
+
+    .check-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .check-item {
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 10px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--ink);
+      background: #ffffff;
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: none;
+      cursor: pointer;
+    }
+
+    .check-item input {
+      width: 18px;
+      min-height: 18px;
+      padding: 0;
+      flex: 0 0 auto;
+    }
+
+    .chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      border-top: 1px solid var(--line);
+      padding-top: 12px;
+    }
+
+    .chip {
+      border-radius: 999px;
+      background: #edf1f6;
+      color: var(--steel);
+      padding: 6px 9px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .textarea {
+      min-height: 88px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 11px;
+      font: inherit;
+      color: var(--ink);
+    }
+
+    textarea:focus {
+      outline: 3px solid rgba(30, 95, 153, 0.18);
+      border-color: var(--blue);
+    }
+
+    @media (max-width: 1180px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .side {
+        position: static;
+        padding: 14px 18px;
+        flex-direction: row;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+
+      .nav-list {
+        display: flex;
+        flex-wrap: wrap;
+      }
+
+      .side-status {
+        margin: 0 0 0 auto;
+        max-width: 280px;
+      }
+    }
+
+    @media (max-width: 980px) {
+      .summary,
+      .apparatus-grid,
+      .work-area {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .calc-card {
+        position: static;
+        grid-column: 1 / -1;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .main {
+        padding: 18px;
+      }
+
+      .topbar,
+      .result-top {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .actions {
+        justify-content: stretch;
+      }
+
+      .btn {
+        flex: 1 1 auto;
+      }
+
+      .summary,
+      .apparatus-grid,
+      .work-area,
+      .field-grid,
+      .mini-results {
+        grid-template-columns: 1fr;
+      }
+
+      .detail-row {
+        grid-template-columns: 1fr;
+        gap: 2px;
+      }
+
+      .rule-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .check-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .part-editor-row {
+        grid-template-columns: 1fr;
+      }
+
+      .side-status {
+        margin-left: 0;
+        max-width: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="side" aria-label="Maintenance navigation">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">M</div>
+        <span>Maintenance</span>
+      </div>
+      <nav class="nav-list" aria-label="Sections">
+        <button class="nav-item active" type="button" data-view="maintenance" aria-pressed="true"><span class="dot"></span>Dashboard</button>
+        <button class="nav-item" type="button" data-view="apparatus" aria-pressed="false"><span class="dot"></span>Apparatus</button>
+        <button class="nav-item" type="button" data-view="inspections" aria-pressed="false"><span class="dot"></span>Maintenance</button>
+        <button class="nav-item" type="button" data-view="parts" aria-pressed="false"><span class="dot"></span>Parts</button>
+        <button class="nav-item" type="button" data-view="fuel" aria-pressed="false"><span class="dot"></span>Fuel Log</button>
+      </nav>
+      <div class="side-status" id="sideStatus">
+        <strong id="sideStatusTitle">Today</strong>
+        <span id="sideStatusText">Review apparatus status, service notes, and open maintenance items before shift change.</span>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1 id="pageTitle">Maintenance Dashboard</h1>
+          <p class="subtitle" id="pageSubtitle">Track apparatus condition, service activity, downtime, inspections, and repair history from one maintenance view.</p>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button">Export</button>
+          <button class="btn primary" type="button" id="logService">Log Service</button>
+        </div>
+      </header>
+
+      <section class="summary" aria-label="Fleet summary">
+        <article class="stat">
+          <span>In Service</span>
+          <strong id="fleetAvailability">--</strong>
+          <small>Apparatus currently marked available</small>
+        </article>
+        <article class="stat">
+          <span>Records Updated</span>
+          <strong id="passingCount">--</strong>
+          <small>Apparatus with maintenance metrics entered</small>
+        </article>
+        <article class="stat">
+          <span>Open Items</span>
+          <strong id="workOrderCount">--</strong>
+          <small>In shop, out of service, or needs inspection</small>
+        </article>
+        <article class="stat">
+          <span>Average MTTR</span>
+          <strong id="averageMttr">--</strong>
+          <small>Mean time to return apparatus to service</small>
+        </article>
+      </section>
+
+      <div class="work-area">
+        <section aria-labelledby="apparatusTitle">
+          <div class="section-title">
+            <h2 id="apparatusTitle">Apparatus Status</h2>
+            <span class="tag" id="apparatusTag">Service records</span>
+          </div>
+          <div class="apparatus-grid" id="apparatusGrid"></div>
+
+          <section class="queue" aria-labelledby="queueTitle">
+            <div class="section-title">
+              <h2 id="queueTitle">Maintenance Queue</h2>
+              <span class="tag" id="queueTag">Next 24 hours</span>
+            </div>
+            <div class="queue-list" id="queueList"></div>
+          </section>
+        </section>
+
+        <aside class="calc-card" id="calculatorCard" aria-labelledby="calculatorTitle">
+          <h2 id="calculatorTitle">95/95 Calculator</h2>
+          <p>Use this card when an apparatus needs the 95/95 equipment-in-service check. It compares availability, MTBF, MTTR, and successful test cycles for the selected unit.</p>
+
+          <div class="field-grid">
+            <div class="field full">
+              <label for="apparatusSelect">Apparatus</label>
+              <select id="apparatusSelect"></select>
+            </div>
+            <div class="field">
+              <label for="operatingHours">Operating Hours</label>
+              <input id="operatingHours" type="number" min="0" step="1">
+            </div>
+            <div class="field">
+              <label for="failures">Failures</label>
+              <input id="failures" type="number" min="0" step="1">
+            </div>
+            <div class="field">
+              <label for="repairHours">Repair Hours</label>
+              <input id="repairHours" type="number" min="0" step="0.1">
+            </div>
+            <div class="field">
+              <label for="downtimeHours">Downtime Hours</label>
+              <input id="downtimeHours" type="number" min="0" step="0.1">
+            </div>
+            <div class="field">
+              <label for="testCycles">Zero-Failure Cycles</label>
+              <input id="testCycles" type="number" min="0" step="1">
+            </div>
+            <div class="field">
+              <label for="targetAvailability">Availability Target</label>
+              <input id="targetAvailability" type="number" min="1" max="100" step="0.1" value="95">
+            </div>
+          </div>
+
+          <div class="result-band" id="resultBand">
+            <div class="result-top">
+              <div>
+                <span class="status-pill" id="resultStatus">Calculating</span>
+                <strong id="resultHeadline">Ready</strong>
+              </div>
+              <button class="btn" id="applyChanges" type="button">Apply</button>
+            </div>
+            <div class="mini-results">
+              <div class="mini">
+                <span>Availability</span>
+                <strong id="availabilityResult">0%</strong>
+              </div>
+              <div class="mini">
+                <span>MTBF</span>
+                <strong id="mtbfResult">0h</strong>
+              </div>
+              <div class="mini">
+                <span>MTTR</span>
+                <strong id="mttrResult">0h</strong>
+              </div>
+            </div>
+            <div class="formula" id="formulaText"></div>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="editModal" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+    <form class="modal" id="editForm">
+      <div class="modal-head">
+        <h2 id="editTitle">Edit Apparatus</h2>
+        <button class="icon-btn" type="button" id="closeModal" aria-label="Close edit panel">Close</button>
+      </div>
+      <div class="modal-body">
+        <section class="form-section">
+          <h3>Apparatus Details</h3>
+          <div class="field-grid">
+            <div class="field">
+              <label for="editName">Name</label>
+              <input id="editName" type="text" required>
+            </div>
+            <div class="field">
+              <label for="editType">Type</label>
+              <select id="editType">
+                <option value="">Not set</option>
+                <option value="Pumper">Pumper</option>
+                <option value="Ladder Truck">Ladder Truck</option>
+                <option value="Brush Truck">Brush Truck</option>
+                <option value="Ambulance">Ambulance</option>
+                <option value="Fleet">Fleet</option>
+                <option value="Support Vehicle">Support Vehicle</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="editStatus">Maintenance Status</label>
+              <select id="editStatus">
+                <option value="Needs Data">Needs Data</option>
+                <option value="In Service">In Service</option>
+                <option value="Reserve">Reserve</option>
+                <option value="In Shop">In Shop</option>
+                <option value="Out of Service">Out of Service</option>
+                <option value="Needs Inspection">Needs Inspection</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="editPriority">Priority</label>
+              <select id="editPriority">
+                <option value="Normal">Normal</option>
+                <option value="Monitor">Monitor</option>
+                <option value="High">High</option>
+                <option value="Critical">Critical</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="editLocation">Location</label>
+              <select id="editLocation">
+                <option value="">Not set</option>
+                <option value="Station 1">Station 1</option>
+                <option value="Station 2">Station 2</option>
+                <option value="Station 3">Station 3</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="editTechnician">Assigned To</label>
+              <input id="editTechnician" type="text">
+            </div>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <h3>Vehicle Information</h3>
+          <div class="field-grid">
+            <div class="field">
+              <label for="editMake">Make</label>
+              <input id="editMake" type="text">
+            </div>
+            <div class="field">
+              <label for="editModel">Model</label>
+              <input id="editModel" type="text">
+            </div>
+            <div class="field">
+              <label for="editYear">Year</label>
+              <input id="editYear" type="text" inputmode="numeric">
+            </div>
+            <div class="field">
+              <label for="editVin">VIN</label>
+              <input id="editVin" type="text">
+            </div>
+            <div class="field">
+              <label for="editPlate">Plate</label>
+              <input id="editPlate" type="text">
+            </div>
+            <div class="field">
+              <label for="editMileage">Mileage</label>
+              <input id="editMileage" type="number" min="0" step="1">
+            </div>
+            <div class="field">
+              <label for="editEngineHours">Engine Hours</label>
+              <input id="editEngineHours" type="number" min="0" step="0.1">
+            </div>
+            <div class="field">
+              <label for="editSerialNumber">Serial Number</label>
+              <input id="editSerialNumber" type="text">
+            </div>
+            <div class="field">
+              <label for="editEquipmentId">Equipment ID</label>
+              <input id="editEquipmentId" type="text">
+            </div>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <h3>Service Information</h3>
+          <div class="field-grid">
+            <div class="field">
+              <label for="editLastService">Last Service</label>
+              <input id="editLastService" type="date">
+            </div>
+            <div class="field">
+              <label for="editNextService">Next Service</label>
+              <input id="editNextService" type="date">
+            </div>
+            <div class="field">
+              <label for="editWorkOrder">Work Order</label>
+              <input id="editWorkOrder" type="text">
+            </div>
+            <div class="field">
+              <label for="editParts">Parts Needed</label>
+              <input id="editParts" type="text">
+            </div>
+            <div class="field full">
+              <label for="editIssue">Current Issue</label>
+              <textarea class="textarea" id="editIssue"></textarea>
+            </div>
+            <div class="field full">
+              <label for="editNotes">Maintenance Notes</label>
+              <textarea class="textarea" id="editNotes"></textarea>
+            </div>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <h3>Standard Service Items</h3>
+          <div class="check-grid" id="serviceItemsList"></div>
+        </section>
+
+        <section class="form-section">
+          <h3>Metric Inputs</h3>
+          <div class="field-grid">
+            <div class="field">
+              <label for="editOperatingHours">Operating Hours</label>
+              <input id="editOperatingHours" type="number" min="0" step="1">
+            </div>
+            <div class="field">
+              <label for="editFailures">Failures</label>
+              <input id="editFailures" type="number" min="0" step="1">
+            </div>
+            <div class="field">
+              <label for="editRepairHours">Repair Hours</label>
+              <input id="editRepairHours" type="number" min="0" step="0.1">
+            </div>
+            <div class="field">
+              <label for="editDowntimeHours">Downtime Hours</label>
+              <input id="editDowntimeHours" type="number" min="0" step="0.1">
+            </div>
+            <div class="field">
+              <label for="editTestCycles">Successful Test Cycles</label>
+              <input id="editTestCycles" type="number" min="0" step="1">
+            </div>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <h3>95/95 Apparatus Report</h3>
+          <div class="form-report" id="editRuleReport">
+            <div class="rule-head">
+              <strong id="editRuleHeadline">Needs metric entry</strong>
+              <span class="status-pill pending" id="editRuleStatus">Needs Data</span>
+            </div>
+            <div class="rule-grid">
+              <div><span>Availability</span><strong id="editRuleAvailability">--</strong></div>
+              <div><span>MTBF</span><strong id="editRuleMtbf">--</strong></div>
+              <div><span>MTTR</span><strong id="editRuleMttr">--</strong></div>
+              <div><span>Test Cycles</span><strong id="editRuleCycles">--</strong></div>
+              <div><span>Cycle Gap</span><strong id="editRuleGap">--</strong></div>
+              <div><span>Last Calculated</span><strong id="editRuleUpdated">--</strong></div>
+            </div>
+          </div>
+        </section>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" type="button" id="cancelEdit">Cancel</button>
+        <button class="btn primary" type="submit">Save Apparatus</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="modal-backdrop" id="partsModal" role="dialog" aria-modal="true" aria-labelledby="partsTitle">
+    <form class="modal" id="partsForm">
+      <div class="modal-head">
+        <h2 id="partsTitle">Maintenance Parts</h2>
+        <button class="icon-btn" type="button" id="closePartsModal" aria-label="Close parts panel">Close</button>
+      </div>
+      <div class="modal-body">
+        <section class="form-section">
+          <h3>Normally Purchased Parts</h3>
+          <div class="part-editor" id="partsEditor"></div>
+          <button class="btn" type="button" id="addPart">Add Part</button>
+        </section>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" type="button" id="cancelParts">Cancel</button>
+        <button class="btn primary" type="submit">Save Parts</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="modal-backdrop" id="serviceModal" role="dialog" aria-modal="true" aria-labelledby="serviceTitle">
+    <form class="modal" id="serviceForm">
+      <div class="modal-head">
+        <h2 id="serviceTitle">Log Maintenance</h2>
+        <button class="icon-btn" type="button" id="closeServiceModal" aria-label="Close maintenance log">Close</button>
+      </div>
+      <div class="modal-body">
+        <section class="form-section">
+          <h3>New Maintenance Entry</h3>
+          <div class="field-grid">
+            <div class="field">
+              <label for="serviceDate">Date</label>
+              <input id="serviceDate" type="date">
+            </div>
+            <div class="field">
+              <label for="serviceBy">Completed By</label>
+              <input id="serviceBy" type="text">
+            </div>
+            <div class="field">
+              <label for="serviceCost">Service Cost</label>
+              <input id="serviceCost" type="number" min="0" step="0.01">
+            </div>
+            <div class="field">
+              <label for="serviceInvoice">Invoice Upload</label>
+              <input id="serviceInvoice" type="file">
+            </div>
+            <div class="field full">
+              <label>Service Items</label>
+              <div class="check-grid" id="serviceLogItems"></div>
+            </div>
+            <div class="field full">
+              <label for="serviceNotes">Maintenance Notes</label>
+              <textarea class="textarea" id="serviceNotes"></textarea>
+            </div>
+          </div>
+        </section>
+        <section class="form-section">
+          <h3>Summary Log</h3>
+          <div class="queue-list" id="serviceHistory"></div>
+        </section>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" type="button" id="cancelService">Cancel</button>
+        <button class="btn primary" type="submit">Save Maintenance</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="modal-backdrop" id="fuelModal" role="dialog" aria-modal="true" aria-labelledby="fuelTitle">
+    <form class="modal" id="fuelForm">
+      <div class="modal-head">
+        <h2 id="fuelTitle">Log Fuel</h2>
+        <button class="icon-btn" type="button" id="closeFuelModal" aria-label="Close fuel log">Close</button>
+      </div>
+      <div class="modal-body">
+        <section class="form-section">
+          <h3>New Fuel Entry</h3>
+          <div class="field-grid">
+            <div class="field">
+              <label for="fuelDate">Date</label>
+              <input id="fuelDate" type="date">
+            </div>
+            <div class="field">
+              <label for="fuelGallons">Gallons</label>
+              <input id="fuelGallons" type="number" min="0" step="0.01">
+            </div>
+            <div class="field">
+              <label for="fuelCost">Fuel Cost</label>
+              <input id="fuelCost" type="number" min="0" step="0.01">
+            </div>
+            <div class="field">
+              <label for="fuelOdometer">Odometer</label>
+              <input id="fuelOdometer" type="number" min="0" step="1">
+            </div>
+            <div class="field">
+              <label for="fuelVendor">Vendor</label>
+              <input id="fuelVendor" type="text">
+            </div>
+            <div class="field">
+              <label for="fuelBy">Entered By</label>
+              <input id="fuelBy" type="text">
+            </div>
+          </div>
+        </section>
+        <section class="form-section">
+          <h3>Fuel History</h3>
+          <div class="queue-list" id="fuelHistory"></div>
+        </section>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" type="button" id="cancelFuel">Cancel</button>
+        <button class="btn primary" type="submit">Save Fuel</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    const requiredCycles = Math.ceil(Math.log(1 - 0.95) / Math.log(0.95));
+    const listedApparatus = [
+      "Rescue 1",
+      "Engine 2",
+      "Engine 3",
+      "Engine 4",
+      "Truck 1",
+      "Truck 3",
+      "Unit 1",
+      "Unit 2",
+      "Unit 3",
+      "Unit 4",
+      "Unit 5",
+      "NW1",
+      "100",
+      "101",
+      "104",
+      "105",
+      "106",
+      "107",
+      "FD 2",
+      "FD 3",
+      "FD 4",
+      "FD 5",
+      "Water Truck"
+    ];
+
+    const savedApparatus = JSON.parse(localStorage.getItem("maintenanceApparatus") || "null");
+    const sourceApparatus = Array.isArray(savedApparatus)
+      ? savedApparatus
+      : Array.isArray(window.maintenanceApparatus)
+      ? window.maintenanceApparatus
+      : listedApparatus.map((name) => ({ name }));
+    const apparatusTypes = [
+      "Pumper",
+      "Ladder Truck",
+      "Brush Truck",
+      "Ambulance",
+      "Fleet",
+      "Support Vehicle"
+    ];
+    const normalParts = {
+      Pumper: [
+        { name: "Pump panel intake gasket", number: "PMP-1001" },
+        { name: "Discharge valve rebuild kit", number: "PMP-2045" },
+        { name: "Primer pump belt", number: "PMP-3310" },
+        { name: "Foam system strainer", number: "PMP-4402" }
+      ],
+      "Ladder Truck": [
+        { name: "Aerial hydraulic filter", number: "LAD-1180" },
+        { name: "Outrigger pad sensor", number: "LAD-2264" },
+        { name: "Turntable grease cartridge", number: "LAD-3105" },
+        { name: "Ladder rung wear pad", number: "LAD-4522" }
+      ],
+      "Brush Truck": [
+        { name: "Skid pump fuel filter", number: "BRU-0912" },
+        { name: "Booster reel swivel", number: "BRU-1830" },
+        { name: "Wildland nozzle gasket", number: "BRU-2441" },
+        { name: "Transfer case seal kit", number: "BRU-3908" }
+      ],
+      Ambulance: [
+        { name: "Cabin air filter", number: "AMB-1007" },
+        { name: "Shoreline inlet cover", number: "AMB-2120" },
+        { name: "Oxygen bracket latch", number: "AMB-3445" },
+        { name: "Rear step tread plate", number: "AMB-4701" }
+      ],
+      Fleet: [
+        { name: "Engine oil filter", number: "FLT-1010" },
+        { name: "Fuel filter", number: "FLT-1020" },
+        { name: "Brake pad set", number: "FLT-2200" },
+        { name: "Wiper blade set", number: "FLT-3100" }
+      ],
+      "Support Vehicle": [
+        { name: "Battery terminal kit", number: "SUP-0815" },
+        { name: "Trailer plug connector", number: "SUP-1630" },
+        { name: "LED marker light", number: "SUP-2412" },
+        { name: "Utility body latch", number: "SUP-3309" }
+      ]
+    };
+    const defaultParts = [
+      { name: "Engine oil filter", number: "GEN-1000" },
+      { name: "Fuel filter", number: "GEN-1010" },
+      { name: "Air filter", number: "GEN-1020" },
+      { name: "Wiper blade set", number: "GEN-2010" }
+    ];
+    const standardServiceItems = [
+      "Oil change",
+      "Fuel filter replacement",
+      "Air filter inspection",
+      "Brake inspection",
+      "Tire inspection",
+      "Battery test",
+      "Fluid level check",
+      "Pump test",
+      "Hose bed inspection",
+      "Lights and siren check",
+      "Hydraulic system inspection",
+      "Ladder inspection",
+      "Oxygen system check",
+      "Radio check",
+      "Clean and detail"
+    ];
+
+    const apparatus = sourceApparatus.map((item) => ({
+      name: item.name || item.unit || "Unnamed apparatus",
+      type: apparatusTypes.includes(item.type || item.category) ? (item.type || item.category) : "",
+      maintenanceStatus: item.maintenanceStatus || "Needs Data",
+      priority: item.priority || "Normal",
+      make: item.make || "",
+      model: item.model || "",
+      year: item.year || "",
+      vin: item.vin || "",
+      plate: item.plate || "",
+      mileage: Number(item.mileage) || 0,
+      engineHours: Number(item.engineHours) || 0,
+      serialNumber: item.serialNumber || "",
+      equipmentId: item.equipmentId || "",
+      location: item.location || "",
+      technician: item.technician || "",
+      lastService: item.lastService || "",
+      nextService: item.nextService || "",
+      workOrder: item.workOrder || "",
+      parts: item.parts || "",
+      maintenanceParts: Array.isArray(item.maintenanceParts)
+        ? item.maintenanceParts
+            .filter((part) => part && (part.name || part.number))
+            .map((part) => ({ name: part.name || "", number: part.number || "" }))
+        : null,
+      serviceItems: Array.isArray(item.serviceItems) ? item.serviceItems.filter((serviceItem) => standardServiceItems.includes(serviceItem)) : [],
+      serviceLogs: Array.isArray(item.serviceLogs) ? item.serviceLogs : [],
+      fuelLogs: Array.isArray(item.fuelLogs) ? item.fuelLogs : [],
+      issue: item.issue || "",
+      notes: item.notes || "",
+      operatingHours: Number(item.operatingHours) || 0,
+      failures: Number(item.failures) || 0,
+      repairHours: Number(item.repairHours) || 0,
+      downtimeHours: Number(item.downtimeHours) || 0,
+      testCycles: Number(item.testCycles) || 0,
+      ruleLastCalculated: item.ruleLastCalculated || ""
+    }));
+
+    const fields = {
+      select: document.getElementById("apparatusSelect"),
+      operatingHours: document.getElementById("operatingHours"),
+      failures: document.getElementById("failures"),
+      repairHours: document.getElementById("repairHours"),
+      downtimeHours: document.getElementById("downtimeHours"),
+      testCycles: document.getElementById("testCycles"),
+      targetAvailability: document.getElementById("targetAvailability")
+    };
+    const viewContent = {
+      maintenance: {
+        title: "Maintenance Dashboard",
+        subtitle: "Track apparatus condition, service activity, downtime, inspections, and repair history from one maintenance view.",
+        apparatusTitle: "Apparatus Status",
+        apparatusTag: "Service records",
+        queueTitle: "Maintenance Queue",
+        queueTag: "Next 24 hours",
+        sideTitle: "Today",
+        sideText: "Review apparatus status, service notes, and open maintenance items before shift change.",
+        showCalculator: true
+      },
+      apparatus: {
+        title: "Apparatus",
+        subtitle: "Review and edit every apparatus record, including location, status, assignment, service dates, notes, and operating metrics.",
+        apparatusTitle: "Apparatus Records",
+        apparatusTag: "Editable cards",
+        queueTitle: "Recently Updated",
+        queueTag: "Card changes",
+        sideTitle: "Apparatus",
+        sideText: "Select any card to open the full edit panel for that apparatus.",
+        showCalculator: false
+      },
+      inspections: {
+        title: "Maintenance",
+        subtitle: "Log completed maintenance and service work by apparatus, including cost, invoice reference, service items, and who performed the work.",
+        apparatusTitle: "Maintenance Logs",
+        apparatusTag: "Click a card to log service",
+        queueTitle: "Recent Maintenance",
+        queueTag: "Service history",
+        sideTitle: "Maintenance",
+        sideText: "Click an apparatus card to add maintenance entries and review its summary log.",
+        showCalculator: false
+      },
+      parts: {
+        title: "Parts",
+        subtitle: "See parts needs by apparatus and update work order details, notes, assignments, and current service blockers.",
+        apparatusTitle: "Parts by Apparatus",
+        apparatusTag: "Parts needed",
+        queueTitle: "Parts Queue",
+        queueTag: "Open needs",
+        sideTitle: "Parts",
+        sideText: "Add required parts on each apparatus card so maintenance needs stay visible.",
+        showCalculator: false
+      },
+      fuel: {
+        title: "Fuel Log",
+        subtitle: "Track fuel purchases by apparatus, including gallons, cost, odometer, vendor, and who entered the fuel record.",
+        apparatusTitle: "Fuel by Apparatus",
+        apparatusTag: "Click a card to log fuel",
+        queueTitle: "Fuel History",
+        queueTag: "Recent entries",
+        sideTitle: "Fuel Log",
+        sideText: "Click an apparatus card to enter fuel costs and keep fuel history tied to the unit.",
+        showCalculator: false
+      }
+    };
+    let activeView = "maintenance";
+    const editFields = {
+      modal: document.getElementById("editModal"),
+      form: document.getElementById("editForm"),
+      title: document.getElementById("editTitle"),
+      name: document.getElementById("editName"),
+      type: document.getElementById("editType"),
+      maintenanceStatus: document.getElementById("editStatus"),
+      priority: document.getElementById("editPriority"),
+      make: document.getElementById("editMake"),
+      model: document.getElementById("editModel"),
+      year: document.getElementById("editYear"),
+      vin: document.getElementById("editVin"),
+      plate: document.getElementById("editPlate"),
+      mileage: document.getElementById("editMileage"),
+      engineHours: document.getElementById("editEngineHours"),
+      serialNumber: document.getElementById("editSerialNumber"),
+      equipmentId: document.getElementById("editEquipmentId"),
+      location: document.getElementById("editLocation"),
+      technician: document.getElementById("editTechnician"),
+      lastService: document.getElementById("editLastService"),
+      nextService: document.getElementById("editNextService"),
+      workOrder: document.getElementById("editWorkOrder"),
+      parts: document.getElementById("editParts"),
+      serviceItemsList: document.getElementById("serviceItemsList"),
+      issue: document.getElementById("editIssue"),
+      notes: document.getElementById("editNotes"),
+      operatingHours: document.getElementById("editOperatingHours"),
+      failures: document.getElementById("editFailures"),
+      repairHours: document.getElementById("editRepairHours"),
+      downtimeHours: document.getElementById("editDowntimeHours"),
+      testCycles: document.getElementById("editTestCycles"),
+      ruleReport: document.getElementById("editRuleReport"),
+      ruleHeadline: document.getElementById("editRuleHeadline"),
+      ruleStatus: document.getElementById("editRuleStatus"),
+      ruleAvailability: document.getElementById("editRuleAvailability"),
+      ruleMtbf: document.getElementById("editRuleMtbf"),
+      ruleMttr: document.getElementById("editRuleMttr"),
+      ruleCycles: document.getElementById("editRuleCycles"),
+      ruleGap: document.getElementById("editRuleGap"),
+      ruleUpdated: document.getElementById("editRuleUpdated")
+    };
+    const partsFields = {
+      modal: document.getElementById("partsModal"),
+      form: document.getElementById("partsForm"),
+      title: document.getElementById("partsTitle"),
+      editor: document.getElementById("partsEditor"),
+      add: document.getElementById("addPart")
+    };
+    const serviceFields = {
+      modal: document.getElementById("serviceModal"),
+      form: document.getElementById("serviceForm"),
+      title: document.getElementById("serviceTitle"),
+      date: document.getElementById("serviceDate"),
+      by: document.getElementById("serviceBy"),
+      cost: document.getElementById("serviceCost"),
+      invoice: document.getElementById("serviceInvoice"),
+      items: document.getElementById("serviceLogItems"),
+      notes: document.getElementById("serviceNotes"),
+      history: document.getElementById("serviceHistory")
+    };
+    const fuelFields = {
+      modal: document.getElementById("fuelModal"),
+      form: document.getElementById("fuelForm"),
+      title: document.getElementById("fuelTitle"),
+      date: document.getElementById("fuelDate"),
+      gallons: document.getElementById("fuelGallons"),
+      cost: document.getElementById("fuelCost"),
+      odometer: document.getElementById("fuelOdometer"),
+      vendor: document.getElementById("fuelVendor"),
+      by: document.getElementById("fuelBy"),
+      history: document.getElementById("fuelHistory")
+    };
+    let editingIndex = null;
+    let editingPartsIndex = null;
+    let loggingServiceIndex = null;
+    let loggingFuelIndex = null;
+
+    function numberValue(input) {
+      return Number(input.value) || 0;
+    }
+
+    function calculate(item, target = 95) {
+      const hasData = item.operatingHours > 0 || item.failures > 0 || item.repairHours > 0 || item.downtimeHours > 0 || item.testCycles > 0;
+      const availability = item.operatingHours + item.downtimeHours === 0
+        ? 0
+        : (item.operatingHours / (item.operatingHours + item.downtimeHours)) * 100;
+      const mtbf = item.failures === 0 ? item.operatingHours : item.operatingHours / item.failures;
+      const mttr = item.failures === 0 ? 0 : item.repairHours / item.failures;
+      const cycleProgress = Math.min(100, (item.testCycles / requiredCycles) * 100);
+      const passes = availability >= target && item.testCycles >= requiredCycles && item.failures <= 2;
+      const status = !hasData ? "pending" : passes ? "pass" : availability >= target - 2 ? "watch" : "fail";
+
+      return { availability, mtbf, mttr, cycleProgress, passes, status, hasData };
+    }
+
+    function formatHours(value) {
+      if (!Number.isFinite(value)) return "0h";
+      return `${value.toFixed(value >= 100 ? 0 : 1)}h`;
+    }
+
+    function statusLabel(status) {
+      if (status === "pass") return "In Service";
+      if (status === "watch") return "Watch";
+      if (status === "pending") return "Needs Data";
+      return "Needs Service";
+    }
+
+    function maintenanceClass(item) {
+      if (item.maintenanceStatus === "In Service") return "pass";
+      if (item.maintenanceStatus === "Reserve") return "service";
+      if (item.maintenanceStatus === "In Shop" || item.maintenanceStatus === "Needs Inspection") return "watch";
+      if (item.maintenanceStatus === "Out of Service") return "out";
+      return "pending";
+    }
+
+    function displayValue(value, fallback = "Not set") {
+      return value ? value : fallback;
+    }
+
+    function displayNumber(value, fallback = "Not set") {
+      return value > 0 ? value.toLocaleString() : fallback;
+    }
+
+    function escapeHTML(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function saveApparatus() {
+      localStorage.setItem("maintenanceApparatus", JSON.stringify(apparatus));
+    }
+
+    function ruleHeadline(item, result) {
+      if (!result.hasData) return "Needs metric entry";
+      if (result.passes) return "Meets 95/95 equipment-in-service rule";
+      if (result.status === "watch") return "Near target, review before closing service";
+      return "Does not meet 95/95 equipment-in-service rule";
+    }
+
+    function ruleGap(item) {
+      return Math.max(0, requiredCycles - item.testCycles);
+    }
+
+    function stampRuleCalculation(item) {
+      item.ruleLastCalculated = new Date().toLocaleString([], {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit"
+      });
+    }
+
+    function updateEditRuleReport(item) {
+      const result = calculate(item, numberValue(fields.targetAvailability));
+      editFields.ruleReport.className = `form-report rule-report ${result.status}`;
+      editFields.ruleStatus.className = `status-pill ${result.status}`;
+      editFields.ruleStatus.textContent = statusLabel(result.status);
+      editFields.ruleHeadline.textContent = ruleHeadline(item, result);
+      editFields.ruleAvailability.textContent = result.hasData ? `${result.availability.toFixed(1)}%` : "--";
+      editFields.ruleMtbf.textContent = result.hasData ? formatHours(result.mtbf) : "--";
+      editFields.ruleMttr.textContent = result.hasData ? formatHours(result.mttr) : "--";
+      editFields.ruleCycles.textContent = `${item.testCycles}/${requiredCycles}`;
+      editFields.ruleGap.textContent = `${ruleGap(item)} cycles`;
+      editFields.ruleUpdated.textContent = item.ruleLastCalculated || "Not calculated";
+    }
+
+    function partsForApparatus(item) {
+      return Array.isArray(item.maintenanceParts) && item.maintenanceParts.length > 0
+        ? item.maintenanceParts
+        : normalParts[item.type] || defaultParts;
+    }
+
+    function renderPartsList(item) {
+      if (activeView !== "parts") return "";
+
+      const parts = partsForApparatus(item);
+      const rows = parts.slice(0, 4).map((part) => `
+        <div class="part-row">
+          <strong>${escapeHTML(part.name)}</strong>
+          <span>${escapeHTML(part.number)}</span>
+        </div>
+      `).join("");
+
+      return `
+        <div class="parts-list">
+          <h4>Normally Used Parts</h4>
+          ${rows}
+          <span class="tag">Click card to manage ${parts.length} parts</span>
+        </div>
+      `;
+    }
+
+    function renderServiceChips(item) {
+      if (item.serviceItems.length === 0) return "";
+
+      return `
+        <div class="chip-list">
+          ${item.serviceItems.map((serviceItem) => `<span class="chip">${escapeHTML(serviceItem)}</span>`).join("")}
+        </div>
+      `;
+    }
+
+    function renderServiceItemChecklist(selectedItems = []) {
+      editFields.serviceItemsList.innerHTML = standardServiceItems.map((serviceItem, index) => {
+        const id = `serviceItem-${index}`;
+        const checked = selectedItems.includes(serviceItem) ? "checked" : "";
+        return `
+          <label class="check-item" for="${id}">
+            <input id="${id}" type="checkbox" value="${escapeHTML(serviceItem)}" ${checked}>
+            <span>${escapeHTML(serviceItem)}</span>
+          </label>
+        `;
+      }).join("");
+    }
+
+    function selectedServiceItems() {
+      return Array.from(editFields.serviceItemsList.querySelectorAll("input:checked"))
+        .map((input) => input.value);
+    }
+
+    function money(value) {
+      return `$${(Number(value) || 0).toFixed(2)}`;
+    }
+
+    function totalServiceCost(item) {
+      return item.serviceLogs.reduce((sum, log) => sum + (Number(log.cost) || 0), 0);
+    }
+
+    function totalFuelCost(item) {
+      return item.fuelLogs.reduce((sum, log) => sum + (Number(log.cost) || 0), 0);
+    }
+
+    function totalGallons(item) {
+      return item.fuelLogs.reduce((sum, log) => sum + (Number(log.gallons) || 0), 0);
+    }
+
+    function latestLog(logs) {
+      return logs.length > 0 ? logs[logs.length - 1] : null;
+    }
+
+    function renderMaintenanceSummary(item) {
+      if (activeView !== "inspections") return "";
+      const latest = latestLog(item.serviceLogs);
+      return `
+        <div class="parts-list">
+          <h4>Maintenance Summary</h4>
+          <div class="part-row"><strong>Total Entries</strong><span>${item.serviceLogs.length}</span></div>
+          <div class="part-row"><strong>Total Cost</strong><span>${money(totalServiceCost(item))}</span></div>
+          <div class="part-row"><strong>Last Service</strong><span>${escapeHTML(latest ? latest.date || "No date" : "None")}</span></div>
+          <span class="tag">Click card to log service</span>
+        </div>
+      `;
+    }
+
+    function renderFuelSummary(item) {
+      if (activeView !== "fuel") return "";
+      const latest = latestLog(item.fuelLogs);
+      return `
+        <div class="parts-list">
+          <h4>Fuel Summary</h4>
+          <div class="part-row"><strong>Total Entries</strong><span>${item.fuelLogs.length}</span></div>
+          <div class="part-row"><strong>Total Gallons</strong><span>${totalGallons(item).toFixed(2)}</span></div>
+          <div class="part-row"><strong>Total Fuel Cost</strong><span>${money(totalFuelCost(item))}</span></div>
+          <div class="part-row"><strong>Last Fuel</strong><span>${escapeHTML(latest ? latest.date || "No date" : "None")}</span></div>
+          <span class="tag">Click card to log fuel</span>
+        </div>
+      `;
+    }
+
+    function renderCards() {
+      const grid = document.getElementById("apparatusGrid");
+      const target = numberValue(fields.targetAvailability);
+      if (apparatus.length === 0) {
+        grid.innerHTML = `
+          <div class="empty-state">
+            <strong>No apparatus loaded</strong>
+            Connect this page to your existing apparatus list by setting <code>window.maintenanceApparatus</code> before this script runs.
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = apparatus.map((item, index) => {
+        const result = calculate(item, target);
+        const gaugeValue = `${Math.min(100, result.availability).toFixed(1)}%`;
+        const clickableView = activeView === "parts" || activeView === "inspections" || activeView === "fuel";
+        const cardClass = clickableView ? "apparatus-card parts-clickable" : "apparatus-card";
+        const cardRole = clickableView ? `role="button" tabindex="0" aria-label="Open ${escapeHTML(item.name)}"` : "";
+        return `
+          <article class="${cardClass}" data-index="${index}" ${cardRole}>
+            <div class="card-head">
+              <div>
+                <h3 class="apparatus-name">${escapeHTML(item.name)}</h3>
+                <div class="apparatus-type">${escapeHTML(item.type)}</div>
+              </div>
+              <div class="card-actions">
+                <span class="status-pill ${maintenanceClass(item)}">${escapeHTML(item.maintenanceStatus)}</span>
+                ${clickableView ? "" : `<button class="icon-btn edit-card" type="button" data-index="${index}">Edit</button>`}
+              </div>
+            </div>
+            <button class="gauge" style="--value: ${gaugeValue}" type="button" data-index="${index}" aria-label="Edit ${escapeHTML(item.name)}">
+              <span class="gauge-value">${result.availability.toFixed(1)}%<span>Available</span></span>
+            </button>
+            <div class="details">
+              <div class="detail-row"><span>Make/Model</span><strong>${escapeHTML(displayValue([item.year, item.make, item.model].filter(Boolean).join(" "), "Not set"))}</strong></div>
+              <div class="detail-row"><span>VIN</span><strong>${escapeHTML(displayValue(item.vin))}</strong></div>
+              <div class="detail-row"><span>Plate</span><strong>${escapeHTML(displayValue(item.plate))}</strong></div>
+              <div class="detail-row"><span>Mileage</span><strong>${escapeHTML(displayNumber(item.mileage))}</strong></div>
+              <div class="detail-row"><span>Priority</span><strong>${escapeHTML(displayValue(item.priority))}</strong></div>
+              <div class="detail-row"><span>Location</span><strong>${escapeHTML(displayValue(item.location))}</strong></div>
+              <div class="detail-row"><span>Assigned</span><strong>${escapeHTML(displayValue(item.technician))}</strong></div>
+              <div class="detail-row"><span>Next Service</span><strong>${escapeHTML(displayValue(item.nextService))}</strong></div>
+              <div class="detail-row"><span>Issue</span><strong>${escapeHTML(displayValue(item.issue, "No issue entered"))}</strong></div>
+            </div>
+            <div class="metrics">
+              <div class="metric"><span>MTBF</span><strong>${result.hasData ? formatHours(result.mtbf) : "--"}</strong></div>
+              <div class="metric"><span>MTTR</span><strong>${result.hasData ? formatHours(result.mttr) : "--"}</strong></div>
+              <div class="metric"><span>Test Cycles</span><strong>${item.testCycles}/${requiredCycles}</strong></div>
+              <div class="metric"><span>Failures</span><strong>${item.failures}</strong></div>
+            </div>
+            <div class="rule-report ${result.status}">
+              <div class="rule-head">
+                <strong>95/95 Report</strong>
+                <span class="status-pill ${result.status}">${statusLabel(result.status)}</span>
+              </div>
+              <div class="rule-grid">
+                <div><span>Result</span><strong>${escapeHTML(ruleHeadline(item, result))}</strong></div>
+                <div><span>Cycle Gap</span><strong>${ruleGap(item)} cycles</strong></div>
+                <div><span>Updated</span><strong>${escapeHTML(item.ruleLastCalculated || "Not calculated")}</strong></div>
+              </div>
+            </div>
+            ${renderServiceChips(item)}
+            ${renderPartsList(item)}
+            ${renderMaintenanceSummary(item)}
+            ${renderFuelSummary(item)}
+          </article>
+        `;
+      }).join("");
+
+      grid.querySelectorAll(".gauge").forEach((button) => {
+        button.addEventListener("click", () => {
+          if (activeView === "parts") {
+            openPartsManager(Number(button.dataset.index));
+            return;
+          }
+          if (activeView === "inspections") {
+            openServiceLogger(Number(button.dataset.index));
+            return;
+          }
+          if (activeView === "fuel") {
+            openFuelLogger(Number(button.dataset.index));
+            return;
+          }
+
+          fields.select.value = button.dataset.index;
+          loadSelected();
+        });
+      });
+
+      grid.querySelectorAll(".edit-card").forEach((button) => {
+        button.addEventListener("click", () => openEditor(Number(button.dataset.index)));
+      });
+
+      grid.querySelectorAll(".parts-clickable").forEach((card) => {
+        card.addEventListener("click", (event) => {
+          if (event.target.closest("button")) return;
+          openViewAction(Number(card.dataset.index));
+        });
+        card.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openViewAction(Number(card.dataset.index));
+          }
+        });
+      });
+    }
+
+    function renderSummary() {
+      const target = numberValue(fields.targetAvailability);
+      if (apparatus.length === 0) {
+        document.getElementById("fleetAvailability").textContent = "--";
+        document.getElementById("averageMttr").textContent = "--";
+        document.getElementById("passingCount").textContent = "--";
+        document.getElementById("workOrderCount").textContent = "--";
+        return;
+      }
+
+      const results = apparatus.map((item) => calculate(item, target));
+      const recordsWithData = results.filter((item) => item.hasData);
+      const averageAvailability = recordsWithData.length === 0 ? 0 : recordsWithData.reduce((sum, item) => sum + item.availability, 0) / recordsWithData.length;
+      const averageMttr = recordsWithData.length === 0 ? 0 : recordsWithData.reduce((sum, item) => sum + item.mttr, 0) / recordsWithData.length;
+      const inService = apparatus.filter((item) => item.maintenanceStatus === "In Service").length;
+      const openItems = apparatus.filter((item) => item.maintenanceStatus === "In Shop" || item.maintenanceStatus === "Out of Service" || item.maintenanceStatus === "Needs Inspection").length;
+
+      document.getElementById("fleetAvailability").textContent = `${inService} of ${apparatus.length}`;
+      document.getElementById("averageMttr").textContent = recordsWithData.length === 0 ? "--" : formatHours(averageMttr);
+      document.getElementById("passingCount").textContent = `${recordsWithData.length} of ${apparatus.length}`;
+      document.getElementById("workOrderCount").textContent = String(openItems);
+    }
+
+    function loadSelected() {
+      if (apparatus.length === 0) {
+        updateCalculator();
+        return;
+      }
+
+      const selected = apparatus[Number(fields.select.value)];
+      fields.operatingHours.value = selected.operatingHours;
+      fields.failures.value = selected.failures;
+      fields.repairHours.value = selected.repairHours;
+      fields.downtimeHours.value = selected.downtimeHours;
+      fields.testCycles.value = selected.testCycles;
+      updateCalculator();
+    }
+
+    function currentFormItem() {
+      return {
+        operatingHours: numberValue(fields.operatingHours),
+        failures: numberValue(fields.failures),
+        repairHours: numberValue(fields.repairHours),
+        downtimeHours: numberValue(fields.downtimeHours),
+        testCycles: numberValue(fields.testCycles)
+      };
+    }
+
+    function updateCalculator() {
+      if (apparatus.length === 0) {
+        document.getElementById("resultBand").className = "result-band";
+        document.getElementById("resultStatus").className = "status-pill watch";
+        document.getElementById("resultStatus").textContent = "Waiting";
+        document.getElementById("resultHeadline").textContent = "Select an apparatus to run the 95/95 check";
+        document.getElementById("availabilityResult").textContent = "--";
+        document.getElementById("mtbfResult").textContent = "--";
+        document.getElementById("mttrResult").textContent = "--";
+        document.getElementById("formulaText").textContent =
+          `The 95/95 zero-failure proof requires ${requiredCycles} consecutive successful cycles.`;
+        return;
+      }
+
+      const target = numberValue(fields.targetAvailability);
+      const item = currentFormItem();
+      const result = calculate(item, target);
+      const band = document.getElementById("resultBand");
+      const status = document.getElementById("resultStatus");
+      const selected = apparatus[Number(fields.select.value)];
+      const cycleGap = Math.max(0, requiredCycles - item.testCycles);
+
+      band.className = `result-band ${result.status}`;
+      status.className = `status-pill ${result.status}`;
+      status.textContent = statusLabel(result.status);
+      document.getElementById("resultHeadline").textContent = !result.hasData
+        ? `${selected.name} is ready for metric entry`
+        : result.passes
+        ? `${selected.name} meets the 95/95 threshold`
+        : `${selected.name} needs ${cycleGap} more zero-failure cycles`;
+      document.getElementById("availabilityResult").textContent = result.hasData ? `${result.availability.toFixed(1)}%` : "--";
+      document.getElementById("mtbfResult").textContent = result.hasData ? formatHours(result.mtbf) : "--";
+      document.getElementById("mttrResult").textContent = result.hasData ? formatHours(result.mttr) : "--";
+      document.getElementById("formulaText").textContent =
+        `MTBF = operating hours / failures. MTTR = repair hours / failures. Availability = operating hours / (operating hours + downtime). The 95/95 zero-failure proof requires ${requiredCycles} consecutive successful cycles.`;
+    }
+
+    function applyChanges() {
+      if (apparatus.length === 0) return;
+
+      const selectedIndex = Number(fields.select.value);
+      const selected = apparatus[selectedIndex];
+      Object.assign(selected, currentFormItem());
+      stampRuleCalculation(selected);
+      saveApparatus();
+      renderCards();
+      renderSummary();
+      renderQueue();
+      updateCalculator();
+    }
+
+    function logService() {
+      if (apparatus.length === 0) return;
+
+      const selectedIndex = Number.isFinite(Number(fields.select.value))
+        ? Number(fields.select.value)
+        : 0;
+      const safeIndex = apparatus[selectedIndex] ? selectedIndex : 0;
+      fields.select.value = String(safeIndex);
+      loadSelected();
+      setActiveView("inspections");
+      openServiceLogger(safeIndex);
+    }
+
+    function openEditor(index) {
+      const item = apparatus[index];
+      editingIndex = index;
+      editFields.title.textContent = `Edit ${item.name}`;
+      editFields.name.value = item.name;
+      editFields.type.value = item.type;
+      editFields.maintenanceStatus.value = item.maintenanceStatus;
+      editFields.priority.value = item.priority;
+      editFields.make.value = item.make;
+      editFields.model.value = item.model;
+      editFields.year.value = item.year;
+      editFields.vin.value = item.vin;
+      editFields.plate.value = item.plate;
+      editFields.mileage.value = item.mileage;
+      editFields.engineHours.value = item.engineHours;
+      editFields.serialNumber.value = item.serialNumber;
+      editFields.equipmentId.value = item.equipmentId;
+      if (item.location && !Array.from(editFields.location.options).some((option) => option.value === item.location)) {
+        editFields.location.add(new Option(item.location, item.location));
+      }
+      editFields.location.value = item.location;
+      editFields.technician.value = item.technician;
+      editFields.lastService.value = item.lastService;
+      editFields.nextService.value = item.nextService;
+      editFields.workOrder.value = item.workOrder;
+      editFields.parts.value = item.parts;
+      renderServiceItemChecklist(item.serviceItems);
+      editFields.issue.value = item.issue;
+      editFields.notes.value = item.notes;
+      editFields.operatingHours.value = item.operatingHours;
+      editFields.failures.value = item.failures;
+      editFields.repairHours.value = item.repairHours;
+      editFields.downtimeHours.value = item.downtimeHours;
+      editFields.testCycles.value = item.testCycles;
+      updateEditRuleReport(item);
+      editFields.modal.classList.add("open");
+      editFields.name.focus();
+    }
+
+    function closeEditor() {
+      editingIndex = null;
+      editFields.modal.classList.remove("open");
+    }
+
+    function saveEditor(event) {
+      event.preventDefault();
+      if (editingIndex === null) return;
+
+      Object.assign(apparatus[editingIndex], {
+        name: editFields.name.value.trim() || "Unnamed apparatus",
+        type: apparatusTypes.includes(editFields.type.value) ? editFields.type.value : "",
+        maintenanceStatus: editFields.maintenanceStatus.value,
+        priority: editFields.priority.value,
+        make: editFields.make.value.trim(),
+        model: editFields.model.value.trim(),
+        year: editFields.year.value.trim(),
+        vin: editFields.vin.value.trim(),
+        plate: editFields.plate.value.trim(),
+        mileage: Number(editFields.mileage.value) || 0,
+        engineHours: Number(editFields.engineHours.value) || 0,
+        serialNumber: editFields.serialNumber.value.trim(),
+        equipmentId: editFields.equipmentId.value.trim(),
+        location: editFields.location.value.trim(),
+        technician: editFields.technician.value.trim(),
+        lastService: editFields.lastService.value,
+        nextService: editFields.nextService.value,
+        workOrder: editFields.workOrder.value.trim(),
+        parts: editFields.parts.value.trim(),
+        serviceItems: selectedServiceItems(),
+        issue: editFields.issue.value.trim(),
+        notes: editFields.notes.value.trim(),
+        operatingHours: Number(editFields.operatingHours.value) || 0,
+        failures: Number(editFields.failures.value) || 0,
+        repairHours: Number(editFields.repairHours.value) || 0,
+        downtimeHours: Number(editFields.downtimeHours.value) || 0,
+        testCycles: Number(editFields.testCycles.value) || 0
+      });
+
+      stampRuleCalculation(apparatus[editingIndex]);
+      saveApparatus();
+      fields.select.innerHTML = apparatus.map((item, index) => `<option value="${index}">${escapeHTML(item.name)} - ${escapeHTML(item.type)}</option>`).join("");
+      fields.select.value = String(editingIndex);
+      renderCards();
+      renderSummary();
+      renderQueue();
+      loadSelected();
+      closeEditor();
+    }
+
+    function previewEditRuleReport() {
+      if (editingIndex === null) return;
+      updateEditRuleReport({
+        ...apparatus[editingIndex],
+        operatingHours: Number(editFields.operatingHours.value) || 0,
+        failures: Number(editFields.failures.value) || 0,
+        repairHours: Number(editFields.repairHours.value) || 0,
+        downtimeHours: Number(editFields.downtimeHours.value) || 0,
+        testCycles: Number(editFields.testCycles.value) || 0
+      });
+    }
+
+    function partRowTemplate(part = { name: "", number: "" }) {
+      return `
+        <div class="part-editor-row">
+          <div class="field">
+            <label>Part Name</label>
+            <input class="part-name" type="text" value="${escapeHTML(part.name)}">
+          </div>
+          <div class="field">
+            <label>Part Number</label>
+            <input class="part-number" type="text" value="${escapeHTML(part.number)}">
+          </div>
+          <button class="icon-btn remove-part" type="button">Remove</button>
+        </div>
+      `;
+    }
+
+    function renderPartsEditor(parts) {
+      partsFields.editor.innerHTML = parts.map((part) => partRowTemplate(part)).join("");
+    }
+
+    function openPartsManager(index) {
+      const item = apparatus[index];
+      editingPartsIndex = index;
+      partsFields.title.textContent = `${item.name} Parts`;
+      renderPartsEditor(partsForApparatus(item));
+      partsFields.modal.classList.add("open");
+    }
+
+    function closePartsManager() {
+      editingPartsIndex = null;
+      partsFields.modal.classList.remove("open");
+    }
+
+    function currentPartRows() {
+      return Array.from(partsFields.editor.querySelectorAll(".part-editor-row"))
+        .map((row) => ({
+          name: row.querySelector(".part-name").value.trim(),
+          number: row.querySelector(".part-number").value.trim()
+        }))
+        .filter((part) => part.name || part.number);
+    }
+
+    function addPartRow() {
+      partsFields.editor.insertAdjacentHTML("beforeend", partRowTemplate());
+      const rows = partsFields.editor.querySelectorAll(".part-editor-row");
+      const lastRow = rows[rows.length - 1];
+      if (lastRow) lastRow.querySelector(".part-name").focus();
+    }
+
+    function savePartsManager(event) {
+      event.preventDefault();
+      if (editingPartsIndex === null) return;
+
+      apparatus[editingPartsIndex].maintenanceParts = currentPartRows();
+      saveApparatus();
+      renderCards();
+      renderQueue();
+      closePartsManager();
+    }
+
+    function openViewAction(index) {
+      if (activeView === "parts") openPartsManager(index);
+      if (activeView === "inspections") openServiceLogger(index);
+      if (activeView === "fuel") openFuelLogger(index);
+    }
+
+    function renderServiceLogChecklist(selectedItems = []) {
+      serviceFields.items.innerHTML = standardServiceItems.map((serviceItem, index) => {
+        const id = `serviceLogItem-${index}`;
+        const checked = selectedItems.includes(serviceItem) ? "checked" : "";
+        return `
+          <label class="check-item" for="${id}">
+            <input id="${id}" type="checkbox" value="${escapeHTML(serviceItem)}" ${checked}>
+            <span>${escapeHTML(serviceItem)}</span>
+          </label>
+        `;
+      }).join("");
+    }
+
+    function selectedServiceLogItems() {
+      return Array.from(serviceFields.items.querySelectorAll("input:checked"))
+        .map((input) => input.value);
+    }
+
+    function renderServiceHistory(item) {
+      serviceFields.history.innerHTML = item.serviceLogs.length === 0
+        ? `<div class="empty-state"><strong>No maintenance logged</strong>Saved service entries for this apparatus will appear here.</div>`
+        : item.serviceLogs.slice().reverse().map((log) => `
+          <div class="queue-item">
+            <span class="priority ${Number(log.cost) > 0 ? "amber" : ""}"></span>
+            <span><strong>${escapeHTML(log.date || "No date")} - ${escapeHTML(log.by || "Unknown")}</strong>${escapeHTML(log.notes || (log.items || []).join(", ") || "Maintenance logged")}${log.invoiceName ? ` / Invoice: ${escapeHTML(log.invoiceName)}` : ""}</span>
+            <span class="tag">${money(log.cost)}</span>
+          </div>
+        `).join("");
+    }
+
+    function openServiceLogger(index) {
+      const item = apparatus[index];
+      loggingServiceIndex = index;
+      serviceFields.title.textContent = `${item.name} Maintenance`;
+      serviceFields.date.valueAsDate = new Date();
+      serviceFields.by.value = "";
+      serviceFields.cost.value = "";
+      serviceFields.invoice.value = "";
+      serviceFields.notes.value = "";
+      renderServiceLogChecklist([]);
+      renderServiceHistory(item);
+      serviceFields.modal.classList.add("open");
+    }
+
+    function closeServiceLogger() {
+      loggingServiceIndex = null;
+      serviceFields.modal.classList.remove("open");
+    }
+
+    function saveServiceLog(event) {
+      event.preventDefault();
+      if (loggingServiceIndex === null) return;
+
+      const invoiceFile = serviceFields.invoice.files && serviceFields.invoice.files[0];
+      apparatus[loggingServiceIndex].serviceLogs.push({
+        date: serviceFields.date.value,
+        by: serviceFields.by.value.trim(),
+        cost: Number(serviceFields.cost.value) || 0,
+        invoiceName: invoiceFile ? invoiceFile.name : "",
+        items: selectedServiceLogItems(),
+        notes: serviceFields.notes.value.trim()
+      });
+      saveApparatus();
+      renderCards();
+      renderSummary();
+      renderQueue();
+      closeServiceLogger();
+    }
+
+    function renderFuelHistory(item) {
+      fuelFields.history.innerHTML = item.fuelLogs.length === 0
+        ? `<div class="empty-state"><strong>No fuel logged</strong>Saved fuel entries for this apparatus will appear here.</div>`
+        : item.fuelLogs.slice().reverse().map((log) => `
+          <div class="queue-item">
+            <span class="priority"></span>
+            <span><strong>${escapeHTML(log.date || "No date")} - ${escapeHTML(log.vendor || "No vendor")}</strong>${Number(log.gallons || 0).toFixed(2)} gallons / odometer ${escapeHTML(log.odometer || "not set")} / entered by ${escapeHTML(log.by || "Unknown")}</span>
+            <span class="tag">${money(log.cost)}</span>
+          </div>
+        `).join("");
+    }
+
+    function openFuelLogger(index) {
+      const item = apparatus[index];
+      loggingFuelIndex = index;
+      fuelFields.title.textContent = `${item.name} Fuel`;
+      fuelFields.date.valueAsDate = new Date();
+      fuelFields.gallons.value = "";
+      fuelFields.cost.value = "";
+      fuelFields.odometer.value = "";
+      fuelFields.vendor.value = "";
+      fuelFields.by.value = "";
+      renderFuelHistory(item);
+      fuelFields.modal.classList.add("open");
+    }
+
+    function closeFuelLogger() {
+      loggingFuelIndex = null;
+      fuelFields.modal.classList.remove("open");
+    }
+
+    function saveFuelLog(event) {
+      event.preventDefault();
+      if (loggingFuelIndex === null) return;
+
+      apparatus[loggingFuelIndex].fuelLogs.push({
+        date: fuelFields.date.value,
+        gallons: Number(fuelFields.gallons.value) || 0,
+        cost: Number(fuelFields.cost.value) || 0,
+        odometer: fuelFields.odometer.value,
+        vendor: fuelFields.vendor.value.trim(),
+        by: fuelFields.by.value.trim()
+      });
+      saveApparatus();
+      renderCards();
+      renderQueue();
+      closeFuelLogger();
+    }
+
+    function renderQueue() {
+      const queueCopy = {
+        maintenance: (item, result) => ({
+          label: item.maintenanceStatus === "Needs Data" ? "Needs Data" : item.maintenanceStatus,
+          note: item.issue || item.notes || (result.hasData ? "Metrics on file" : "Awaiting maintenance details")
+        }),
+        apparatus: (item) => ({
+          label: item.priority,
+          note: `${displayValue(item.location, "No location")} / ${displayValue(item.technician, "No assignment")}`
+        }),
+        inspections: (item) => ({
+          label: `${item.serviceLogs.length} logs`,
+          note: latestLog(item.serviceLogs)
+            ? `${latestLog(item.serviceLogs).date || "No date"} / ${latestLog(item.serviceLogs).by || "Unknown"} / ${money(latestLog(item.serviceLogs).cost)}`
+            : "No maintenance logged"
+        }),
+        parts: (item) => ({
+          label: item.parts ? "Parts" : "None",
+          note: item.parts || "No parts entered"
+        }),
+        fuel: (item) => ({
+          label: `${item.fuelLogs.length} entries`,
+          note: latestLog(item.fuelLogs)
+            ? `${latestLog(item.fuelLogs).date || "No date"} / ${Number(latestLog(item.fuelLogs).gallons || 0).toFixed(2)} gallons / ${money(latestLog(item.fuelLogs).cost)}`
+            : "No fuel logged"
+        })
+      };
+
+      document.getElementById("queueList").innerHTML = apparatus.length === 0
+        ? `<div class="empty-state"><strong>No queue loaded</strong>Maintenance queue items will appear after this page is connected to your existing apparatus records.</div>`
+        : apparatus.map((item) => {
+            const result = calculate(item, 95);
+            const priorityClass = item.priority === "Critical" || item.maintenanceStatus === "Out of Service" ? "red" : item.priority === "High" || item.priority === "Monitor" ? "amber" : "";
+            const row = queueCopy[activeView](item, result);
+            return `
+              <div class="queue-item">
+                <span class="priority ${priorityClass}"></span>
+                <span><strong>${escapeHTML(item.name)}</strong>${escapeHTML(row.note)}</span>
+                <span class="tag">${escapeHTML(row.label)}</span>
+              </div>
+            `;
+          }).join("");
+    }
+
+    function setActiveView(view) {
+      activeView = view;
+      const content = viewContent[view];
+
+      document.querySelectorAll(".nav-item").forEach((button) => {
+        const isActive = button.dataset.view === view;
+        button.classList.toggle("active", isActive);
+        button.setAttribute("aria-pressed", String(isActive));
+      });
+
+      document.getElementById("pageTitle").textContent = content.title;
+      document.getElementById("pageSubtitle").textContent = content.subtitle;
+      document.getElementById("apparatusTitle").textContent = content.apparatusTitle;
+      document.getElementById("apparatusTag").textContent = content.apparatusTag;
+      document.getElementById("queueTitle").textContent = content.queueTitle;
+      document.getElementById("queueTag").textContent = content.queueTag;
+      document.getElementById("sideStatusTitle").textContent = content.sideTitle;
+      document.getElementById("sideStatusText").textContent = content.sideText;
+      document.getElementById("calculatorCard").classList.toggle("view-hidden", !content.showCalculator);
+
+      renderCards();
+      renderQueue();
+    }
+
+    fields.select.innerHTML = apparatus.length === 0
+      ? `<option value="">No apparatus loaded</option>`
+      : apparatus.map((item, index) => `<option value="${index}">${escapeHTML(item.name)} - ${escapeHTML(item.type)}</option>`).join("");
+
+    fields.select.disabled = apparatus.length === 0;
+    document.getElementById("applyChanges").disabled = apparatus.length === 0;
+
+    Object.values(fields).forEach((field) => {
+      field.addEventListener("input", updateCalculator);
+      field.addEventListener("change", updateCalculator);
+    });
+
+    fields.select.addEventListener("change", loadSelected);
+    document.getElementById("applyChanges").addEventListener("click", applyChanges);
+    document.getElementById("logService").addEventListener("click", logService);
+    document.querySelectorAll(".nav-item").forEach((button) => {
+      button.addEventListener("click", () => setActiveView(button.dataset.view));
+    });
+    document.getElementById("closeModal").addEventListener("click", closeEditor);
+    document.getElementById("cancelEdit").addEventListener("click", closeEditor);
+    editFields.form.addEventListener("submit", saveEditor);
+    document.getElementById("closePartsModal").addEventListener("click", closePartsManager);
+    document.getElementById("cancelParts").addEventListener("click", closePartsManager);
+    partsFields.form.addEventListener("submit", savePartsManager);
+    partsFields.add.addEventListener("click", addPartRow);
+    document.getElementById("closeServiceModal").addEventListener("click", closeServiceLogger);
+    document.getElementById("cancelService").addEventListener("click", closeServiceLogger);
+    serviceFields.form.addEventListener("submit", saveServiceLog);
+    document.getElementById("closeFuelModal").addEventListener("click", closeFuelLogger);
+    document.getElementById("cancelFuel").addEventListener("click", closeFuelLogger);
+    fuelFields.form.addEventListener("submit", saveFuelLog);
+    partsFields.editor.addEventListener("click", (event) => {
+      if (!event.target.classList.contains("remove-part")) return;
+      event.target.closest(".part-editor-row").remove();
+    });
+    [editFields.operatingHours, editFields.failures, editFields.repairHours, editFields.downtimeHours, editFields.testCycles].forEach((field) => {
+      field.addEventListener("input", previewEditRuleReport);
+    });
+    editFields.modal.addEventListener("click", (event) => {
+      if (event.target === editFields.modal) closeEditor();
+    });
+    partsFields.modal.addEventListener("click", (event) => {
+      if (event.target === partsFields.modal) closePartsManager();
+    });
+    serviceFields.modal.addEventListener("click", (event) => {
+      if (event.target === serviceFields.modal) closeServiceLogger();
+    });
+    fuelFields.modal.addEventListener("click", (event) => {
+      if (event.target === fuelFields.modal) closeFuelLogger();
+    });
+
+    renderCards();
+    renderSummary();
+    renderQueue();
+    loadSelected();
+  </script>
+</body>
+</html>
