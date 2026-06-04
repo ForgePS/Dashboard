@@ -436,6 +436,12 @@ textarea {
   gap: 12px;
 }
 
+.run-log-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .form-field {
   display: grid;
   gap: 6px;
@@ -498,5 +504,6 @@ textarea {
   .dashboard-grid,
   .maintenance-grid,
   .form-grid,
+  .run-log-form,
   .check-grid { grid-template-columns: 1fr; }
 }

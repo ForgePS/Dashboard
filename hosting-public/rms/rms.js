@@ -125,6 +125,7 @@ const seed = {
     engineHours: '',
     serviceLogs: [],
     fuelLogs: [],
+    runLogs: [],
     parts: maintenanceParts.map(([part, number]) => ({ part, number })),
     selectedServiceItems: [],
     operatingHours: 0,
@@ -194,14 +195,24 @@ function money(value) {
 }
 
 function calc95(item) {
-  const mtbf = item.failures > 0 ? Number(item.operatingHours || 0) / Number(item.failures || 1) : Number(item.operatingHours || 0);
+  const runHours = apparatusRunHours(item);
+  const totalOperatingHours = Number(item.operatingHours || 0) + runHours;
+  const mtbf = item.failures > 0 ? totalOperatingHours / Number(item.failures || 1) : totalOperatingHours;
   const mttr = item.failures > 0 ? Number(item.repairHours || 0) / Number(item.failures || 1) : 0;
-  const availability = (Number(item.operatingHours || 0) + Number(item.downtime || 0)) > 0
-    ? (Number(item.operatingHours || 0) / (Number(item.operatingHours || 0) + Number(item.downtime || 0))) * 100
+  const availability = (totalOperatingHours + Number(item.downtime || 0)) > 0
+    ? (totalOperatingHours / (totalOperatingHours + Number(item.downtime || 0))) * 100
     : 0;
   const required = Math.ceil(Math.log(1 - .95) / Math.log(.95));
   const passes = Number(item.testCycles || 0) >= required && Number(item.failures || 0) === 0 && availability >= 95;
-  return { mtbf, mttr, availability, required, passes };
+  return { mtbf, mttr, availability, required, passes, runHours, totalOperatingHours };
+}
+
+function apparatusRunHours(item) {
+  return (item.runLogs || []).reduce((sum, log) => sum + (Number(log.callMinutes || 0) / 60), 0);
+}
+
+function apparatusRunMinutes(item) {
+  return (item.runLogs || []).reduce((sum, log) => sum + Number(log.callMinutes || 0), 0);
 }
 
 function serviceCost(item) {
@@ -236,9 +247,10 @@ function renderStats(cards) {
 
 function render() {
   renderNav();
-  addRecordBtn.style.display = activeSection === 'dashboard' || activeSection === 'maintenance' ? 'none' : '';
+  addRecordBtn.style.display = activeSection === 'dashboard' || activeSection === 'maintenance' || activeSection === 'admin' ? 'none' : '';
   if (activeSection === 'dashboard') return renderDashboard();
   if (activeSection === 'maintenance') return renderMaintenance();
+  if (activeSection === 'admin') return renderAdmin();
   renderRecords(activeSection);
 }
 
@@ -354,6 +366,59 @@ function renderMaintenance() {
   `;
 }
 
+function renderAdmin() {
+  const totalRuns = data.maintenance.reduce((sum, item) => sum + (item.runLogs || []).length, 0);
+  const totalMinutes = data.maintenance.reduce((sum, item) => sum + apparatusRunMinutes(item), 0);
+  const busiest = [...data.maintenance].sort((a, b) => apparatusRunMinutes(b) - apparatusRunMinutes(a))[0];
+  renderStats([
+    { label: 'Run Logs', value: totalRuns },
+    { label: 'Call Time', value: `${(totalMinutes / 60).toFixed(1)} hrs` },
+    { label: 'Busiest Apparatus', value: busiest?.name || '--' },
+    { label: 'Feeds 95/95', value: 'Yes' }
+  ]);
+
+  const recentRuns = data.maintenance
+    .flatMap(item => (item.runLogs || []).map(log => ({ ...log, apparatus: item.name })))
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+    .slice(0, 12);
+
+  workspace.innerHTML = `
+    <div class="dashboard-grid">
+      <section class="panel">
+        <h2>Apparatus Use Metrics</h2>
+        <form id="runLogForm" class="run-log-form">
+          ${fieldHtml('runApparatus', 'Apparatus', 'select', apparatusNames)}
+          ${fieldHtml('runIncident', 'Incident Number')}
+          ${fieldHtml('runDate', 'Run Date', 'date', [], new Date().toISOString().slice(0, 10))}
+          ${fieldHtml('runType', 'Call Type')}
+          ${fieldHtml('runMinutes', 'Total Call Time Minutes', 'number')}
+          ${fieldHtml('runMiles', 'Run Miles', 'number')}
+          ${fieldHtml('runStation', 'Station', 'select', ['Station 1', 'Station 2', 'Station 3'])}
+          ${fieldHtml('runNotes', 'Run Notes', 'textarea')}
+          <div class="form-field full">
+            <button class="primary" type="submit">Log Apparatus Run</button>
+          </div>
+        </form>
+      </section>
+      <section class="panel">
+        <h2>95/95 Import Summary</h2>
+        <div class="queue-list">
+          ${data.maintenance.map(item => {
+            const metric = calc95(item);
+            return `<div class="queue-item"><div><strong>${esc(item.name)}</strong><br><small>${(metric.runHours || 0).toFixed(2)} imported run hours | ${(metric.totalOperatingHours || 0).toFixed(2)} total operating hours</small></div><span class="pill ${metric.passes ? 'green' : 'amber'}">${metric.availability.toFixed(1)}%</span></div>`;
+          }).join('')}
+        </div>
+      </section>
+    </div>
+    <section class="panel">
+      <h2>Recent Apparatus Runs</h2>
+      <div class="queue-list">
+        ${recentRuns.length ? recentRuns.map(log => `<div class="queue-item"><div><strong>${esc(log.apparatus)} - ${esc(log.incident || 'Run')}</strong><br><small>${esc(log.date || 'No date')} | ${esc(log.callType || 'Call')} | ${esc(log.callMinutes || 0)} minutes | ${esc(log.station || '')}</small></div><span class="pill blue">${esc(log.miles || 0)} mi</span></div>`).join('') : '<p class="muted">No apparatus run metrics logged yet.</p>'}
+      </div>
+    </section>
+  `;
+}
+
 function modeTitle(mode) {
   return ({ fleet: 'Fleet', service: 'Maintenance Logs', fuel: 'Fuel Logs', parts: 'Parts' })[mode];
 }
@@ -381,6 +446,7 @@ function apparatusCard(item, index) {
         <span>95/95 Apparatus Report</span>
         <b>${metric.passes ? 'Meets' : 'Tracking'}</b>
         <small>${metric.availability.toFixed(1)}% availability | ${item.testCycles || 0}/${metric.required} cycles</small>
+        <small>${metric.runHours.toFixed(2)} run hours imported from Admin</small>
       </div>
       <small>${esc(lastService ? `Last service ${lastService.date || ''} by ${lastService.by || 'not listed'}` : lastFuel ? `Last fuel ${lastFuel.date || ''}` : 'Click to update this apparatus.')}</small>
     </article>
@@ -432,6 +498,7 @@ function maintenanceFields(item) {
     ${fieldHtml('mileage', 'Mileage', 'number', [], item.mileage)}
     ${fieldHtml('engineHours', 'Engine Hours', 'number', [], item.engineHours)}
     ${fieldHtml('operatingHours', 'Operating Hours', 'number', [], item.operatingHours)}
+    <div class="form-field"><label>Imported Run Hours</label><input type="text" value="${apparatusRunHours(item).toFixed(2)}" disabled /></div>
     ${fieldHtml('failures', 'Failures', 'number', [], item.failures)}
     ${fieldHtml('repairHours', 'Repair Hours', 'number', [], item.repairHours)}
     ${fieldHtml('downtime', 'Downtime Hours', 'number', [], item.downtime)}
@@ -552,6 +619,26 @@ workspace.addEventListener('click', event => {
   }
   const apparatus = event.target.closest('[data-apparatus-index]');
   if (apparatus) openMaintenanceModal(Number(apparatus.dataset.apparatusIndex));
+});
+
+workspace.addEventListener('submit', event => {
+  if (event.target.id !== 'runLogForm') return;
+  event.preventDefault();
+  const formData = new FormData(event.target);
+  const apparatus = data.maintenance.find(item => item.name === formData.get('runApparatus'));
+  if (!apparatus) return;
+  apparatus.runLogs = apparatus.runLogs || [];
+  apparatus.runLogs.push({
+    incident: formData.get('runIncident'),
+    date: formData.get('runDate'),
+    callType: formData.get('runType'),
+    callMinutes: formData.get('runMinutes'),
+    miles: formData.get('runMiles'),
+    station: formData.get('runStation'),
+    notes: formData.get('runNotes')
+  });
+  saveData();
+  renderAdmin();
 });
 
 addRecordBtn.addEventListener('click', () => openGenericModal(activeSection));
