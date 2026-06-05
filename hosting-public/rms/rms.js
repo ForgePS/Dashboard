@@ -411,7 +411,7 @@ function lowInventory() {
 }
 
 function renderHydrants() {
-  window.location.href = '/hydrants/';
+  window.location.href = 'https://horn-lake-fire.web.app/hydrants';
 }
 
 function renderPersonnel() {
