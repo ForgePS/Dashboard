@@ -4,9 +4,27 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Horn Lake Fire Department RMS</title>
-  <link rel="stylesheet" href="/rms/rms.css?v=5" />
+  <link rel="stylesheet" href="/rms/rms.css?v=6" />
 </head>
 <body>
+  <section id="signinScreen" class="signin-screen">
+    <form id="signinForm" class="signin-card">
+      <img src="/horn-lake-logo.png" alt="Horn Lake Fire Department" />
+      <p class="kicker">Horn Lake Fire Department</p>
+      <h1>RMS Sign In</h1>
+      <label>
+        Personnel
+        <select id="signinUser" name="signinUser"></select>
+      </label>
+      <label>
+        Employee ID
+        <input id="signinEmployeeId" name="signinEmployeeId" type="password" autocomplete="current-password" />
+      </label>
+      <p id="signinMessage" class="signin-message"></p>
+      <button class="primary" type="submit">Sign In</button>
+    </form>
+  </section>
+
   <div class="rms-shell">
     <aside class="rms-sidebar">
       <div class="rms-brand">
@@ -26,8 +44,10 @@
           <h1 id="sectionTitle">Dashboard</h1>
         </div>
         <div class="header-actions">
+          <span id="currentUserBadge" class="user-badge"></span>
           <input id="searchInput" type="search" placeholder="Search RMS" />
           <button id="addRecordBtn" class="primary" type="button">Add Record</button>
+          <button id="signOutBtn" class="secondary" type="button">Sign Out</button>
         </div>
       </header>
 
@@ -53,6 +73,6 @@
     </form>
   </dialog>
 
-  <script src="/rms/rms.js?v=5"></script>
+  <script src="/rms/rms.js?v=6"></script>
 </body>
 </html>

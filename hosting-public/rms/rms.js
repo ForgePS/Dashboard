@@ -1,4 +1,5 @@
 const APP_KEY = 'hlfdRmsData';
+const SESSION_KEY = 'hlfdRmsSession';
 const sections = [
   { id: 'dashboard', icon: 'DB', title: 'Dashboard' },
   { id: 'incidents', icon: 'IN', title: 'Incidents' },
@@ -51,6 +52,7 @@ const schemas = {
     ['name', 'Name'], ['rank', 'Rank'], ['employeeId', 'Employee ID'], ['station', 'Station', 'select', ['Station 1', 'Station 2', 'Station 3']],
     ['shift', 'Shift', 'select', ['A Shift', 'B Shift', 'C Shift', 'Day Staff']], ['phone', 'Phone'],
     ['email', 'Email'], ['status', 'Status', 'select', ['Active', 'Reserve', 'Leave', 'Inactive']],
+    ['adminAccess', 'Admin Access', 'select', ['No', 'Yes']],
     ['certifications', 'Certifications', 'textarea']
   ],
   training: [
@@ -100,7 +102,7 @@ const seed = {
     { incidentNumber: 'HL-260604-001', module: 'EMS', propertyUse: 'Street', actionsTaken: 'Patient care', casualties: '0', reviewStatus: 'Draft', notes: '' }
   ],
   personnel: [
-    { name: 'Battalion 100', rank: 'Battalion Chief', employeeId: '100', station: 'Station 1', shift: 'Day Staff', phone: '', email: '', status: 'Active', certifications: 'Command, Fire Officer' }
+    { name: 'Battalion 100', rank: 'Battalion Chief', employeeId: '100', station: 'Station 1', shift: 'Day Staff', phone: '', email: '', status: 'Active', adminAccess: 'Yes', certifications: 'Command, Fire Officer' }
   ],
   training: [
     { course: 'Driver Operator Review', date: '2026-06-04', instructor: 'Training Officer', hours: '2', category: 'Driver', members: 'Engine companies', status: 'Scheduled', notes: '' }
@@ -117,16 +119,24 @@ const seed = {
 };
 
 let data = loadData();
+let currentUserId = localStorage.getItem(SESSION_KEY) || '';
 let activeSection = initialSection();
 let maintenanceMode = 'fleet';
 let editing = null;
 
+const signinScreen = document.getElementById('signinScreen');
+const signinForm = document.getElementById('signinForm');
+const signinUser = document.getElementById('signinUser');
+const signinEmployeeId = document.getElementById('signinEmployeeId');
+const signinMessage = document.getElementById('signinMessage');
 const nav = document.getElementById('sectionNav');
 const title = document.getElementById('sectionTitle');
 const statsGrid = document.getElementById('statsGrid');
 const workspace = document.getElementById('workspace');
 const searchInput = document.getElementById('searchInput');
 const addRecordBtn = document.getElementById('addRecordBtn');
+const signOutBtn = document.getElementById('signOutBtn');
+const currentUserBadge = document.getElementById('currentUserBadge');
 const modal = document.getElementById('recordModal');
 const form = document.getElementById('recordForm');
 const modalFields = document.getElementById('modalFields');
@@ -183,12 +193,31 @@ function loadData() {
     return {
       ...structuredClone(seed),
       ...parsed,
+      personnel: mergePersonnel(parsed.personnel),
       apparatusList: [...new Set(fleetNames)],
       maintenance: mergeMaintenance(savedMaintenance, [...new Set(fleetNames)])
     };
   } catch {
     return structuredClone(seed);
   }
+}
+
+function mergePersonnel(saved = seed.personnel) {
+  const personnel = saved.length ? saved : seed.personnel;
+  return personnel.map((member, index) => ({
+    name: '',
+    rank: '',
+    employeeId: '',
+    station: 'Station 1',
+    shift: 'A Shift',
+    phone: '',
+    email: '',
+    status: 'Active',
+    adminAccess: index === 0 ? 'Yes' : 'No',
+    certifications: '',
+    ...member,
+    adminAccess: member.adminAccess || (index === 0 ? 'Yes' : 'No')
+  }));
 }
 
 function mergeMaintenance(saved = [], fleetNames = apparatusNames) {
@@ -205,6 +234,39 @@ function getApparatusNames() {
 
 function saveData() {
   localStorage.setItem(APP_KEY, JSON.stringify(data));
+}
+
+function currentUser() {
+  return data.personnel.find(member => member.employeeId === currentUserId) || null;
+}
+
+function isAdminUser() {
+  return currentUser()?.adminAccess === 'Yes';
+}
+
+function visibleSections() {
+  return sections.filter(section => section.id !== 'admin' || isAdminUser());
+}
+
+function refreshSigninOptions() {
+  signinUser.innerHTML = data.personnel
+    .filter(member => member.status !== 'Inactive')
+    .map(member => `<option value="${esc(member.employeeId)}">${esc(member.name || member.employeeId)} - ${esc(member.rank || 'Personnel')}</option>`)
+    .join('');
+}
+
+function showSignin(message = '') {
+  refreshSigninOptions();
+  signinMessage.textContent = message;
+  signinScreen.classList.remove('hidden');
+}
+
+function finishSignin(employeeId) {
+  currentUserId = employeeId;
+  localStorage.setItem(SESSION_KEY, currentUserId);
+  signinScreen.classList.add('hidden');
+  if (activeSection === 'admin' && !isAdminUser()) activeSection = 'dashboard';
+  render();
 }
 
 function esc(value) {
@@ -246,7 +308,7 @@ function fuelCost(item) {
 }
 
 function renderNav() {
-  nav.innerHTML = sections.map(section => `
+  nav.innerHTML = visibleSections().map(section => `
     <button class="nav-button ${section.id === activeSection ? 'active' : ''}" data-section="${section.id}" type="button">
       <span class="nav-icon">${section.icon}</span>
       <span>${section.title}</span>
@@ -255,6 +317,7 @@ function renderNav() {
 }
 
 function setSection(id) {
+  if (id === 'admin' && !isAdminUser()) id = 'dashboard';
   activeSection = id;
   title.textContent = sections.find(section => section.id === id)?.title || 'RMS';
   searchInput.value = '';
@@ -278,9 +341,18 @@ function renderStats(cards) {
 }
 
 function render() {
+  if (!currentUser()) {
+    showSignin();
+    return;
+  }
+  signinScreen.classList.add('hidden');
+  if (activeSection === 'admin' && !isAdminUser()) activeSection = 'dashboard';
+  title.textContent = sections.find(section => section.id === activeSection)?.title || 'RMS';
+  currentUserBadge.textContent = `${currentUser().name || currentUser().employeeId}${isAdminUser() ? ' | Admin' : ''}`;
   renderNav();
-  addRecordBtn.style.display = activeSection === 'dashboard' || activeSection === 'maintenance' || activeSection === 'admin' ? 'none' : '';
+  addRecordBtn.style.display = activeSection === 'dashboard' || activeSection === 'maintenance' || activeSection === 'admin' || activeSection === 'personnel' ? 'none' : '';
   if (activeSection === 'dashboard') return renderDashboard();
+  if (activeSection === 'personnel') return renderPersonnel();
   if (activeSection === 'maintenance') return renderMaintenance();
   if (activeSection === 'admin') return renderAdmin();
   renderRecords(activeSection);
@@ -320,7 +392,7 @@ function renderDashboard() {
       <section class="panel wide-card">
         <h2>Apparatus Use Metrics</h2>
         <p class="muted">Log total call time by apparatus and feed those run hours into Maintenance 95/95 reports.</p>
-        <button class="primary" data-jump-section="admin" type="button">Open Admin Use Metrics</button>
+        ${isAdminUser() ? '<button class="primary" data-jump-section="admin" type="button">Open Admin Use Metrics</button>' : '<span class="pill amber">Admin access required</span>'}
       </section>
     </div>
   `;
@@ -332,6 +404,36 @@ function queueItem(name, detail) {
 
 function lowInventory() {
   return data.inventory.filter(item => Number(item.quantity || 0) <= Number(item.minimum || 0));
+}
+
+function renderPersonnel() {
+  const roster = filterRecords(data.personnel);
+  renderStats([
+    { label: 'Personnel', value: roster.length },
+    { label: 'Active', value: roster.filter(member => member.status === 'Active').length },
+    { label: 'Admin Assigned', value: data.personnel.filter(member => member.adminAccess === 'Yes').length },
+    { label: 'View Only', value: 'Yes' }
+  ]);
+
+  workspace.innerHTML = `
+    <section class="record-grid">
+      ${roster.map(member => `
+        <article class="record-card">
+          <header>
+            <div><strong>${esc(member.name || 'Personnel')}</strong><small>${esc(member.rank || '')}</small></div>
+            <span class="pill ${member.status === 'Active' ? 'green' : 'amber'}">${esc(member.status || 'Active')}</span>
+          </header>
+          <div class="info-list">
+            <div class="info-line"><span>Employee ID</span><b>${esc(member.employeeId || '--')}</b></div>
+            <div class="info-line"><span>Station</span><b>${esc(member.station || '--')}</b></div>
+            <div class="info-line"><span>Shift</span><b>${esc(member.shift || '--')}</b></div>
+            <div class="info-line"><span>Admin</span><b>${member.adminAccess === 'Yes' ? 'Yes' : 'No'}</b></div>
+          </div>
+          <p class="muted">${esc(member.certifications || 'No certifications entered.')}</p>
+        </article>
+      `).join('') || emptyPanel('personnel')}
+    </section>
+  `;
 }
 
 function renderRecords(sectionId) {
@@ -421,6 +523,29 @@ function renderAdmin() {
 
   workspace.innerHTML = `
     <div class="dashboard-grid">
+      <section class="panel">
+        <h2>Personnel Management</h2>
+        <form id="personnelAdminForm" class="run-log-form">
+          ${fieldHtml('personnelName', 'Name')}
+          ${fieldHtml('personnelRank', 'Rank')}
+          ${fieldHtml('personnelEmployeeId', 'Employee ID')}
+          ${fieldHtml('personnelStation', 'Station', 'select', ['Station 1', 'Station 2', 'Station 3'])}
+          ${fieldHtml('personnelShift', 'Shift', 'select', ['A Shift', 'B Shift', 'C Shift', 'Day Staff'])}
+          ${fieldHtml('personnelStatus', 'Status', 'select', ['Active', 'Reserve', 'Leave', 'Inactive'])}
+          ${fieldHtml('personnelAdminAccess', 'Admin Access', 'select', ['No', 'Yes'])}
+          ${fieldHtml('personnelCertifications', 'Certifications', 'textarea')}
+          <input type="hidden" id="personnelEditIndex" name="personnelEditIndex" value="" />
+          <div class="form-field full">
+            <button class="primary" type="submit">Save Personnel</button>
+          </div>
+        </form>
+      </section>
+      <section class="panel">
+        <h2>Editable Personnel</h2>
+        <div class="queue-list">
+          ${data.personnel.map((member, index) => `<div class="queue-item"><div><strong>${esc(member.name || member.employeeId)}</strong><br><small>${esc(member.rank || '')} | ${esc(member.station || '')} | Admin: ${member.adminAccess === 'Yes' ? 'Yes' : 'No'}</small></div><button class="small-button" data-edit-personnel="${index}" type="button">Edit</button></div>`).join('')}
+        </div>
+      </section>
       <section class="panel">
         <h2>Apparatus Setup</h2>
         <form id="apparatusSetupForm" class="run-log-form">
@@ -666,6 +791,21 @@ nav.addEventListener('click', event => {
 workspace.addEventListener('click', event => {
   const jumpButton = event.target.closest('[data-jump-section]');
   if (jumpButton) return setSection(jumpButton.dataset.jumpSection);
+  const personnelButton = event.target.closest('[data-edit-personnel]');
+  if (personnelButton) {
+    const member = data.personnel[Number(personnelButton.dataset.editPersonnel)];
+    if (!member) return;
+    document.getElementById('personnelName').value = member.name || '';
+    document.getElementById('personnelRank').value = member.rank || '';
+    document.getElementById('personnelEmployeeId').value = member.employeeId || '';
+    document.getElementById('personnelStation').value = member.station || 'Station 1';
+    document.getElementById('personnelShift').value = member.shift || 'A Shift';
+    document.getElementById('personnelStatus').value = member.status || 'Active';
+    document.getElementById('personnelAdminAccess').value = member.adminAccess || 'No';
+    document.getElementById('personnelCertifications').value = member.certifications || '';
+    document.getElementById('personnelEditIndex').value = personnelButton.dataset.editPersonnel;
+    return;
+  }
   const removeButton = event.target.closest('[data-remove-apparatus]');
   if (removeButton) {
     const index = Number(removeButton.dataset.removeApparatus);
@@ -692,6 +832,37 @@ workspace.addEventListener('click', event => {
 });
 
 workspace.addEventListener('submit', event => {
+  if (event.target.id === 'personnelAdminForm') {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const employeeId = String(formData.get('personnelEmployeeId') || '').trim();
+    if (!employeeId) return;
+    const indexValue = formData.get('personnelEditIndex');
+    const existingIndex = data.personnel.findIndex((member, index) => member.employeeId === employeeId && String(index) !== String(indexValue));
+    if (existingIndex >= 0) {
+      window.alert(`${employeeId} is already assigned to another personnel record.`);
+      return;
+    }
+    const record = {
+      name: formData.get('personnelName'),
+      rank: formData.get('personnelRank'),
+      employeeId,
+      station: formData.get('personnelStation'),
+      shift: formData.get('personnelShift'),
+      phone: '',
+      email: '',
+      status: formData.get('personnelStatus'),
+      adminAccess: formData.get('personnelAdminAccess'),
+      certifications: formData.get('personnelCertifications')
+    };
+    if (indexValue === '') data.personnel.push(record);
+    else data.personnel[Number(indexValue)] = { ...data.personnel[Number(indexValue)], ...record };
+    saveData();
+    refreshSigninOptions();
+    if (currentUserId === employeeId && record.adminAccess !== 'Yes') activeSection = 'dashboard';
+    renderAdmin();
+    return;
+  }
   if (event.target.id === 'apparatusSetupForm') {
     event.preventDefault();
     const formData = new FormData(event.target);
@@ -733,6 +904,25 @@ workspace.addEventListener('submit', event => {
 
 addRecordBtn.addEventListener('click', () => openGenericModal(activeSection));
 searchInput.addEventListener('input', render);
+signOutBtn.addEventListener('click', () => {
+  localStorage.removeItem(SESSION_KEY);
+  currentUserId = '';
+  activeSection = 'dashboard';
+  showSignin();
+});
+
+signinForm.addEventListener('submit', event => {
+  event.preventDefault();
+  const selectedId = signinUser.value;
+  const enteredId = signinEmployeeId.value.trim();
+  const member = data.personnel.find(person => person.employeeId === selectedId);
+  if (!member || selectedId !== enteredId) {
+    showSignin('Employee ID does not match the selected personnel record.');
+    return;
+  }
+  signinEmployeeId.value = '';
+  finishSignin(selectedId);
+});
 
 form.addEventListener('submit', event => {
   if (event.submitter?.value !== 'save') return;
