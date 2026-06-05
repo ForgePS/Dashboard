@@ -448,6 +448,7 @@ window.syncHydrantsFrame = function syncHydrantsFrame(frame) {
         grid-template-columns: 1fr !important;
         padding: 0 !important;
         background: #071019 !important;
+        min-height: 100vh !important;
       }
       .side-nav,
       .fire-quick-tabs,
@@ -456,14 +457,27 @@ window.syncHydrantsFrame = function syncHydrantsFrame(frame) {
         display: none !important;
       }
       .main-stage {
+        width: 100% !important;
         max-width: none !important;
         min-height: 100vh !important;
+        background: #071019 !important;
         border-radius: 0 !important;
         border: 0 !important;
         box-shadow: none !important;
+        overflow: visible !important;
+      }
+      .hydrant-work-tabs {
+        margin: 0 !important;
+        border-top: 0 !important;
+        padding-top: 8px !important;
       }
       .page-body {
+        padding: 0 10px 10px !important;
         min-height: calc(100vh - 58px) !important;
+      }
+      .dashboard-grid {
+        width: 100% !important;
+        max-width: none !important;
       }
     `;
     doc.head.appendChild(style);
