@@ -712,12 +712,12 @@ function renderAdmin() {
       ${adminLaunchCard('readiness', 'Readiness', '95/95 Summary', `${(totalMinutes / 60).toFixed(1)}h`, 'Review imported run hours and readiness calculations.')}
       ${adminLaunchCard('recent-runs', 'Activity', 'Recent Apparatus Runs', recentRuns.length, 'See the latest apparatus run metrics entered into Admin.')}
     </div>
-    <section class="admin-home-permissions">
+    <section class="admin-settings-panel">
       <header class="admin-card-head">
-        <div><span>Access</span><h2>Page Permissions</h2></div>
-        <b>${data.personnel.length}</b>
+        <div><span>Settings</span><h2>RMS Page Settings Tree</h2></div>
+        <b>${sections.length}</b>
       </header>
-      <div class="admin-page-body">${adminPermissionsPage()}</div>
+      <div class="admin-page-body">${adminSettingsTree()}</div>
     </section>
   `;
 }
@@ -752,6 +752,38 @@ function adminPage(mode, context) {
       </header>
       <div class="admin-page-body">${page[3]}</div>
     </section>
+  `;
+}
+
+function adminSettingsTree() {
+  return `
+    <div class="admin-settings-tree">
+      ${sections.map(section => `
+        <details class="admin-settings-node">
+          <summary>
+            <span class="nav-icon">${esc(section.icon)}</span>
+            <strong>${esc(section.title)}</strong>
+            <em>${section.id === 'admin' ? 'Access controls' : 'Page settings'}</em>
+          </summary>
+          ${section.id === 'admin' ? `
+            <div class="admin-settings-children">
+              <details class="admin-settings-node nested">
+                <summary>
+                  <span class="nav-icon">PG</span>
+                  <strong>Page Permissions</strong>
+                  <em>Select personnel, edit access, save</em>
+                </summary>
+                <div class="admin-settings-content">${adminPermissionsPage()}</div>
+              </details>
+            </div>
+          ` : `
+            <div class="admin-settings-content">
+              <p class="muted">${esc(section.title)} settings can be added here as this RMS module grows.</p>
+            </div>
+          `}
+        </details>
+      `).join('')}
+    </div>
   `;
 }
 
@@ -799,7 +831,7 @@ function adminPermissionsPage() {
           const pageSettings = settings[section.id] || [];
           const lockedView = section.id === 'dashboard' || member.adminAccess === 'Yes' && section.id === 'admin';
           return `
-            <details class="permission-tree-item" ${index < 2 ? 'open' : ''}>
+            <details class="permission-tree-item">
               <summary>
                 <span class="nav-icon">${esc(section.icon)}</span>
                 <strong>${esc(section.title)}</strong>

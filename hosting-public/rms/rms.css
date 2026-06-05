@@ -551,13 +551,67 @@ textarea {
   gap: 14px;
 }
 
-.admin-home-permissions {
+.admin-settings-panel {
   margin-top: 14px;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: var(--shadow);
   overflow: hidden;
+}
+
+.admin-settings-tree,
+.admin-settings-children {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-settings-node {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.admin-settings-node summary {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.admin-settings-node summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-settings-node summary em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.admin-settings-node[open] > summary {
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(135deg, #ffffff, #f7fafc);
+}
+
+.admin-settings-node.nested {
+  background: var(--panel-soft);
+}
+
+.admin-settings-children,
+.admin-settings-content {
+  padding: 12px;
+}
+
+.admin-settings-content .permission-editor-card {
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .admin-page-head {
