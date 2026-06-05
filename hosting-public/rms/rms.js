@@ -434,18 +434,37 @@ window.syncHydrantsFrame = function syncHydrantsFrame(frame) {
     const style = doc.createElement('style');
     style.id = 'rmsHydrantChromeStyle';
     style.textContent = `
-      aside { display: none !important; }
-      main > header { display: none !important; }
-      #root > div { padding: 0 !important; background: #071019 !important; }
-      #root > div > div {
+      html,
+      body,
+      #root {
+        width: 100% !important;
+        max-width: none !important;
+        min-height: 100vh !important;
+        overflow-x: hidden !important;
+        background: #071019 !important;
+      }
+      .app-shell {
+        display: block !important;
+        grid-template-columns: 1fr !important;
+        padding: 0 !important;
+        background: #071019 !important;
+      }
+      .side-nav,
+      .fire-quick-tabs,
+      .ipad-tabs,
+      main > header {
+        display: none !important;
+      }
+      .main-stage {
         max-width: none !important;
         min-height: 100vh !important;
         border-radius: 0 !important;
         border: 0 !important;
         box-shadow: none !important;
-        grid-template-columns: 1fr !important;
       }
-      main { min-height: 100vh !important; }
+      .page-body {
+        min-height: calc(100vh - 58px) !important;
+      }
     `;
     doc.head.appendChild(style);
   } catch {}
