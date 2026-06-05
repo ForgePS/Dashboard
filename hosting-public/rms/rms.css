@@ -168,6 +168,11 @@ button {
   padding: 22px;
 }
 
+.rms-main-full {
+  padding: 0;
+  overflow: hidden;
+}
+
 .rms-header {
   min-height: 84px;
   display: flex;
@@ -313,6 +318,20 @@ textarea {
 .workspace {
   display: grid;
   gap: 14px;
+}
+
+.workspace-full {
+  height: 100vh;
+  display: block;
+  gap: 0;
+}
+
+.external-app-frame {
+  display: block;
+  width: 100%;
+  height: 100vh;
+  border: 0;
+  background: #071019;
 }
 
 .dashboard-grid {

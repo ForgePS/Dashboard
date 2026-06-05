@@ -133,6 +133,8 @@ const nav = document.getElementById('sectionNav');
 const title = document.getElementById('sectionTitle');
 const statsGrid = document.getElementById('statsGrid');
 const workspace = document.getElementById('workspace');
+const rmsHeader = document.querySelector('.rms-header');
+const rmsMain = document.querySelector('.rms-main');
 const searchInput = document.getElementById('searchInput');
 const addRecordBtn = document.getElementById('addRecordBtn');
 const signOutBtn = document.getElementById('signOutBtn');
@@ -352,6 +354,10 @@ function render() {
   if (activeSection === 'admin' && !isAdminUser()) activeSection = 'dashboard';
   title.textContent = sections.find(section => section.id === activeSection)?.title || 'RMS';
   currentUserBadge.textContent = `${currentUser().name || currentUser().employeeId}${isAdminUser() ? ' | Admin' : ''}`;
+  rmsHeader.classList.toggle('hidden', activeSection === 'hydrants');
+  rmsMain.classList.toggle('rms-main-full', activeSection === 'hydrants');
+  statsGrid.classList.toggle('hidden', activeSection === 'hydrants');
+  workspace.classList.toggle('workspace-full', activeSection === 'hydrants');
   renderNav();
   addRecordBtn.style.display = activeSection === 'dashboard' || activeSection === 'maintenance' || activeSection === 'admin' || activeSection === 'personnel' ? 'none' : '';
   if (activeSection === 'dashboard') return renderDashboard();
@@ -411,7 +417,13 @@ function lowInventory() {
 }
 
 function renderHydrants() {
-  window.location.href = 'https://horn-lake-fire.web.app/hydrants';
+  workspace.innerHTML = `
+    <iframe
+      class="external-app-frame"
+      src="https://horn-lake-fire.web.app/hydrants"
+      title="Editable Hydrants App"
+    ></iframe>
+  `;
 }
 
 function renderPersonnel() {
