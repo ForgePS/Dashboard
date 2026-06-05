@@ -51,7 +51,7 @@ const schemas = {
   personnel: [
     ['name', 'Name'], ['rank', 'Rank'], ['employeeId', 'Employee ID'], ['station', 'Station', 'select', ['Station 1', 'Station 2', 'Station 3']],
     ['shift', 'Shift', 'select', ['A Shift', 'B Shift', 'C Shift', 'Day Staff']], ['phone', 'Phone'],
-    ['email', 'Email'], ['status', 'Status', 'select', ['Active', 'Reserve', 'Leave', 'Inactive']],
+    ['email', 'Email'], ['password', 'Password'], ['status', 'Status', 'select', ['Active', 'Reserve', 'Leave', 'Inactive']],
     ['adminAccess', 'Admin Access', 'select', ['No', 'Yes']],
     ['certifications', 'Certifications', 'textarea']
   ],
@@ -102,7 +102,7 @@ const seed = {
     { incidentNumber: 'HL-260604-001', module: 'EMS', propertyUse: 'Street', actionsTaken: 'Patient care', casualties: '0', reviewStatus: 'Draft', notes: '' }
   ],
   personnel: [
-    { name: 'Battalion 100', rank: 'Battalion Chief', employeeId: '100', station: 'Station 1', shift: 'Day Staff', phone: '', email: '', status: 'Active', adminAccess: 'Yes', certifications: 'Command, Fire Officer' }
+    { name: 'Battalion 100', rank: 'Battalion Chief', employeeId: '100', station: 'Station 1', shift: 'Day Staff', phone: '', email: 'admin@hornlakefire.com', password: '100', status: 'Active', adminAccess: 'Yes', certifications: 'Command, Fire Officer' }
   ],
   training: [
     { course: 'Driver Operator Review', date: '2026-06-04', instructor: 'Training Officer', hours: '2', category: 'Driver', members: 'Engine companies', status: 'Scheduled', notes: '' }
@@ -126,8 +126,8 @@ let editing = null;
 
 const signinScreen = document.getElementById('signinScreen');
 const signinForm = document.getElementById('signinForm');
-const signinUser = document.getElementById('signinUser');
-const signinEmployeeId = document.getElementById('signinEmployeeId');
+const signinEmail = document.getElementById('signinEmail');
+const signinPassword = document.getElementById('signinPassword');
 const signinMessage = document.getElementById('signinMessage');
 const nav = document.getElementById('sectionNav');
 const title = document.getElementById('sectionTitle');
@@ -204,7 +204,8 @@ function loadData() {
 
 function mergePersonnel(saved = seed.personnel) {
   const personnel = saved.length ? saved : seed.personnel;
-  return personnel.map((member, index) => ({
+  return personnel.map((member, index) => {
+    const merged = {
     name: '',
     rank: '',
     employeeId: '',
@@ -212,12 +213,17 @@ function mergePersonnel(saved = seed.personnel) {
     shift: 'A Shift',
     phone: '',
     email: '',
+    password: '',
     status: 'Active',
     adminAccess: index === 0 ? 'Yes' : 'No',
     certifications: '',
     ...member,
     adminAccess: member.adminAccess || (index === 0 ? 'Yes' : 'No')
-  }));
+    };
+    if (!merged.email && index === 0) merged.email = 'admin@hornlakefire.com';
+    if (!merged.password) merged.password = merged.employeeId || '100';
+    return merged;
+  });
 }
 
 function mergeMaintenance(saved = [], fleetNames = apparatusNames) {
@@ -237,7 +243,7 @@ function saveData() {
 }
 
 function currentUser() {
-  return data.personnel.find(member => member.employeeId === currentUserId) || null;
+  return data.personnel.find(member => String(member.email || '').toLowerCase() === String(currentUserId || '').toLowerCase()) || null;
 }
 
 function isAdminUser() {
@@ -249,10 +255,7 @@ function visibleSections() {
 }
 
 function refreshSigninOptions() {
-  signinUser.innerHTML = data.personnel
-    .filter(member => member.status !== 'Inactive')
-    .map(member => `<option value="${esc(member.employeeId)}">${esc(member.name || member.employeeId)} - ${esc(member.rank || 'Personnel')}</option>`)
-    .join('');
+  signinEmail.value = signinEmail.value || '';
 }
 
 function showSignin(message = '') {
@@ -261,8 +264,8 @@ function showSignin(message = '') {
   signinScreen.classList.remove('hidden');
 }
 
-function finishSignin(employeeId) {
-  currentUserId = employeeId;
+function finishSignin(email) {
+  currentUserId = email;
   localStorage.setItem(SESSION_KEY, currentUserId);
   signinScreen.classList.add('hidden');
   if (activeSection === 'admin' && !isAdminUser()) activeSection = 'dashboard';
@@ -529,6 +532,8 @@ function renderAdmin() {
           ${fieldHtml('personnelName', 'Name')}
           ${fieldHtml('personnelRank', 'Rank')}
           ${fieldHtml('personnelEmployeeId', 'Employee ID')}
+          ${fieldHtml('personnelEmail', 'Email', 'email')}
+          ${fieldHtml('personnelPassword', 'Password')}
           ${fieldHtml('personnelStation', 'Station', 'select', ['Station 1', 'Station 2', 'Station 3'])}
           ${fieldHtml('personnelShift', 'Shift', 'select', ['A Shift', 'B Shift', 'C Shift', 'Day Staff'])}
           ${fieldHtml('personnelStatus', 'Status', 'select', ['Active', 'Reserve', 'Leave', 'Inactive'])}
@@ -543,7 +548,7 @@ function renderAdmin() {
       <section class="panel">
         <h2>Editable Personnel</h2>
         <div class="queue-list">
-          ${data.personnel.map((member, index) => `<div class="queue-item"><div><strong>${esc(member.name || member.employeeId)}</strong><br><small>${esc(member.rank || '')} | ${esc(member.station || '')} | Admin: ${member.adminAccess === 'Yes' ? 'Yes' : 'No'}</small></div><button class="small-button" data-edit-personnel="${index}" type="button">Edit</button></div>`).join('')}
+          ${data.personnel.map((member, index) => `<div class="queue-item"><div><strong>${esc(member.name || member.employeeId)}</strong><br><small>${esc(member.email || 'No email')} | ${esc(member.rank || '')} | Admin: ${member.adminAccess === 'Yes' ? 'Yes' : 'No'}</small></div><button class="small-button" data-edit-personnel="${index}" type="button">Edit</button></div>`).join('')}
         </div>
       </section>
       <section class="panel">
@@ -798,6 +803,8 @@ workspace.addEventListener('click', event => {
     document.getElementById('personnelName').value = member.name || '';
     document.getElementById('personnelRank').value = member.rank || '';
     document.getElementById('personnelEmployeeId').value = member.employeeId || '';
+    document.getElementById('personnelEmail').value = member.email || '';
+    document.getElementById('personnelPassword').value = member.password || '';
     document.getElementById('personnelStation').value = member.station || 'Station 1';
     document.getElementById('personnelShift').value = member.shift || 'A Shift';
     document.getElementById('personnelStatus').value = member.status || 'Active';
@@ -836,21 +843,30 @@ workspace.addEventListener('submit', event => {
     event.preventDefault();
     const formData = new FormData(event.target);
     const employeeId = String(formData.get('personnelEmployeeId') || '').trim();
-    if (!employeeId) return;
+    const email = String(formData.get('personnelEmail') || '').trim().toLowerCase();
+    const password = String(formData.get('personnelPassword') || '').trim();
+    if (!employeeId || !email || !password) return;
     const indexValue = formData.get('personnelEditIndex');
     const existingIndex = data.personnel.findIndex((member, index) => member.employeeId === employeeId && String(index) !== String(indexValue));
     if (existingIndex >= 0) {
       window.alert(`${employeeId} is already assigned to another personnel record.`);
       return;
     }
+    const existingEmailIndex = data.personnel.findIndex((member, index) => String(member.email || '').toLowerCase() === email && String(index) !== String(indexValue));
+    if (existingEmailIndex >= 0) {
+      window.alert(`${email} is already assigned to another personnel record.`);
+      return;
+    }
+    const priorEmail = indexValue === '' ? '' : data.personnel[Number(indexValue)]?.email || '';
     const record = {
       name: formData.get('personnelName'),
       rank: formData.get('personnelRank'),
       employeeId,
+      email,
+      password,
       station: formData.get('personnelStation'),
       shift: formData.get('personnelShift'),
       phone: '',
-      email: '',
       status: formData.get('personnelStatus'),
       adminAccess: formData.get('personnelAdminAccess'),
       certifications: formData.get('personnelCertifications')
@@ -859,7 +875,11 @@ workspace.addEventListener('submit', event => {
     else data.personnel[Number(indexValue)] = { ...data.personnel[Number(indexValue)], ...record };
     saveData();
     refreshSigninOptions();
-    if (currentUserId === employeeId && record.adminAccess !== 'Yes') activeSection = 'dashboard';
+    if (priorEmail && String(currentUserId).toLowerCase() === String(priorEmail).toLowerCase()) {
+      currentUserId = email;
+      localStorage.setItem(SESSION_KEY, currentUserId);
+    }
+    if (String(currentUserId).toLowerCase() === email && record.adminAccess !== 'Yes') activeSection = 'dashboard';
     renderAdmin();
     return;
   }
@@ -913,15 +933,15 @@ signOutBtn.addEventListener('click', () => {
 
 signinForm.addEventListener('submit', event => {
   event.preventDefault();
-  const selectedId = signinUser.value;
-  const enteredId = signinEmployeeId.value.trim();
-  const member = data.personnel.find(person => person.employeeId === selectedId);
-  if (!member || selectedId !== enteredId) {
-    showSignin('Employee ID does not match the selected personnel record.');
+  const email = signinEmail.value.trim().toLowerCase();
+  const password = signinPassword.value.trim();
+  const member = data.personnel.find(person => String(person.email || '').toLowerCase() === email && person.status !== 'Inactive');
+  if (!member || String(member.password || '') !== password) {
+    showSignin('Email or password is incorrect.');
     return;
   }
-  signinEmployeeId.value = '';
-  finishSignin(selectedId);
+  signinPassword.value = '';
+  finishSignin(email);
 });
 
 form.addEventListener('submit', event => {
