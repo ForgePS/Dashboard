@@ -12,6 +12,7 @@ const sections = [
   { id: 'preplans', icon: 'PP', title: 'Preplans' },
   { id: 'inspections', icon: 'FI', title: 'Inspections' },
   { id: 'hydrants', icon: 'HY', title: 'Hydrants' },
+  { id: 'hose-testing', icon: 'HT', title: 'Hose Testing' },
   { id: 'inventory', icon: 'IV', title: 'Inventory' },
   { id: 'maintenance', icon: 'MT', title: 'Maintenance' },
   { id: 'reports', icon: 'RP', title: 'Reports' },
@@ -272,9 +273,14 @@ function normalizeStoredData(source = {}) {
 
 function normalizeBuilder(builder = {}) {
   const builderSections = Array.isArray(builder.sections) && builder.sections.length ? builder.sections : defaultSections;
+  const builderSectionIds = new Set(builderSections.map(section => section.id));
+  const mergedSections = [
+    ...builderSections,
+    ...defaultSections.filter(section => !builderSectionIds.has(section.id))
+  ];
   const builderSchemas = builder.schemas && typeof builder.schemas === 'object' ? builder.schemas : defaultSchemas;
   return {
-    sections: builderSections.map(section => ({
+    sections: mergedSections.map(section => ({
       id: section.id,
       icon: section.icon || 'PG',
       title: section.title || section.id,
@@ -336,6 +342,11 @@ function mergePersonnel(saved = seed.personnel) {
         ? appSections().map(section => section.id)
         : appSections().filter(section => section.id !== 'admin').map(section => section.id);
     }
+    if (merged.adminAccess === 'Yes') {
+      const permissions = new Set(merged.pagePermissions);
+      appSections().forEach(section => permissions.add(section.id));
+      merged.pagePermissions = [...permissions];
+    }
     if (merged.adminAccess === 'Yes' && !merged.pagePermissions.includes('admin')) merged.pagePermissions.push('admin');
     merged.pageSettings = normalizePageSettings(merged);
     if (!merged.email && index === 0) merged.email = 'admin@hornlakefire.com';
@@ -363,7 +374,7 @@ function normalizePageSettings(member = {}) {
   const source = member.pageSettings && typeof member.pageSettings === 'object' ? member.pageSettings : {};
   const viewPages = new Set(member.pagePermissions || []);
   viewPages.add('dashboard');
-  if (member.adminAccess === 'Yes') viewPages.add('admin');
+  if (member.adminAccess === 'Yes') appSections().forEach(section => viewPages.add(section.id));
   return Object.fromEntries(appSections().map(section => {
     const existing = Array.isArray(source[section.id]) ? source[section.id] : [];
     const settings = new Set(existing);
@@ -692,11 +703,12 @@ function render() {
   title.textContent = appSections().find(section => section.id === activeSection)?.title || 'Application';
   currentUserBadge.textContent = `Welcome ${personnelDisplayName(currentUser())}${isAdminUser() ? ' | Admin' : ''}`;
   document.querySelector('.rms-shell').classList.toggle('rms-shell-hub', activeSection === 'hub');
-  rmsHeader.classList.toggle('hidden', activeSection === 'hydrants' || activeSection === 'hub');
-  rmsMain.classList.toggle('rms-main-full', activeSection === 'hydrants');
+  const externalAppSection = activeSection === 'hydrants' || activeSection === 'hose-testing';
+  rmsHeader.classList.toggle('hidden', externalAppSection || activeSection === 'hub');
+  rmsMain.classList.toggle('rms-main-full', externalAppSection);
   rmsMain.classList.toggle('rms-main-hub', activeSection === 'hub');
-  statsGrid.classList.toggle('hidden', activeSection === 'hydrants' || activeSection === 'hub');
-  workspace.classList.toggle('workspace-full', activeSection === 'hydrants');
+  statsGrid.classList.toggle('hidden', externalAppSection || activeSection === 'hub');
+  workspace.classList.toggle('workspace-full', externalAppSection);
   workspace.classList.toggle('workspace-hub', activeSection === 'hub');
   renderNav();
   if (activeSection === 'hub') return renderRmsHub();
@@ -705,6 +717,7 @@ function render() {
   if (activeSection === 'personnel') return renderPersonnel();
   if (activeSection === 'training') return renderTraining();
   if (activeSection === 'hydrants') return renderHydrants();
+  if (activeSection === 'hose-testing') return renderHoseTesting();
   if (activeSection === 'inventory') return renderInventory();
   if (activeSection === 'maintenance') return renderMaintenance();
   if (activeSection === 'admin') return renderAdmin();
@@ -820,6 +833,17 @@ function renderHydrants() {
   `;
 }
 
+function renderHoseTesting() {
+  workspace.innerHTML = `
+    <iframe
+      class="external-app-frame"
+      src="/fire-forms/?view=hose"
+      title="Hose Testing"
+      onload="window.syncHoseTestingFrame && window.syncHoseTestingFrame(this)"
+    ></iframe>
+  `;
+}
+
 window.syncHydrantsFrame = function syncHydrantsFrame(frame) {
   try {
     const doc = frame.contentDocument;
@@ -871,6 +895,66 @@ window.syncHydrantsFrame = function syncHydrantsFrame(frame) {
       .dashboard-grid {
         width: 100% !important;
         max-width: none !important;
+      }
+    `;
+    doc.head.appendChild(style);
+  } catch {}
+};
+
+window.syncHoseTestingFrame = function syncHoseTestingFrame(frame) {
+  try {
+    const doc = frame.contentDocument;
+    if (!doc || doc.getElementById('rmsHoseTestingChromeStyle')) return;
+    const style = doc.createElement('style');
+    style.id = 'rmsHoseTestingChromeStyle';
+    style.textContent = `
+      html,
+      body,
+      #root {
+        width: 100% !important;
+        max-width: none !important;
+        min-height: 100vh !important;
+        overflow-x: hidden !important;
+        background: #071019 !important;
+      }
+      .app-shell {
+        display: block !important;
+        grid-template-columns: 1fr !important;
+        padding: 0 !important;
+        background: #071019 !important;
+        min-height: 100vh !important;
+      }
+      .side-nav,
+      .topbar,
+      .ipad-tabs,
+      .fire-quick-tabs,
+      .module-card-header {
+        display: none !important;
+      }
+      .main-stage,
+      .module-card,
+      .department-module {
+        width: 100% !important;
+        max-width: none !important;
+        min-height: 100vh !important;
+        background: #071019 !important;
+        border-radius: 0 !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+      }
+      .page-body,
+      .module-page,
+      .department-module,
+      .fire-section-page {
+        padding: 0 !important;
+        min-height: 100vh !important;
+      }
+      .code-tools {
+        display: none !important;
+      }
+      .pre-fire-plans.hose-testing-panel {
+        padding: 10px !important;
       }
     `;
     doc.head.appendChild(style);
