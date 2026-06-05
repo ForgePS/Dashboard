@@ -3407,18 +3407,18 @@ function normalizeRmsBuilderConfig(input = {}) {
   Object.entries(schemas).forEach(([pageId, fields]) => {
     normalizedSchemas[pageId] = Array.isArray(fields)
       ? fields.map((field) => Array.isArray(field)
-        ? [
-          String(field[0] || '').trim(),
-          String(field[1] || field[0] || '').trim(),
-          String(field[2] || 'text').trim(),
-          Array.isArray(field[3]) ? field[3].map((option) => String(option).trim()).filter(Boolean) : [],
-        ]
-        : [
-          String(field.key || '').trim(),
-          String(field.label || field.key || '').trim(),
-          String(field.type || 'text').trim(),
-          Array.isArray(field.options) ? field.options.map((option) => String(option).trim()).filter(Boolean) : [],
-        ]).filter((field) => field[0] && field[1])
+        ? {
+          key: String(field[0] || '').trim(),
+          label: String(field[1] || field[0] || '').trim(),
+          type: String(field[2] || 'text').trim(),
+          options: Array.isArray(field[3]) ? field[3].map((option) => String(option).trim()).filter(Boolean) : [],
+        }
+        : {
+          key: String(field.key || '').trim(),
+          label: String(field.label || field.key || '').trim(),
+          type: String(field.type || 'text').trim(),
+          options: Array.isArray(field.options) ? field.options.map((option) => String(option).trim()).filter(Boolean) : [],
+        }).filter((field) => field.key && field.label)
       : [];
   });
   return { sections, schemas: normalizedSchemas };
