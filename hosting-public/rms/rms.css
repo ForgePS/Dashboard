@@ -845,6 +845,36 @@ textarea {
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
+.permission-editor-list {
+  display: grid;
+  gap: 12px;
+}
+
+.permission-editor-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--panel-soft), #ffffff);
+}
+
+.permission-editor-card header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.permission-editor-card strong,
+.permission-editor-card small {
+  display: block;
+}
+
+.permission-editor-card small {
+  color: var(--muted);
+}
+
 .check-grid label {
   display: flex;
   gap: 8px;

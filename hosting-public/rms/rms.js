@@ -313,7 +313,7 @@ function canViewSection(sectionId) {
   if (sectionId === 'dashboard') return true;
   const user = currentUser();
   if (!user) return false;
-  if (sectionId === 'admin') return isAdminUser() && (user.pagePermissions || []).includes('admin');
+  if (sectionId === 'admin') return isAdminUser();
   return !Array.isArray(user.pagePermissions) || user.pagePermissions.includes(sectionId);
 }
 
@@ -682,6 +682,7 @@ function renderAdmin() {
     <div class="admin-launch-grid">
       ${adminLaunchCard('personnel-file', 'Personnel', 'Personnel File', data.personnel.length, 'Create and edit full personnel files, login access, page permissions, and qualifiers.')}
       ${adminLaunchCard('personnel-list', 'Directory', 'Editable Personnel', data.personnel.length, 'Open existing personnel records and make quick edits.')}
+      ${adminLaunchCard('permissions', 'Access', 'Page Permissions', data.personnel.length, 'Choose exactly which RMS pages each person can view.')}
       ${adminLaunchCard('apparatus-setup', 'Fleet', 'Apparatus Setup', '+', 'Add new apparatus to the RMS fleet and assign default details.')}
       ${adminLaunchCard('apparatus-list', 'Fleet', 'Current Apparatus', data.maintenance.length, 'Review and remove apparatus from the RMS fleet list.')}
       ${adminLaunchCard('apparatus-use', 'Metrics', 'Apparatus Use', totalRuns, 'Log run time, mileage, call type, and station by apparatus.')}
@@ -706,6 +707,7 @@ function adminPage(mode, context) {
   const pages = {
     'personnel-file': ['Personnel', 'Personnel File', data.personnel.length, adminPersonnelFile()],
     'personnel-list': ['Directory', 'Editable Personnel', data.personnel.length, adminPersonnelList()],
+    permissions: ['Access', 'Page Permissions', data.personnel.length, adminPermissionsPage()],
     'apparatus-setup': ['Fleet', 'Apparatus Setup', '+', adminApparatusSetup()],
     'apparatus-list': ['Fleet', 'Current Apparatus', data.maintenance.length, adminApparatusList()],
     'apparatus-use': ['Metrics', 'Apparatus Use', context.totalRuns, adminApparatusUse()],
@@ -748,6 +750,31 @@ function adminPersonnelFile() {
 
 function adminPersonnelList() {
   return `<div class="queue-list">${data.personnel.map((member, index) => `<div class="queue-item"><div><strong>${esc(member.name || member.employeeId)}</strong><br><small>${esc(member.email || 'No email')} | ${esc(member.rank || '')} | Pages: ${(member.pagePermissions || []).length} | Admin: ${member.adminAccess === 'Yes' ? 'Yes' : 'No'}</small></div><button class="small-button" data-edit-personnel="${index}" type="button">Edit</button></div>`).join('')}</div>`;
+}
+
+function adminPermissionsPage() {
+  return `
+    <div class="permission-editor-list">
+      ${data.personnel.map((member, index) => `
+        <section class="permission-editor-card">
+          <header>
+            <div>
+              <strong>${esc(personnelDisplayName(member))}</strong>
+              <small>${esc(member.email || member.employeeId || 'No login listed')}</small>
+            </div>
+            <span class="pill ${member.adminAccess === 'Yes' ? 'red' : 'blue'}">${member.adminAccess === 'Yes' ? 'Admin' : 'User'}</span>
+          </header>
+          <div class="check-grid permission-grid">
+            ${pagePermissionOptions.map(page => {
+              const checked = page.id === 'dashboard' || member.adminAccess === 'Yes' && page.id === 'admin' || (member.pagePermissions || []).includes(page.id);
+              const locked = page.id === 'dashboard' || member.adminAccess === 'Yes' && page.id === 'admin';
+              return `<label><input type="checkbox" data-permission-person="${index}" data-permission-page="${esc(page.id)}" ${checked ? 'checked' : ''} ${locked ? 'disabled' : ''}>${esc(page.title)}</label>`;
+            }).join('')}
+          </div>
+        </section>
+      `).join('')}
+    </div>
+  `;
 }
 
 function adminApparatusSetup() {
@@ -1040,6 +1067,22 @@ workspace.addEventListener('click', event => {
     setPersonnelForm(member);
     document.getElementById('personnelEditIndex').value = personnelButton.dataset.editPersonnel;
     document.getElementById('personnelSaveMessage').textContent = `Editing ${personnelDisplayName(member)}`;
+    return;
+  }
+  const permissionInput = event.target.closest('[data-permission-person]');
+  if (permissionInput) {
+    const member = data.personnel[Number(permissionInput.dataset.permissionPerson)];
+    const page = permissionInput.dataset.permissionPage;
+    if (!member || !page) return;
+    const permissions = new Set(member.pagePermissions || []);
+    permissions.add('dashboard');
+    if (permissionInput.checked) permissions.add(page);
+    else permissions.delete(page);
+    if (member.adminAccess === 'Yes') permissions.add('admin');
+    else permissions.delete('admin');
+    member.pagePermissions = [...permissions];
+    saveData();
+    renderAdmin();
     return;
   }
   const clearPersonnelButton = event.target.closest('#clearPersonnelForm');
