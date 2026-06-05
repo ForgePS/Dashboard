@@ -665,7 +665,7 @@ function render() {
   signinScreen.classList.add('hidden');
   if (activeSection !== 'hub' && !canViewSection(activeSection)) activeSection = 'hub';
   title.textContent = appSections().find(section => section.id === activeSection)?.title || 'RMS';
-  currentUserBadge.textContent = `${currentUser().name || currentUser().employeeId}${isAdminUser() ? ' | Admin' : ''}`;
+  currentUserBadge.textContent = `Welcome ${personnelDisplayName(currentUser())}${isAdminUser() ? ' | Admin' : ''}`;
   document.querySelector('.rms-shell').classList.toggle('rms-shell-hub', activeSection === 'hub');
   rmsHeader.classList.toggle('hidden', activeSection === 'hydrants' || activeSection === 'hub');
   rmsMain.classList.toggle('rms-main-full', activeSection === 'hydrants');
@@ -724,19 +724,27 @@ function hubPageCard(section, future = false) {
 }
 
 function renderDashboard() {
+  renderStats(dashboardStats());
+  workspace.innerHTML = dashboardOverviewHtml();
+}
+
+function dashboardStats() {
   const openIncidents = data.incidents.filter(item => item.status !== 'Complete').length;
   const maintenanceSpend = data.maintenance.reduce((sum, item) => sum + serviceCost(item) + fuelCost(item), 0);
-  renderStats([
+  return [
     { label: 'Open Incidents', value: openIncidents },
     { label: 'Apparatus', value: data.maintenance.length },
     { label: 'Personnel', value: data.personnel.length },
     { label: 'Fleet Expense', value: money(maintenanceSpend) }
-  ]);
+  ];
+}
 
+function dashboardOverviewHtml(showAdminJump = true) {
+  const openIncidents = data.incidents.filter(item => item.status !== 'Complete').length;
   const latestLogs = data.maintenance.flatMap(item => (item.serviceLogs || []).map(log => ({ ...log, apparatus: item.name })))
     .sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 6);
 
-  workspace.innerHTML = `
+  return `
     <div class="dashboard-grid">
       <section class="panel">
         <h2>Department Work Queue</h2>
@@ -757,7 +765,7 @@ function renderDashboard() {
       <section class="panel wide-card">
         <h2>Apparatus Use Metrics</h2>
         <p class="muted">Log total call time by apparatus and feed those run hours into Maintenance 95/95 reports.</p>
-        ${isAdminUser() ? '<button class="primary" data-jump-section="admin" type="button">Open Admin Use Metrics</button>' : '<span class="pill amber">Admin access required</span>'}
+        ${showAdminJump ? (isAdminUser() ? '<button class="primary" data-jump-section="admin" type="button">Open Admin Use Metrics</button>' : '<span class="pill amber">Admin access required</span>') : '<span class="pill blue">Admin Overview</span>'}
       </section>
     </div>
   `;
@@ -1110,6 +1118,13 @@ function renderAdmin() {
   }
 
   workspace.innerHTML = `
+    <section class="admin-overview">
+      <header class="admin-card-head">
+        <div><span>Overview</span><h2>Dashboard Summary</h2></div>
+        <b>DB</b>
+      </header>
+      <div class="admin-page-body">${dashboardOverviewHtml(false)}</div>
+    </section>
     <div class="admin-launch-grid">
       ${adminLaunchCard('rms-builder', 'Builder', 'RMS Builder', appSections().length, 'Add pages, edit menu labels, reorder pages, and build page fields without code.')}
       ${adminLaunchCard('personnel-file', 'Personnel', 'Personnel File', data.personnel.length, 'Create and edit full personnel files, login access, page permissions, and qualifiers.')}
@@ -1119,13 +1134,13 @@ function renderAdmin() {
       ${adminLaunchCard('readiness', 'Readiness', '95/95 Summary', `${(totalMinutes / 60).toFixed(1)}h`, 'Review imported run hours and readiness calculations.')}
       ${adminLaunchCard('recent-runs', 'Activity', 'Recent Apparatus Runs', recentRuns.length, 'See the latest apparatus run metrics entered into Admin.')}
     </div>
-    <section class="admin-settings-panel">
-      <header class="admin-card-head">
+    <details class="admin-settings-panel">
+      <summary class="admin-card-head">
         <div><span>Settings</span><h2>RMS Page Settings Tree</h2></div>
         <b>${appSections().length}</b>
-      </header>
+      </summary>
       <div class="admin-page-body">${adminSettingsTree()}</div>
-    </section>
+    </details>
   `;
 }
 
