@@ -399,7 +399,7 @@ function appSchemas() {
 }
 
 function pageOptions() {
-  return appSections().map(section => ({ id: section.id, title: section.title }));
+  return adminManagedSections().map(section => ({ id: section.id, title: section.title }));
 }
 
 function slugifyPageId(value) {
@@ -433,6 +433,10 @@ function topLevelSections() {
 
 function childSections(parentId) {
   return appSections().filter(section => section.parentId === parentId);
+}
+
+function adminManagedSections() {
+  return appSections().filter(section => section.id !== 'dashboard');
 }
 
 function saveData() {
@@ -1176,14 +1180,14 @@ function renderAdmin() {
       <div class="admin-page-body">${dashboardOverviewHtml(false)}</div>
     </section>
     <div class="admin-launch-grid">
-      ${adminLaunchCard('rms-builder', 'Builder', 'Page Builder', appSections().length, 'Add pages, edit menu labels, reorder pages, and build page fields without code.')}
+      ${adminLaunchCard('rms-builder', 'Builder', 'Page Builder', adminManagedSections().length, 'Add pages, edit menu labels, reorder pages, and build page fields without code.')}
       ${adminLaunchCard('personnel-file', 'Personnel', 'Personnel File', data.personnel.length, 'Create and edit full personnel files, login access, page permissions, and qualifiers.')}
       ${adminLaunchCard('apparatus-setup', 'Fleet', 'Apparatus Setup', '+', 'Add new apparatus to the fleet and assign default details.')}
       ${adminLaunchCard('apparatus-list', 'Fleet', 'Current Apparatus', data.maintenance.length, 'Review and remove apparatus from the fleet list.')}
       ${adminLaunchCard('apparatus-use', 'Metrics', 'Apparatus Use', totalRuns, 'Log run time, mileage, call type, and station by apparatus.')}
       ${adminLaunchCard('readiness', 'Readiness', '95/95 Summary', `${(totalMinutes / 60).toFixed(1)}h`, 'Review imported run hours and readiness calculations.')}
       ${adminLaunchCard('recent-runs', 'Activity', 'Recent Apparatus Runs', recentRuns.length, 'See the latest apparatus run metrics entered into Admin.')}
-      ${adminLaunchCard('page-settings', 'Settings', 'Page Settings Tree', appSections().length, 'Open page settings and page permissions in one tree view.')}
+      ${adminLaunchCard('page-settings', 'Settings', 'Page Settings Tree', adminManagedSections().length, 'Open page settings and page permissions in one tree view.')}
     </div>
   `;
 }
@@ -1201,14 +1205,14 @@ function adminLaunchCard(mode, label, titleText, count, detail) {
 
 function adminPage(mode, context) {
   const pages = {
-    'rms-builder': ['Builder', 'Page Builder', appSections().length, adminBuilderPage()],
+    'rms-builder': ['Builder', 'Page Builder', adminManagedSections().length, adminBuilderPage()],
     'personnel-file': ['Personnel', 'Personnel File', data.personnel.length, adminPersonnelFile()],
     'apparatus-setup': ['Fleet', 'Apparatus Setup', '+', adminApparatusSetup()],
     'apparatus-list': ['Fleet', 'Current Apparatus', data.maintenance.length, adminApparatusList()],
     'apparatus-use': ['Metrics', 'Apparatus Use', context.totalRuns, adminApparatusUse()],
     readiness: ['Readiness', '95/95 Summary', `${(context.totalMinutes / 60).toFixed(1)}h`, adminReadinessSummary()],
     'recent-runs': ['Activity', 'Recent Apparatus Runs', context.recentRuns.length, adminRecentRuns(context.recentRuns)],
-    'page-settings': ['Settings', 'Page Settings Tree', appSections().length, adminSettingsTree()]
+    'page-settings': ['Settings', 'Page Settings Tree', adminManagedSections().length, adminSettingsTree()]
   };
   const page = pages[mode] || pages['personnel-file'];
   return `
@@ -1253,17 +1257,18 @@ function adminSettingsTree() {
   `;
   return `
     <div class="admin-settings-tree">
-      ${topLevelSections().map(section => renderSettingsNode(section)).join('')}
+      ${topLevelSections().filter(section => section.id !== 'dashboard').map(section => renderSettingsNode(section)).join('')}
     </div>
   `;
 }
 
 function adminBuilderPage() {
   if (!appSections().some(section => section.id === builderPageId)) builderPageId = appSections().find(section => section.id !== 'dashboard' && section.id !== 'admin')?.id || 'incidents';
-  const selectedSection = appSections().find(section => section.id === builderPageId) || appSections()[0];
+  if (builderPageId === 'dashboard') builderPageId = adminManagedSections().find(section => section.id !== 'admin')?.id || 'admin';
+  const selectedSection = adminManagedSections().find(section => section.id === builderPageId) || adminManagedSections()[0];
   const fields = appSchemas()[selectedSection.id] || [];
   const canDeleteSelectedPage = !['dashboard', 'admin'].includes(selectedSection.id);
-  const parentOptions = [{ label: 'No Parent / Main Page', value: '' }, ...appSections()
+  const parentOptions = [{ label: 'No Parent / Main Page', value: '' }, ...adminManagedSections()
     .filter(section => section.id !== selectedSection.id)
     .map(section => ({ label: section.title, value: section.id }))];
   return `
@@ -1272,7 +1277,8 @@ function adminBuilderPage() {
         <h3>Page Menu <span class="pill blue">${esc(builderSyncStatus)}</span></h3>
         ${builderMessage ? `<p class="form-message">${esc(builderMessage)}</p>` : ''}
         <div class="builder-page-list">
-          ${appSections().map((section, index) => {
+          ${adminManagedSections().map((section) => {
+            const index = data.builder.sections.findIndex(page => page.id === section.id);
             const canDeletePage = !['dashboard', 'admin'].includes(section.id);
             return `
             <div class="builder-row ${section.id === builderPageId ? 'active' : ''}">
@@ -1304,7 +1310,7 @@ function adminBuilderPage() {
           ${fieldHtml('newBuilderPageTitle', 'Page Name')}
           ${fieldHtml('newBuilderPageId', 'Page ID, optional')}
           ${fieldHtml('newBuilderPageIcon', 'Icon / Initials')}
-          ${fieldHtml('newBuilderPageParent', 'Parent Page', 'select', [{ label: 'No Parent / Main Page', value: '' }, ...appSections().map(section => ({ label: section.title, value: section.id }))])}
+          ${fieldHtml('newBuilderPageParent', 'Parent Page', 'select', [{ label: 'No Parent / Main Page', value: '' }, ...adminManagedSections().map(section => ({ label: section.title, value: section.id }))])}
           <div class="form-field full"><button class="primary" type="submit">Add Page & Sync</button></div>
         </form>
       </section>
@@ -1386,7 +1392,7 @@ function adminPermissionsPage() {
         </div>
       </div>
       <div class="permission-tree">
-        ${appSections().map((section, index) => {
+        ${adminManagedSections().map((section, index) => {
           const pageSettings = settings[section.id] || [];
           const lockedView = section.id === 'dashboard' || member.adminAccess === 'Yes' && section.id === 'admin';
           return `
