@@ -728,6 +728,13 @@ textarea {
   gap: 6px;
 }
 
+.builder-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
 .builder-field-row strong,
 .builder-field-row small {
   display: block;
@@ -735,6 +742,12 @@ textarea {
 
 .builder-field-row small {
   color: var(--muted);
+}
+
+.builder-field-edit-grid {
+  display: grid;
+  grid-template-columns: minmax(120px, .75fr) minmax(180px, 1fr) minmax(130px, .65fr) minmax(220px, 1.2fr);
+  gap: 10px;
 }
 
 .link-button {

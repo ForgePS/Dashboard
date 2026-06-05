@@ -3392,6 +3392,8 @@ app.get('/hydrants', (req, res) => {
 
 const RMS_CONFIG_COLLECTION = 'rmsConfig';
 const RMS_CONFIG_DOC_ID = 'main';
+const RMS_DATA_COLLECTION = 'rmsData';
+const RMS_DATA_DOC_ID = 'main';
 
 function normalizeRmsBuilderConfig(input = {}) {
   const sections = Array.isArray(input.sections)
@@ -3443,6 +3445,41 @@ app.post('/api/rms-config', async (req, res) => {
       updated_at: new Date().toISOString(),
     }, { merge: true });
     res.json({ ok: true, config });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+function normalizeRmsSharedData(input = {}) {
+  const blockedKeys = new Set(['builder']);
+  const output = {};
+  Object.entries(input || {}).forEach(([key, value]) => {
+    if (blockedKeys.has(key)) return;
+    if (!/^[a-zA-Z0-9_-]+$/.test(key)) return;
+    output[key] = value;
+  });
+  return output;
+}
+
+app.get('/api/rms-data', async (req, res) => {
+  try {
+    if (!firestoreDb) return res.json({ ok: true, data: null, source: 'local-only' });
+    const doc = await firestoreDb.collection(RMS_DATA_COLLECTION).doc(RMS_DATA_DOC_ID).get();
+    res.json({ ok: true, data: doc.exists ? doc.data() : null, source: 'firestore' });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/rms-data', async (req, res) => {
+  try {
+    if (!firestoreDb) throw new Error('RMS data storage is unavailable.');
+    const data = normalizeRmsSharedData(req.body || {});
+    await firestoreDb.collection(RMS_DATA_COLLECTION).doc(RMS_DATA_DOC_ID).set({
+      ...data,
+      updated_at: new Date().toISOString(),
+    }, { merge: false });
+    res.json({ ok: true, updated_at: new Date().toISOString() });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
   }

@@ -1,6 +1,7 @@
 const APP_KEY = 'hlfdRmsData';
 const SESSION_KEY = 'hlfdRmsSession';
 const RMS_CONFIG_API = '/api/rms-config';
+const RMS_DATA_API = '/api/rms-data';
 const sections = [
   { id: 'dashboard', icon: 'DB', title: 'Dashboard' },
   { id: 'incidents', icon: 'IN', title: 'Incidents' },
@@ -171,6 +172,9 @@ let adminMode = 'home';
 let permissionEditIndex = 0;
 let builderPageId = 'incidents';
 let builderSyncStatus = 'Local';
+let dataSyncStatus = 'Loading';
+let sharedDataReady = false;
+let sharedDataSaveTimer = null;
 let editing = null;
 
 const signinScreen = document.getElementById('signinScreen');
@@ -193,6 +197,7 @@ const form = document.getElementById('recordForm');
 const modalFields = document.getElementById('modalFields');
 const modalTitle = document.getElementById('modalTitle');
 const modalSection = document.getElementById('modalSection');
+const deleteRecordBtn = document.getElementById('deleteRecordBtn');
 
 function apparatusType(name) {
   if (name.startsWith('Engine')) return 'Pumper';
@@ -231,27 +236,31 @@ function blankApparatus(name, options = {}) {
 
 function loadData() {
   const saved = localStorage.getItem(APP_KEY);
-  if (!saved) return { ...structuredClone(seed), builder: normalizeBuilder() };
+  if (!saved) return normalizeStoredData();
   try {
-    const parsed = JSON.parse(saved);
-    const savedMaintenance = parsed.maintenance || [];
-    const customNames = savedMaintenance
-      .map(item => item?.name)
-      .filter(name => name && !apparatusNames.includes(name));
-    const fleetNames = Array.isArray(parsed.apparatusList)
-      ? parsed.apparatusList
-      : [...apparatusNames, ...customNames];
-    return {
-      ...structuredClone(seed),
-      ...parsed,
-      builder: normalizeBuilder(parsed.builder),
-      personnel: mergePersonnel(parsed.personnel),
-      apparatusList: [...new Set(fleetNames)],
-      maintenance: mergeMaintenance(savedMaintenance, [...new Set(fleetNames)])
-    };
+    return normalizeStoredData(JSON.parse(saved));
   } catch {
-    return { ...structuredClone(seed), builder: normalizeBuilder() };
+    return normalizeStoredData();
   }
+}
+
+function normalizeStoredData(source = {}) {
+  const parsed = { ...structuredClone(seed), ...source };
+  delete parsed.updated_at;
+  const savedMaintenance = parsed.maintenance || [];
+  const customNames = savedMaintenance
+    .map(item => item?.name)
+    .filter(name => name && !apparatusNames.includes(name));
+  const fleetNames = Array.isArray(parsed.apparatusList)
+    ? parsed.apparatusList
+    : [...apparatusNames, ...customNames];
+  return {
+    ...parsed,
+    builder: normalizeBuilder(parsed.builder),
+    personnel: mergePersonnel(parsed.personnel),
+    apparatusList: [...new Set(fleetNames)],
+    maintenance: mergeMaintenance(savedMaintenance, [...new Set(fleetNames)])
+  };
 }
 
 function normalizeBuilder(builder = {}) {
@@ -388,6 +397,7 @@ function childSections(parentId) {
 
 function saveData() {
   localStorage.setItem(APP_KEY, JSON.stringify(data));
+  scheduleSharedDataSave();
 }
 
 async function loadSharedBuilderConfig() {
@@ -420,6 +430,56 @@ async function saveSharedBuilderConfig() {
     builderSyncStatus = 'Shared';
   } catch {
     builderSyncStatus = 'Local';
+  }
+}
+
+function sharedRmsDataPayload() {
+  const { builder, updated_at, ...payload } = data;
+  return payload;
+}
+
+async function loadSharedRmsData() {
+  try {
+    const response = await fetch(RMS_DATA_API);
+    if (!response.ok) throw new Error(`Data returned ${response.status}`);
+    const payload = await response.json();
+    if (payload.data && Object.keys(payload.data).length) {
+      const builder = data.builder;
+      data = normalizeStoredData({ ...payload.data, builder });
+      dataSyncStatus = 'Shared';
+      localStorage.setItem(APP_KEY, JSON.stringify(data));
+      sharedDataReady = true;
+      render();
+      return;
+    }
+    dataSyncStatus = 'Shared';
+    sharedDataReady = true;
+    saveSharedRmsData();
+  } catch {
+    dataSyncStatus = 'Local';
+    sharedDataReady = true;
+  }
+}
+
+function scheduleSharedDataSave() {
+  if (!sharedDataReady) return;
+  window.clearTimeout(sharedDataSaveTimer);
+  sharedDataSaveTimer = window.setTimeout(saveSharedRmsData, 500);
+}
+
+async function saveSharedRmsData() {
+  if (!sharedDataReady) return;
+  try {
+    dataSyncStatus = 'Saving';
+    const response = await fetch(RMS_DATA_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sharedRmsDataPayload()),
+    });
+    if (!response.ok) throw new Error(`Data save returned ${response.status}`);
+    dataSyncStatus = 'Shared';
+  } catch {
+    dataSyncStatus = 'Local';
   }
 }
 
@@ -865,7 +925,7 @@ function renderRecords(sectionId) {
     { label: 'Records', value: records.length },
     { label: 'Open', value: records.filter(item => !['Complete', 'Submitted', 'Passed', 'Current', 'Archived'].includes(item.status || item.reviewStatus)).length },
     { label: 'This Section', value: appSections().find(section => section.id === sectionId)?.title || sectionId },
-    { label: 'Saved In Browser', value: 'Yes' }
+    { label: 'Data Sync', value: dataSyncStatus }
   ]);
 
   workspace.innerHTML = `
@@ -1043,6 +1103,7 @@ function adminBuilderPage() {
   if (!appSections().some(section => section.id === builderPageId)) builderPageId = appSections().find(section => section.id !== 'dashboard' && section.id !== 'admin')?.id || 'incidents';
   const selectedSection = appSections().find(section => section.id === builderPageId) || appSections()[0];
   const fields = appSchemas()[selectedSection.id] || [];
+  const canDeleteSelectedPage = !['dashboard', 'admin'].includes(selectedSection.id);
   const parentOptions = [{ label: 'No Parent / Main Page', value: '' }, ...appSections()
     .filter(section => section.id !== selectedSection.id)
     .map(section => ({ label: section.title, value: section.id }))];
@@ -1069,7 +1130,10 @@ function adminBuilderPage() {
           ${fieldHtml('builderPageTitle', 'Page Name', 'text', [], selectedSection.title)}
           ${fieldHtml('builderPageIcon', 'Menu Icon / Initials', 'text', [], selectedSection.icon)}
           ${fieldHtml('builderPageParent', 'Parent Page', 'select', parentOptions, selectedSection.parentId || '')}
-          <div class="form-field full"><button class="primary" type="submit">Save Page & Sync</button></div>
+          <div class="form-field full builder-button-row">
+            <button class="primary" type="submit">Save Page & Sync</button>
+            ${canDeleteSelectedPage ? `<button class="danger-button" data-builder-delete-page="${esc(selectedSection.id)}" type="button">Delete Page</button>` : '<span class="pill amber">Core page</span>'}
+          </div>
         </form>
         <h3>Add New Page</h3>
         <form id="builderAddPageForm" class="run-log-form">
@@ -1082,15 +1146,20 @@ function adminBuilderPage() {
       </section>
       <section class="builder-panel builder-panel-wide">
         <h3>${esc(selectedSection.title)} Fields</h3>
-        <div class="builder-field-list">
+        <form id="builderFieldsEditForm" class="builder-field-list">
           ${fields.map((field, index) => `
             <div class="builder-field-row">
-              <strong>${esc(field[1])}</strong>
-              <small>${esc(field[0])} | ${esc(field[2] || 'text')}${field[3]?.length ? ` | ${esc(field[3].join(', '))}` : ''}</small>
+              <div class="builder-field-edit-grid">
+                ${fieldHtml(`fieldKey_${index}`, 'Key', 'text', [], field[0])}
+                ${fieldHtml(`fieldLabel_${index}`, 'Label', 'text', [], field[1])}
+                ${fieldHtml(`fieldType_${index}`, 'Type', 'select', ['text', 'number', 'date', 'email', 'tel', 'select', 'textarea'], field[2] || 'text')}
+                ${fieldHtml(`fieldOptions_${index}`, 'Options', 'text', [], field[3]?.join(', ') || '')}
+              </div>
               <button class="danger-button" data-builder-remove-field="${index}" type="button">Remove</button>
             </div>
           `).join('') || '<p class="muted">No fields yet.</p>'}
-        </div>
+          ${fields.length ? '<button class="secondary" type="submit">Save Field Edits & Sync</button>' : ''}
+        </form>
         <form id="builderFieldForm" class="run-log-form">
           ${fieldHtml('builderFieldKey', 'Field Key')}
           ${fieldHtml('builderFieldLabel', 'Field Label')}
@@ -1255,6 +1324,7 @@ function openGenericModal(sectionId, index = null) {
   const record = index === null ? {} : data[sectionId][index];
   modalSection.textContent = appSections().find(section => section.id === sectionId)?.title || sectionId;
   modalTitle.textContent = index === null ? 'Add Record' : 'Edit Record';
+  deleteRecordBtn.style.display = index === null ? 'none' : '';
   modalFields.innerHTML = schema.map(([key, label, type = 'text', options = []]) => fieldHtml(key, label, type, options, record[key])).join('');
   modal.showModal();
 }
@@ -1264,6 +1334,7 @@ function openMaintenanceModal(index) {
   editing = { sectionId: 'maintenance', index };
   modalSection.textContent = 'Maintenance';
   modalTitle.textContent = `${item.name}`;
+  deleteRecordBtn.style.display = 'none';
   modalFields.innerHTML = maintenanceFields(item);
   modal.showModal();
 }
@@ -1503,6 +1574,25 @@ workspace.addEventListener('click', event => {
     renderAdmin();
     return;
   }
+  const builderDeletePage = event.target.closest('[data-builder-delete-page]');
+  if (builderDeletePage) {
+    const pageId = builderDeletePage.dataset.builderDeletePage;
+    const page = data.builder.sections.find(section => section.id === pageId);
+    if (!page || ['dashboard', 'admin'].includes(pageId)) return;
+    const ok = window.confirm(`Delete ${page.title} from the RMS menu? Records on that page will also be removed.`);
+    if (!ok) return;
+    data.builder.sections = data.builder.sections
+      .filter(section => section.id !== pageId)
+      .map(section => section.parentId === pageId ? { ...section, parentId: '' } : section);
+    delete data.builder.schemas[pageId];
+    delete data[pageId];
+    builderPageId = data.builder.sections.find(section => section.id !== 'dashboard' && section.id !== 'admin')?.id || 'dashboard';
+    saveData();
+    saveSharedBuilderConfig();
+    renderAdmin();
+    renderNav();
+    return;
+  }
   const permissionInput = event.target.closest('[data-permission-person]');
   if (permissionInput) {
     const member = data.personnel[Number(permissionInput.dataset.permissionPerson)];
@@ -1602,6 +1692,22 @@ workspace.addEventListener('submit', event => {
     if (!key || !label) return;
     data.builder.schemas[builderPageId] = data.builder.schemas[builderPageId] || [];
     data.builder.schemas[builderPageId].push([key, label, type, type === 'select' ? options : []]);
+    saveData();
+    saveSharedBuilderConfig();
+    renderAdmin();
+    return;
+  }
+  if (event.target.id === 'builderFieldsEditForm') {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const fields = data.builder.schemas[builderPageId] || [];
+    data.builder.schemas[builderPageId] = fields.map((field, index) => {
+      const key = String(formData.get(`fieldKey_${index}`) || field[0] || '').trim().replace(/[^a-zA-Z0-9]/g, '');
+      const label = String(formData.get(`fieldLabel_${index}`) || field[1] || key).trim();
+      const type = String(formData.get(`fieldType_${index}`) || field[2] || 'text');
+      const options = String(formData.get(`fieldOptions_${index}`) || '').split(',').map(item => item.trim()).filter(Boolean);
+      return [key, label, type, type === 'select' ? options : []];
+    }).filter(field => field[0] && field[1]);
     saveData();
     saveSharedBuilderConfig();
     renderAdmin();
@@ -1744,8 +1850,18 @@ signinForm.addEventListener('submit', event => {
 });
 
 form.addEventListener('submit', event => {
-  if (event.submitter?.value !== 'save') return;
+  if (!['save', 'delete'].includes(event.submitter?.value)) return;
   event.preventDefault();
+  if (event.submitter?.value === 'delete') {
+    if (editing?.index === null || editing?.index === undefined || editing?.sectionId === 'maintenance') return;
+    const ok = window.confirm('Delete this record?');
+    if (!ok) return;
+    data[editing.sectionId].splice(editing.index, 1);
+    saveData();
+    modal.close();
+    render();
+    return;
+  }
   const formData = new FormData(form);
   if (editing.sectionId === 'maintenance') saveMaintenanceRecord(formData);
   else saveGenericRecord(formData);
@@ -1754,5 +1870,10 @@ form.addEventListener('submit', event => {
   render();
 });
 
-render();
-loadSharedBuilderConfig();
+async function initializeRms() {
+  render();
+  await loadSharedBuilderConfig();
+  await loadSharedRmsData();
+}
+
+initializeRms();
