@@ -3390,6 +3390,289 @@ app.get('/hydrants', (req, res) => {
   sendHtmlFileOrFallback(res, 'hydrants.html', 'Out of Service Hydrants', '/api/hydrants-status');
 });
 
+const EDITABLE_HYDRANT_OVERRIDES_COLLECTION = 'editableHydrantOverrides';
+const EDITABLE_HYDRANT_TESTS_COLLECTION = 'editableHydrantTests';
+const EDITABLE_HYDRANT_INSPECTIONS_COLLECTION = 'editableHydrantInspections';
+
+function editableHydrantKey(hydrant = {}) {
+  return String(hydrant.location_id || hydrant.hydrant_id || hydrant.id || '').trim();
+}
+
+function editableDocId(value) {
+  return Buffer.from(String(value || ''), 'utf8').toString('base64url');
+}
+
+function normalizeEditableStatus(value) {
+  const status = String(value || '').trim().toLowerCase();
+  if (status === 'out of service' || status === 'oos') return 'Out of Service';
+  if (status === 'in service' || status === 'available' || status === 'active') return 'In Service';
+  return String(value || '').trim() || 'In Service';
+}
+
+function numberOrBlank(value) {
+  const text = String(value ?? '').replace('"', '').trim();
+  if (!text) return '';
+  const number = Number(text);
+  return Number.isFinite(number) ? number : '';
+}
+
+function calcEditableFlow(dischargeSize, pitotPsi) {
+  const d = Number(dischargeSize);
+  const p = Number(pitotPsi);
+  if (!Number.isFinite(d) || !Number.isFinite(p) || d <= 0 || p <= 0) return '';
+  return Math.round(29.83 * 0.9 * d * d * Math.sqrt(p));
+}
+
+function normalizeEditableHydrant(input = {}) {
+  const dischargeSize = numberOrBlank(input.discharge_size || input['Discharge Size']);
+  const pitotPsi = numberOrBlank(input.pitot_psi || input['Pitot psi']);
+  const flow = calcEditableFlow(dischargeSize, pitotPsi);
+  return {
+    location_id: String(input.location_id || input['Location ID'] || '').trim(),
+    hydrant_id: String(input.hydrant_id || input['Hydrant ID'] || input.id || '').trim(),
+    district: String(input.district || input.District || '').trim(),
+    location: String(input.location || input.address || input.Location || input.Address || '').trim(),
+    address: String(input.address || input.location || input.Address || input.Location || '').trim(),
+    description: String(input.description || input.Description || '').trim(),
+    latitude: numberOrBlank(input.latitude || input.lat || input.Latitude),
+    longitude: numberOrBlank(input.longitude || input.lon || input.lng || input.Longitude),
+    provider: String(input.provider || input.Provider || '').trim(),
+    status: normalizeEditableStatus(input.status || input.Status),
+    discharge_size: dischargeSize,
+    flow_gpm: flow || numberOrBlank(input.flow_gpm),
+    pitot_psi: pitotPsi,
+    static_psi: numberOrBlank(input.static_psi || input['Static psi']),
+    residual_psi: numberOrBlank(input.residual_psi || input['Residual psi']),
+    last_checked: String(input.last_checked || '').trim(),
+    tested_by: String(input.tested_by || '').trim(),
+    shift: String(input.shift || '').trim(),
+    issue: String(input.issue || '').trim(),
+    alternate_supply: String(input.alternate_supply || '').trim(),
+    notes: String(input.notes || input.Notes || '').trim(),
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function loadEditableHydrantOverrides() {
+  if (!firestoreDb) return [];
+  const snapshot = await firestoreDb.collection(EDITABLE_HYDRANT_OVERRIDES_COLLECTION).get();
+  return snapshot.docs.map((doc) => doc.data());
+}
+
+async function loadEditableHydrants() {
+  const seedHydrants = (await loadHydrantJsonRows(true)).rows || [];
+  const byKey = new Map(seedHydrants.map((hydrant) => [editableHydrantKey(hydrant), {
+    ...hydrant,
+    status: normalizeEditableStatus(hydrant.status),
+    location: hydrant.location || hydrant.address || '',
+    address: hydrant.address || hydrant.location || '',
+  }]));
+  for (const override of await loadEditableHydrantOverrides()) {
+    const key = editableHydrantKey(override);
+    if (key) byKey.set(key, { ...(byKey.get(key) || {}), ...override });
+  }
+  return Array.from(byKey.values());
+}
+
+async function saveEditableHydrant(hydrant) {
+  if (!firestoreDb) throw new Error('Hydrant editing storage is unavailable.');
+  const key = editableHydrantKey(hydrant);
+  if (!key) throw new Error('Hydrant ID or Location ID is required.');
+  await firestoreDb.collection(EDITABLE_HYDRANT_OVERRIDES_COLLECTION).doc(editableDocId(key)).set(hydrant, { merge: true });
+}
+
+async function loadEditableCollection(collectionName) {
+  if (!firestoreDb) return [];
+  const snapshot = await firestoreDb.collection(collectionName).orderBy('created_at', 'desc').limit(2000).get();
+  return snapshot.docs.map((doc) => doc.data());
+}
+
+function csvTableToObjects(rows) {
+  if (!Array.isArray(rows) || rows.length < 2) return [];
+  const headers = rows[0].map(normalizeHeader);
+  return rows.slice(1).map((values) => {
+    const row = {};
+    headers.forEach((header, index) => {
+      row[header] = values[index] || '';
+    });
+    return row;
+  });
+}
+
+function readRequestBuffer(req, limitBytes = 10 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > limitBytes) {
+        reject(new Error('Upload is too large.'));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
+function extractMultipartText(buffer, contentType) {
+  const boundary = String(contentType || '').match(/boundary=(?:"([^"]+)"|([^;]+))/i)?.[1]
+    || String(contentType || '').match(/boundary=(?:"([^"]+)"|([^;]+))/i)?.[2];
+  if (!boundary) return '';
+
+  const payload = buffer.toString('latin1');
+  const parts = payload.split(`--${boundary}`);
+  for (const part of parts) {
+    if (!/filename=|name=["']?file/i.test(part)) continue;
+    const headerEnd = part.indexOf('\r\n\r\n');
+    if (headerEnd === -1) continue;
+    let body = part.slice(headerEnd + 4);
+    body = body.replace(/\r\n--$/, '').replace(/\r\n$/, '');
+    return Buffer.from(body, 'latin1').toString('utf8');
+  }
+  return '';
+}
+
+app.get('/api/hydrants', async (req, res) => {
+  try {
+    let hydrants = await loadEditableHydrants();
+    const district = String(req.query.district || '').trim();
+    const status = String(req.query.status || '').trim().toLowerCase();
+    const q = String(req.query.q || '').trim().toLowerCase();
+    hydrants = hydrants.filter((hydrant) => {
+      const text = `${hydrant.location_id} ${hydrant.hydrant_id} ${hydrant.location} ${hydrant.address} ${hydrant.provider}`.toLowerCase();
+      return (!district || district === 'All' || String(hydrant.district || '') === district) &&
+        (!status || status === 'all' || String(hydrant.status || '').toLowerCase() === status) &&
+        (!q || text.includes(q));
+    });
+    res.json({ ok: true, count: hydrants.length, hydrants });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/hydrants', async (req, res) => {
+  try {
+    const hydrant = normalizeEditableHydrant(req.body);
+    await saveEditableHydrant(hydrant);
+    res.json({ ok: true, hydrant });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.get('/api/hydrants/export', async (req, res) => {
+  try {
+    const hydrants = await loadEditableHydrants();
+    const headers = ['location_id', 'hydrant_id', 'District', 'location', 'description', 'latitude', 'longitude', 'provider', 'status', 'Discharge Size', 'flow_gpm', 'Pitot psi', 'Residual psi', 'static_psi', 'last_checked', 'tested_by', 'shift', 'issue', 'alternate_supply', 'notes'];
+    const escapeCsv = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
+    const rows = hydrants.map((h) => [h.location_id, h.hydrant_id, h.district, h.location, h.description, h.latitude, h.longitude, h.provider, h.status, h.discharge_size, h.flow_gpm, h.pitot_psi, h.residual_psi, h.static_psi, h.last_checked, h.tested_by, h.shift, h.issue, h.alternate_supply, h.notes]);
+    const csv = [headers.map(escapeCsv).join(','), ...rows.map((row) => row.map(escapeCsv).join(','))].join('\n');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=hlfd-hydrants-export.csv');
+    res.send(csv);
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/hydrants/import', async (req, res) => {
+  try {
+    if (!firestoreDb) throw new Error('Hydrant editing storage is unavailable.');
+
+    const contentType = String(req.headers['content-type'] || '');
+    let csv = '';
+    if (contentType.includes('multipart/form-data')) {
+      csv = extractMultipartText(await readRequestBuffer(req), contentType);
+    } else if (req.body?.csv) {
+      csv = String(req.body.csv || '');
+    } else if (typeof req.body === 'string') {
+      csv = req.body;
+    }
+
+    const importedRows = csvTableToObjects(parseCsvText(csv));
+    if (!importedRows.length) throw new Error('No hydrants were found in the uploaded file.');
+
+    let imported = 0;
+    for (const row of importedRows) {
+      const hydrant = normalizeEditableHydrant(row);
+      if (!editableHydrantKey(hydrant)) continue;
+      await saveEditableHydrant(hydrant);
+      imported++;
+    }
+
+    res.json({ ok: true, imported, total: (await loadEditableHydrants()).length });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.get('/api/tests', async (req, res) => {
+  try {
+    const hydrantId = String(req.query.hydrant_id || '').trim();
+    let tests = await loadEditableCollection(EDITABLE_HYDRANT_TESTS_COLLECTION);
+    if (hydrantId) tests = tests.filter((test) => test.hydrant_id === hydrantId || test.location_id === hydrantId);
+    res.json({ ok: true, count: tests.length, tests });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/tests', async (req, res) => {
+  try {
+    if (!firestoreDb) throw new Error('Hydrant test storage is unavailable.');
+    const test = {
+      ...req.body,
+      id: `TEST-${Date.now()}`,
+      flow_gpm: req.body.flow_gpm || calcEditableFlow(req.body.discharge_size, req.body.pitot_psi),
+      created_at: new Date().toISOString(),
+    };
+    await firestoreDb.collection(EDITABLE_HYDRANT_TESTS_COLLECTION).doc(test.id).set(test);
+    if (test.hydrant_id || test.location_id) {
+      const hydrant = normalizeEditableHydrant({ ...req.body, last_checked: test.tested_at || test.created_at });
+      await saveEditableHydrant(hydrant);
+    }
+    res.json({ ok: true, test });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.get('/api/inspections', async (req, res) => {
+  try {
+    const hydrantId = String(req.query.hydrant_id || '').trim();
+    let inspections = await loadEditableCollection(EDITABLE_HYDRANT_INSPECTIONS_COLLECTION);
+    if (hydrantId) inspections = inspections.filter((inspection) => inspection.hydrant_id === hydrantId || inspection.location_id === hydrantId);
+    res.json({ ok: true, count: inspections.length, inspections });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/inspections', async (req, res) => {
+  try {
+    if (!firestoreDb) throw new Error('Hydrant inspection storage is unavailable.');
+    const inspection = {
+      ...req.body,
+      id: `INSP-${Date.now()}`,
+      created_at: new Date().toISOString(),
+    };
+    await firestoreDb.collection(EDITABLE_HYDRANT_INSPECTIONS_COLLECTION).doc(inspection.id).set(inspection);
+    if (inspection.hydrant_id || inspection.location_id) {
+      const hydrant = normalizeEditableHydrant({
+        ...req.body,
+        last_checked: inspection.inspected_at || inspection.created_at,
+      });
+      await saveEditableHydrant(hydrant);
+    }
+    res.json({ ok: true, inspection });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
 app.get('/api/hydrants-status', async (req, res) => {
   try {
     const dashboard = await buildHydrantStatusDashboard();

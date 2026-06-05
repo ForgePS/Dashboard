@@ -420,11 +420,36 @@ function renderHydrants() {
   workspace.innerHTML = `
     <iframe
       class="external-app-frame"
-      src="https://horn-lake-fire.web.app/hydrants"
+      src="/hydrants/"
       title="Editable Hydrants App"
+      onload="window.syncHydrantsFrame && window.syncHydrantsFrame(this)"
     ></iframe>
   `;
 }
+
+window.syncHydrantsFrame = function syncHydrantsFrame(frame) {
+  try {
+    const doc = frame.contentDocument;
+    if (!doc || doc.getElementById('rmsHydrantChromeStyle')) return;
+    const style = doc.createElement('style');
+    style.id = 'rmsHydrantChromeStyle';
+    style.textContent = `
+      aside { display: none !important; }
+      main > header { display: none !important; }
+      #root > div { padding: 0 !important; background: #071019 !important; }
+      #root > div > div {
+        max-width: none !important;
+        min-height: 100vh !important;
+        border-radius: 0 !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        grid-template-columns: 1fr !important;
+      }
+      main { min-height: 100vh !important; }
+    `;
+    doc.head.appendChild(style);
+  } catch {}
+};
 
 function renderPersonnel() {
   const roster = filterRecords(data.personnel);
