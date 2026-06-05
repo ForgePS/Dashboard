@@ -169,6 +169,9 @@ let data = loadData();
 let currentUserId = localStorage.getItem(SESSION_KEY) || '';
 let activeSection = initialSection();
 let maintenanceMode = 'fleet';
+let inventoryMode = 'inventory';
+let fleetPanel = 'dashboard';
+let fleetSelectedApparatus = 0;
 let adminMode = 'home';
 let permissionEditIndex = 0;
 let builderPageId = 'incidents';
@@ -702,6 +705,7 @@ function render() {
   if (activeSection === 'personnel') return renderPersonnel();
   if (activeSection === 'training') return renderTraining();
   if (activeSection === 'hydrants') return renderHydrants();
+  if (activeSection === 'inventory') return renderInventory();
   if (activeSection === 'maintenance') return renderMaintenance();
   if (activeSection === 'admin') return renderAdmin();
   renderRecords(activeSection);
@@ -1124,6 +1128,203 @@ function recordCard(sectionId, record, index) {
 
 function emptyPanel(sectionId) {
   return `<article class="panel wide-card"><h2>No Records Yet</h2><p class="muted">${esc(appSections().find(section => section.id === sectionId)?.title || sectionId)} records will appear here when they are added.</p></article>`;
+}
+
+function renderInventory() {
+  const records = filterRecords(data.inventory || []);
+  const lowStock = lowInventory();
+  renderStats([
+    { label: 'Inventory Items', value: data.inventory.length },
+    { label: 'Low Stock', value: lowStock.length },
+    { label: 'Fleet Apparatus', value: data.maintenance.length },
+    { label: 'Active Tab', value: inventoryMode === 'fleet' ? 'Fleet' : 'Inventory' }
+  ]);
+
+  workspace.innerHTML = `
+    <section class="panel">
+      <div class="tabs">
+        <button class="tab-button ${inventoryMode === 'inventory' ? 'active' : ''}" data-inventory-mode="inventory" type="button">Inventory</button>
+        <button class="tab-button ${inventoryMode === 'fleet' ? 'active' : ''}" data-inventory-mode="fleet" type="button">Fleet Management</button>
+      </div>
+    </section>
+    ${inventoryMode === 'fleet' ? fleetManagementHtml() : `
+      <section class="record-grid">
+        ${records.map((record, index) => recordCard('inventory', record, index)).join('') || emptyPanel('inventory')}
+      </section>
+    `}
+  `;
+}
+
+function fleetManagementHtml() {
+  const panels = [
+    ['dashboard', 'Apparatus Dashboard', 'Gain complete visibility into your fleet with a consolidated vehicle dashboard, bringing together core information and activity in one place.'],
+    ['records', 'Apparatus Specific Records', 'Every vehicle is unique. Capture the necessary data specific to the fire apparatus type and function.'],
+    ['compartments', 'Custom Compartments', 'Track all emergency vehicle equipment and inventory with the ability to create and manage custom compartments.'],
+    ['swaps', 'Swaps and Status Changes', 'Move vehicles in and out of service and easily swap compartment contents with a simple user interface. Create easier workflows for vehicle replacement.']
+  ];
+  return `
+    <section class="fleet-management-shell">
+      <div class="fleet-accordion">
+        ${panels.map(([id, titleText, detail]) => `
+          <button class="fleet-accordion-item ${fleetPanel === id ? 'active' : ''}" data-fleet-panel="${id}" type="button">
+            <span>${esc(titleText)}</span>
+            <b>${fleetPanel === id ? '⌄' : '›'}</b>
+            ${fleetPanel === id ? `<p>${esc(detail)}</p>` : ''}
+          </button>
+        `).join('')}
+      </div>
+      <div class="fleet-panel-stage">
+        ${fleetPanel === 'dashboard' ? fleetDashboardHtml() : ''}
+        ${fleetPanel === 'records' ? fleetRecordsHtml() : ''}
+        ${fleetPanel === 'compartments' ? fleetCompartmentsHtml() : ''}
+        ${fleetPanel === 'swaps' ? fleetSwapsHtml() : ''}
+      </div>
+    </section>
+  `;
+}
+
+function fleetDashboardHtml() {
+  const checks = data.maintenance.slice(0, 4);
+  const logs = data.maintenance.flatMap(item => [
+    ...(item.serviceLogs || []).map(log => ({ asset: item.name, date: log.date, user: log.by, summary: log.items?.join(', ') || 'Maintenance service' })),
+    ...(item.runLogs || []).map(log => ({ asset: item.name, date: log.date, user: log.station, summary: `${log.callType || 'Run'} | ${log.callMinutes || 0} minutes` }))
+  ]).slice(-12).reverse();
+  return `
+    <article class="fleet-preview-card">
+      <header><div><span>Fleet Management</span><h2>Apparatus Dashboard</h2></div><button class="icon-button" type="button">↗</button></header>
+      <div class="fleet-dashboard-grid">
+        <section class="fleet-mini-panel">
+          <h3>Checks Due Today</h3>
+          <div class="mini-tabs"><span>Apparatus</span><span>Equipment</span><span>Station</span><span>Kits</span></div>
+          <div class="queue-list">
+            ${checks.map(item => `<div class="queue-item"><div><strong>${esc(item.name)}</strong><br><small>Daily readiness check</small></div><button class="small-button" type="button">Join Check</button></div>`).join('')}
+          </div>
+        </section>
+        <section class="fleet-mini-panel">
+          <h3>Work Orders List</h3>
+          ${fleetTable(['Asset', 'Work Order Type', 'Summary', 'Status'], data.maintenance.slice(0, 8).map(item => [
+            item.name,
+            item.status === 'In Shop' ? 'Repair' : 'Inspection',
+            item.notes || item.selectedServiceItems?.[0] || 'Scheduled check',
+            item.status || 'Fleet'
+          ]))}
+        </section>
+        <section class="fleet-mini-panel">
+          <h3>System Log</h3>
+          ${fleetTable(['Asset', 'Date', 'User', 'Summary'], logs.length ? logs.map(log => [log.asset, formatDate(log.date), log.user || '--', log.summary]) : data.maintenance.slice(0, 8).map(item => [item.name, '--', '--', 'No activity logged']))}
+        </section>
+      </div>
+    </article>
+  `;
+}
+
+function fleetRecordsHtml() {
+  const item = data.maintenance[fleetSelectedApparatus] || data.maintenance[0] || blankApparatus('New Apparatus');
+  return `
+    <article class="fleet-preview-card">
+      <header><div><span>Fleet Records</span><h2>Apparatus Specific Records</h2></div>${fieldHtml('fleetRecordApparatus', 'Apparatus', 'select', data.maintenance.map((apparatus, index) => ({ label: apparatus.name, value: String(index) })), String(fleetSelectedApparatus))}</header>
+      <div class="fleet-record-layout">
+        <nav class="fleet-record-nav">
+          ${['Apparatus Info', 'Specifications', 'Work Orders', 'EMS Data', 'Checklist', 'Fuel', 'Log Book', 'Compartments'].map((label, index) => `<button class="${index === 0 ? 'active' : ''}" type="button">${esc(label)}</button>`).join('')}
+        </nav>
+        <form class="fleet-info-form">
+          ${fieldHtml('fleetDepartment', 'Department', 'select', ['Engines', 'Trucks', 'Rescue', 'Administration'], item.type || 'Engines')}
+          ${fieldHtml('fleetName', 'Name', 'text', [], item.name)}
+          ${fieldHtml('fleetGroup', 'Apparatus Group', 'select', ['Engines', 'Ladders', 'Ambulance', 'Fleet', 'Support Vehicle'], item.type)}
+          ${fieldHtml('fleetVehicleId', 'Department Vehicle ID', 'text', [], item.employeeId || item.name)}
+          ${fieldHtml('fleetNumber', 'Fleet Vehicle Number', 'text', [], item.number || '')}
+          ${fieldHtml('fleetUse', 'Primary NFIRS Use', 'select', ['Suppression', 'EMS', 'Other'], 'Suppression')}
+          ${fieldHtml('fleetType', 'NFIRS Apparatus Type', 'select', ['Engine', 'Truck', 'Ambulance', 'Brush', 'Support'], item.type)}
+          ${fieldHtml('fleetMake', 'Make', 'text', [], item.make)}
+          ${fieldHtml('fleetModel', 'Model', 'text', [], item.model)}
+          ${fieldHtml('fleetYear', 'Manufacture Year', 'number', [], item.year)}
+          ${fieldHtml('fleetVin', 'VIN', 'text', [], item.vin)}
+          ${fieldHtml('fleetStation', 'Fire Station', 'select', ['Station 1', 'Station 2', 'Station 3'], item.location)}
+          ${fieldHtml('fleetPlate', 'License Plate', 'text', [], item.licensePlate || '')}
+          ${fieldHtml('fleetHours', 'Engine Hours', 'number', [], item.engineHours)}
+          ${fieldHtml('fleetOdometer', 'Odometer', 'number', [], item.mileage)}
+          ${fieldHtml('fleetDescription', 'Description', 'textarea', [], item.notes)}
+          <div class="form-field"><label>In Service?</label><span class="toggle-pill ${item.status === 'In Service' ? 'on' : ''}">${item.status === 'In Service' ? 'Yes' : 'No'}</span></div>
+          <div class="form-field"><label>Primary Use?</label><span class="toggle-pill on">Yes</span></div>
+        </form>
+      </div>
+    </article>
+  `;
+}
+
+function fleetCompartmentsHtml() {
+  const item = data.maintenance[fleetSelectedApparatus] || data.maintenance[0] || {};
+  const parts = item.parts || [];
+  const compartments = [
+    ['Cab', parts.slice(0, 2)],
+    ['Passenger Side - Rear (Engine)', parts.slice(2, 5)],
+    ['Rear (Engine)', parts.slice(5, 7)],
+    ['Test', parts.slice(7)]
+  ];
+  return `
+    <article class="fleet-preview-card">
+      <header><div><span>Compartments</span><h2>Custom Compartments</h2></div><button class="primary" type="button">New Compartment</button></header>
+      <div class="fleet-compartment-toolbar">
+        <button class="small-button" type="button">↕</button>
+        <button class="small-button" type="button">↔</button>
+        <select><option>Add to Check List</option><option>Daily Check</option><option>Weekly Check</option></select>
+        <button class="small-button" type="button">Apply</button>
+      </div>
+      <div class="fleet-compartment-list">
+        ${compartments.map(([name, items], index) => `
+          <section class="fleet-compartment ${index === 0 ? 'open' : ''}">
+            <header><strong>${esc(name)}</strong><small>Associate Check List: Daily Check</small><span>▣ ✎ 🗑</span></header>
+            ${index === 0 ? `
+              ${fleetTable(['Inventory', 'Quantity', 'Expiration Date', 'Actions'], (items.length ? items : [{ part: 'Map Book', number: '1' }, { part: 'Gas Card', number: '1' }]).map(part => [part.part, '1', part.expiration || '--', '🗑']))}
+              ${fleetTable(['Equipment', 'Inspection Date', 'Actions'], [['Radio 001 E1', '01/11/2027', '🗑']])}
+            ` : ''}
+          </section>
+        `).join('')}
+      </div>
+    </article>
+  `;
+}
+
+function fleetSwapsHtml() {
+  const from = data.maintenance[fleetSelectedApparatus] || data.maintenance[0] || {};
+  const to = data.maintenance[(fleetSelectedApparatus + 1) % Math.max(data.maintenance.length, 1)] || {};
+  return `
+    <article class="fleet-preview-card">
+      <header><div><span>Unit Swapover</span><h2>Swaps and Status Changes</h2></div><button class="primary" data-open-swapover type="button">Open Swapover</button></header>
+      <div class="swapover-preview">
+        <div class="swapover-modal">
+          <header><strong>Unit Swapover</strong><span>×</span></header>
+          <div class="swapover-grid">
+            <section>
+              ${fieldHtml('swapFrom', 'From Apparatus', 'select', data.maintenance.map(item => item.name), from.name)}
+              <h3>Available Items</h3>
+              ${(from.parts || maintenanceParts.map(([part, number]) => ({ part, number }))).slice(0, 6).map(part => `<label class="swap-item"><input type="checkbox"> ${esc(part.part)} <small>Qty: 1</small></label>`).join('')}
+            </section>
+            <section>
+              ${fieldHtml('swapTo', 'To Apparatus', 'select', data.maintenance.map(item => item.name), to.name)}
+              <h3>Transfer Items</h3>
+              <div class="transfer-box">Add Compartment +</div>
+              <div class="transfer-box active">Passenger</div>
+              <div class="transfer-box">Rear Compartment</div>
+              <button class="primary" type="button">Sign</button>
+              <button class="secondary" type="button">Cancel</button>
+            </section>
+          </div>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function fleetTable(headings, rows) {
+  return `
+    <div class="training-table-wrap fleet-table-wrap">
+      <table class="training-table">
+        <thead><tr>${headings.map(heading => `<th>${esc(heading)}</th>`).join('')}</tr></thead>
+        <tbody>${rows.map(row => `<tr>${row.map(cell => `<td>${esc(cell)}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table>
+    </div>
+  `;
 }
 
 function renderMaintenance() {
@@ -1729,6 +1930,24 @@ workspace.addEventListener('click', event => {
   if (hubSignOutButton) return signOut();
   const addTrainingButton = event.target.closest('[data-add-training]');
   if (addTrainingButton) return openGenericModal('training');
+  const inventoryModeButton = event.target.closest('[data-inventory-mode]');
+  if (inventoryModeButton) {
+    inventoryMode = inventoryModeButton.dataset.inventoryMode;
+    renderInventory();
+    return;
+  }
+  const fleetPanelButton = event.target.closest('[data-fleet-panel]');
+  if (fleetPanelButton) {
+    fleetPanel = fleetPanelButton.dataset.fleetPanel;
+    renderInventory();
+    return;
+  }
+  const swapoverButton = event.target.closest('[data-open-swapover]');
+  if (swapoverButton) {
+    fleetPanel = 'swaps';
+    renderInventory();
+    return;
+  }
   const personnelCardButton = event.target.closest('[data-view-personnel]');
   if (personnelCardButton) return openPersonnelProfile(Number(personnelCardButton.dataset.viewPersonnel));
   const adminModeButton = event.target.closest('[data-admin-mode]');
@@ -1872,6 +2091,10 @@ workspace.addEventListener('change', event => {
   if (event.target.id === 'permissionPersonIndex') {
     permissionEditIndex = Number(event.target.value || 0);
     renderAdmin();
+  }
+  if (event.target.id === 'fleetRecordApparatus') {
+    fleetSelectedApparatus = Number(event.target.value || 0);
+    renderInventory();
   }
   if (event.target.id === 'personnel_photoFile') {
     const file = event.target.files?.[0];

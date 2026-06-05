@@ -1098,6 +1098,286 @@ textarea:focus {
   text-decoration: none;
 }
 
+.fleet-management-shell {
+  display: grid;
+  grid-template-columns: minmax(320px, .95fr) minmax(0, 1.45fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.fleet-accordion {
+  display: grid;
+  gap: 12px;
+}
+
+.fleet-accordion-item {
+  min-height: 78px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 18px;
+  text-align: left;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.fleet-accordion-item span {
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.fleet-accordion-item b {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.fleet-accordion-item p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.fleet-accordion-item.active span {
+  color: var(--red);
+}
+
+.fleet-panel-stage {
+  min-width: 0;
+}
+
+.fleet-preview-card {
+  min-width: 0;
+  padding: 16px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.fleet-preview-card > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 14px;
+}
+
+.fleet-preview-card > header span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--red);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.fleet-preview-card h2,
+.fleet-preview-card h3 {
+  margin: 0;
+}
+
+.fleet-dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 12px;
+}
+
+.fleet-dashboard-grid .fleet-mini-panel:last-child {
+  grid-row: span 2;
+}
+
+.fleet-mini-panel {
+  min-width: 0;
+  padding: 12px;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.mini-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 10px 0;
+}
+
+.mini-tabs span {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 9px;
+  color: var(--muted);
+  background: #edf2f7;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.mini-tabs span:nth-child(2) {
+  color: #fff;
+  background: var(--blue);
+}
+
+.fleet-record-layout {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 14px;
+}
+
+.fleet-record-nav {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.fleet-record-nav button {
+  min-height: 38px;
+  padding: 9px 11px;
+  text-align: left;
+  color: var(--ink);
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-weight: 800;
+}
+
+.fleet-record-nav button.active {
+  color: #fff;
+  background: var(--blue);
+}
+
+.fleet-info-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.toggle-pill {
+  min-height: 39px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: #fff;
+  background: #6b7280;
+  font-weight: 900;
+}
+
+.toggle-pill.on {
+  background: var(--blue);
+}
+
+.fleet-compartment-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.fleet-compartment-toolbar select {
+  max-width: 220px;
+}
+
+.fleet-compartment-list {
+  display: grid;
+  gap: 10px;
+}
+
+.fleet-compartment {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+}
+
+.fleet-compartment > header {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 40px;
+  padding: 9px 12px;
+  color: #fff;
+  background: var(--blue);
+}
+
+.fleet-compartment:not(.open) > header {
+  color: var(--ink);
+  background: transparent;
+}
+
+.fleet-compartment small {
+  color: inherit;
+  opacity: .78;
+}
+
+.fleet-table-wrap {
+  margin: 10px;
+}
+
+.swapover-preview {
+  min-height: 365px;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, .42);
+  border-radius: 8px;
+}
+
+.swapover-modal {
+  width: min(520px, 100%);
+  padding: 14px;
+  color: var(--ink);
+  background: var(--panel);
+  border-radius: 8px;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .3);
+}
+
+.swapover-modal > header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.swapover-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.swapover-grid h3 {
+  margin: 10px 0 8px;
+  font-size: 13px;
+}
+
+.swap-item,
+.transfer-box {
+  min-height: 32px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 7px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-soft);
+  font-weight: 800;
+}
+
+.transfer-box.active {
+  color: #fff;
+  background: var(--blue);
+}
+
 .record-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1795,6 +2075,14 @@ body,
 .personnel-card,
 .personnel-profile-card,
 .personnel-photo-admin,
+.fleet-accordion-item,
+.fleet-preview-card,
+.fleet-mini-panel,
+.fleet-record-nav button,
+.fleet-compartment,
+.swapover-modal,
+.swap-item,
+.transfer-box,
 .check-grid label {
   color: #f4f7fb;
   background:
@@ -1820,6 +2108,7 @@ body,
 .admin-launch-card em,
 .personnel-card span,
 .personnel-profile-card p,
+.fleet-accordion-item p,
 .record-card small,
 .apparatus-card small,
 .muted,
@@ -1838,6 +2127,9 @@ body,
 .admin-launch-card strong,
 .personnel-card strong,
 .personnel-profile-card h3,
+.fleet-accordion-item span,
+.fleet-preview-card h2,
+.fleet-preview-card h3,
 .record-card strong,
 .apparatus-card strong,
 .training-card h3,
@@ -1857,7 +2149,8 @@ textarea,
 .secondary,
 .small-button,
 .icon-button,
-.tab-button {
+.tab-button,
+.mini-tabs span {
   color: #f4f7fb;
   background: #2b313b;
   border-color: rgba(255, 255, 255, .14);
@@ -1880,6 +2173,8 @@ textarea,
   .record-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .personnel-card-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .hub-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .fleet-management-shell,
+  .fleet-dashboard-grid { grid-template-columns: 1fr; }
   .admin-launch-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .personnel-file-form { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -1911,5 +2206,8 @@ textarea,
   .rms-hub-head img { width: 64px; height: 64px; }
   .personnel-photo-admin,
   .personnel-profile-card,
+  .fleet-record-layout,
+  .fleet-info-form,
+  .swapover-grid,
   .photo-fields { grid-template-columns: 1fr; }
 }
