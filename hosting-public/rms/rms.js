@@ -35,6 +35,33 @@ const maintenanceParts = [
   ['Pump packing kit', 'PMP-3302'], ['Battery', 'BAT-31HD'], ['Coolant', 'FLD-5002']
 ];
 
+const personnelQualifiers = [
+  'Administration', 'Deputy Chief', 'EMS Chief', 'Firefighter', 'Fire Officer',
+  'Driver Operator', 'Apparatus Operator', 'Paramedic', 'EMT', 'Inspector', 'Training Instructor'
+];
+
+const personnelFileFields = [
+  ['firstName', 'First Name', 'text'], ['middleName', 'Middle Name', 'text'], ['lastName', 'Last Name', 'text'],
+  ['email', 'Email', 'email'], ['emsProviderLevel', 'EMS Provider Level', 'select', ['None', 'Emergency Medical Responder', 'EMT', 'Advanced EMT', 'Paramedic', 'Critical Care Paramedic']],
+  ['address', 'Address', 'text'], ['unitSuite', 'Unit/Suite', 'text'], ['state', 'State', 'select', ['Mississippi', 'Tennessee', 'Arkansas', 'Alabama', 'Virginia']],
+  ['city', 'City', 'text'], ['zipCode', 'Zip Code', 'text'], ['phone', 'Phone', 'tel'], ['iaffLocalNumber', 'IAFF Local Number', 'text'],
+  ['birthDate', 'Birth Date', 'date'], ['citizenship', 'Citizenship', 'select', ['United States', 'Permanent Resident', 'Other']],
+  ['driversLicenseNumber', "Driver's Lic. Number", 'text'], ['driversLicenseState', "Driver's Lic. State", 'select', ['Mississippi', 'Tennessee', 'Arkansas', 'Alabama', 'Virginia']],
+  ['driversLicenseClass', "Driver's Lic. Class", 'select', ['A', 'B', 'C', 'D', 'E', 'F']], ['driversLicenseExpiration', "Driver's Lic. Expiration Date", 'date'],
+  ['startDate', 'Start Date', 'date'], ['secondaryStartDate', 'Secondary Start Date', 'date'], ['startDateRanking', 'Start Date Ranking', 'date'], ['endOfServiceDate', 'End of Service Date', 'date'],
+  ['race', 'Race', 'select', ['--', 'American Indian or Alaska Native', 'Asian', 'Black or African American', 'Native Hawaiian or Other Pacific Islander', 'White', 'Other race']],
+  ['ethnicity', 'Ethnicity', 'select', ['--', 'Hispanic or Latino', 'Not Hispanic or Latino']], ['gender', 'Gender', 'select', ['--', 'Female', 'Male', 'Non-binary', 'Prefer not to say']],
+  ['maritalStatus', 'Marital Status', 'select', ['--', 'Single', 'Married', 'Divorced', 'Widowed']], ['socialSecurityNumber', 'Social Security Number', 'text'],
+  ['badgeNumber', 'Badge Number', 'text'], ['agencyPersonnelId', 'Agency Personnel ID', 'text'], ['apiId', 'API ID', 'text'], ['firefighterId', 'Firefighter ID', 'text'], ['femaId', 'FEMA ID', 'text'],
+  ['payrollId', 'Payroll ID', 'text'], ['unit', 'Unit', 'select', ['--', 'Engine 101', 'Engine 102', 'Truck 1', 'Rescue 1', 'Administration']],
+  ['division', 'Division', 'select', ['--', 'Emergency Operations', 'Fire Prevention', 'Training', 'Administration']], ['district', 'District', 'select', ['--', 'District 1', 'District 2', 'District 3']],
+  ['station', 'Station', 'select', ['--', 'Station 1', 'Station 2', 'Station 3']], ['shift', 'Shift', 'select', ['--', 'A Shift', 'B Shift', 'C Shift', 'Day Staff']],
+  ['position', 'Position', 'select', ['--', 'Firefighter', 'Driver Operator', 'Lieutenant', 'Captain', 'Battalion Chief', 'Chief Officer']],
+  ['rank', 'Rank', 'select', ['--', 'Firefighter', 'Driver', 'Lieutenant', 'Captain', 'Battalion Chief', 'Deputy Chief', 'Fire Chief']],
+  ['group', 'Group', 'select', ['--', 'Operations', 'Administration', 'Prevention', 'Training']], ['employmentStatus', 'Employment Status', 'select', ['Full Time', 'Part Time', 'Volunteer', 'Reserve']],
+  ['status', 'Status', 'select', ['Active', 'Reserve', 'Leave', 'Inactive']]
+];
+
 const schemas = {
   incidents: [
     ['incidentNumber', 'Incident Number'], ['date', 'Date', 'date'], ['type', 'Incident Type'],
@@ -49,11 +76,9 @@ const schemas = {
     ['notes', 'Notes', 'textarea']
   ],
   personnel: [
-    ['name', 'Name'], ['rank', 'Rank'], ['employeeId', 'Employee ID'], ['station', 'Station', 'select', ['Station 1', 'Station 2', 'Station 3']],
-    ['shift', 'Shift', 'select', ['A Shift', 'B Shift', 'C Shift', 'Day Staff']], ['phone', 'Phone'],
-    ['email', 'Email'], ['password', 'Password'], ['status', 'Status', 'select', ['Active', 'Reserve', 'Leave', 'Inactive']],
-    ['adminAccess', 'Admin Access', 'select', ['No', 'Yes']],
-    ['certifications', 'Certifications', 'textarea']
+    ...personnelFileFields,
+    ['employeeId', 'Employee ID / Login ID'], ['password', 'Password'], ['adminAccess', 'Admin Access', 'select', ['No', 'Yes']],
+    ['certifications', 'Certifications / Notes', 'textarea']
   ],
   training: [
     ['course', 'Course'], ['date', 'Date', 'date'], ['instructor', 'Instructor'], ['hours', 'Hours', 'number'],
@@ -208,24 +233,46 @@ function mergePersonnel(saved = seed.personnel) {
   const personnel = saved.length ? saved : seed.personnel;
   return personnel.map((member, index) => {
     const merged = {
-    name: '',
-    rank: '',
-    employeeId: '',
-    station: 'Station 1',
-    shift: 'A Shift',
-    phone: '',
-    email: '',
-    password: '',
-    status: 'Active',
-    adminAccess: index === 0 ? 'Yes' : 'No',
-    certifications: '',
-    ...member,
-    adminAccess: member.adminAccess || (index === 0 ? 'Yes' : 'No')
+      firstName: '',
+      middleName: '',
+      lastName: '',
+      name: '',
+      rank: '',
+      employeeId: '',
+      agencyPersonnelId: '',
+      station: 'Station 1',
+      shift: 'A Shift',
+      phone: '',
+      email: '',
+      password: '',
+      status: 'Active',
+      employmentStatus: 'Full Time',
+      adminAccess: index === 0 ? 'Yes' : 'No',
+      certifications: '',
+      qualifiers: [],
+      isTrainingInstructor: 'No',
+      ...member,
+      adminAccess: member.adminAccess || (index === 0 ? 'Yes' : 'No')
     };
+    if (!merged.firstName && merged.name) {
+      const parts = String(merged.name).trim().split(/\s+/);
+      merged.firstName = parts.shift() || '';
+      merged.lastName = parts.join(' ');
+    }
+    if (!merged.name) merged.name = personnelDisplayName(merged);
+    if (!merged.employeeId) merged.employeeId = merged.agencyPersonnelId || '';
+    if (!merged.agencyPersonnelId) merged.agencyPersonnelId = merged.employeeId || '';
+    if (!Array.isArray(merged.qualifiers)) {
+      merged.qualifiers = String(merged.qualifiers || merged.certifications || '').split(',').map(item => item.trim()).filter(Boolean);
+    }
     if (!merged.email && index === 0) merged.email = 'admin@hornlakefire.com';
     if (!merged.password) merged.password = merged.employeeId || '100';
     return merged;
   });
+}
+
+function personnelDisplayName(member = {}) {
+  return [member.firstName, member.middleName, member.lastName].filter(Boolean).join(' ').trim() || member.name || member.employeeId || 'Personnel';
 }
 
 function mergeMaintenance(saved = [], fleetNames = apparatusNames) {
@@ -498,16 +545,22 @@ function renderPersonnel() {
       ${roster.map(member => `
         <article class="record-card">
           <header>
-            <div><strong>${esc(member.name || 'Personnel')}</strong><small>${esc(member.rank || '')}</small></div>
+            <div><strong>${esc(personnelDisplayName(member))}</strong><small>${esc(member.rank || member.position || '')}</small></div>
             <span class="pill ${member.status === 'Active' ? 'green' : 'amber'}">${esc(member.status || 'Active')}</span>
           </header>
           <div class="info-list">
-            <div class="info-line"><span>Employee ID</span><b>${esc(member.employeeId || '--')}</b></div>
+            <div class="info-line"><span>Agency ID</span><b>${esc(member.agencyPersonnelId || member.employeeId || '--')}</b></div>
             <div class="info-line"><span>Station</span><b>${esc(member.station || '--')}</b></div>
             <div class="info-line"><span>Shift</span><b>${esc(member.shift || '--')}</b></div>
-            <div class="info-line"><span>Admin</span><b>${member.adminAccess === 'Yes' ? 'Yes' : 'No'}</b></div>
+            <div class="info-line"><span>EMS Level</span><b>${esc(member.emsProviderLevel || '--')}</b></div>
+            <div class="info-line"><span>Phone</span><b>${esc(member.phone || '--')}</b></div>
+            <div class="info-line"><span>Employment</span><b>${esc(member.employmentStatus || '--')}</b></div>
           </div>
-          <p class="muted">${esc(member.certifications || 'No certifications entered.')}</p>
+          <div class="pill-row">
+            ${(member.qualifiers || []).slice(0, 4).map(item => `<span class="pill blue">${esc(item)}</span>`).join('')}
+            ${member.adminAccess === 'Yes' ? '<span class="pill red">Admin</span>' : ''}
+          </div>
+          <p class="muted">${esc(member.certifications || 'No notes entered.')}</p>
         </article>
       `).join('') || emptyPanel('personnel')}
     </section>
@@ -601,19 +654,16 @@ function renderAdmin() {
 
   workspace.innerHTML = `
     <div class="dashboard-grid">
-      <section class="panel">
+      <section class="panel wide-card">
         <h2>Personnel Management</h2>
-        <form id="personnelAdminForm" class="run-log-form">
-          ${fieldHtml('personnelName', 'Name')}
-          ${fieldHtml('personnelRank', 'Rank')}
-          ${fieldHtml('personnelEmployeeId', 'Employee ID')}
-          ${fieldHtml('personnelEmail', 'Email', 'email')}
-          ${fieldHtml('personnelPassword', 'Password')}
-          ${fieldHtml('personnelStation', 'Station', 'select', ['Station 1', 'Station 2', 'Station 3'])}
-          ${fieldHtml('personnelShift', 'Shift', 'select', ['A Shift', 'B Shift', 'C Shift', 'Day Staff'])}
-          ${fieldHtml('personnelStatus', 'Status', 'select', ['Active', 'Reserve', 'Leave', 'Inactive'])}
-          ${fieldHtml('personnelAdminAccess', 'Admin Access', 'select', ['No', 'Yes'])}
-          ${fieldHtml('personnelCertifications', 'Certifications', 'textarea')}
+        <form id="personnelAdminForm" class="personnel-file-form">
+          ${personnelFileFields.map(([key, label, type = 'text', options = []]) => fieldHtml(`personnel_${key}`, label, type, options)).join('')}
+          ${fieldHtml('personnel_employeeId', 'Employee ID / Login ID')}
+          ${fieldHtml('personnel_password', 'Password')}
+          ${fieldHtml('personnel_adminAccess', 'Admin Access', 'select', ['No', 'Yes'])}
+          <div class="form-field full"><label>Qualifiers</label><div class="check-grid qualifier-grid">${personnelQualifiers.map(qualifier => `<label><input type="checkbox" name="personnel_qualifiers" value="${esc(qualifier)}">${esc(qualifier)}</label>`).join('')}</div></div>
+          <div class="form-field"><label for="personnel_isTrainingInstructor">Is Training Instructor</label><select id="personnel_isTrainingInstructor" name="personnel_isTrainingInstructor"><option>No</option><option>Yes</option></select></div>
+          ${fieldHtml('personnel_certifications', 'Certifications / Notes', 'textarea')}
           <input type="hidden" id="personnelEditIndex" name="personnelEditIndex" value="" />
           <p id="personnelSaveMessage" class="form-message full"></p>
           <div class="form-field full">
@@ -742,6 +792,39 @@ function fieldHtml(key, label, type = 'text', options = [], value = '') {
     return `<div class="form-field"><label for="${key}">${label}</label><select id="${key}" name="${key}">${options.map(option => `<option ${option === value ? 'selected' : ''}>${esc(option)}</option>`).join('')}</select></div>`;
   }
   return `<div class="form-field"><label for="${key}">${label}</label><input id="${key}" name="${key}" type="${type}" value="${esc(value)}" /></div>`;
+}
+
+function setPersonnelForm(member = {}) {
+  const fields = [...personnelFileFields.map(([key]) => key), 'employeeId', 'password', 'adminAccess', 'isTrainingInstructor', 'certifications'];
+  fields.forEach(key => {
+    const input = document.getElementById(`personnel_${key}`);
+    if (input) input.value = member[key] || '';
+  });
+  document.getElementById('personnel_employeeId').value = member.employeeId || member.agencyPersonnelId || '';
+  document.getElementById('personnel_password').value = member.password || '';
+  document.getElementById('personnel_adminAccess').value = member.adminAccess || 'No';
+  document.getElementById('personnel_isTrainingInstructor').value = member.isTrainingInstructor || 'No';
+  document.querySelectorAll('[name="personnel_qualifiers"]').forEach(input => {
+    input.checked = (member.qualifiers || []).includes(input.value);
+  });
+}
+
+function personnelRecordFromForm(formData, existingRecord = {}) {
+  const record = {};
+  personnelFileFields.forEach(([key]) => {
+    record[key] = formData.get(`personnel_${key}`) || '';
+  });
+  record.email = String(record.email || '').trim().toLowerCase();
+  record.employeeId = String(formData.get('personnel_employeeId') || record.agencyPersonnelId || existingRecord.employeeId || '').trim();
+  record.agencyPersonnelId = String(record.agencyPersonnelId || record.employeeId || '').trim();
+  record.password = String(formData.get('personnel_password') || existingRecord.password || '').trim();
+  record.adminAccess = formData.get('personnel_adminAccess') || 'No';
+  record.qualifiers = formData.getAll('personnel_qualifiers');
+  record.isTrainingInstructor = formData.get('personnel_isTrainingInstructor') || 'No';
+  record.certifications = formData.get('personnel_certifications') || '';
+  record.name = personnelDisplayName(record);
+  record.phone = record.phone || '';
+  return record;
 }
 
 function maintenanceFields(item) {
@@ -877,18 +960,9 @@ workspace.addEventListener('click', event => {
   if (personnelButton) {
     const member = data.personnel[Number(personnelButton.dataset.editPersonnel)];
     if (!member) return;
-    document.getElementById('personnelName').value = member.name || '';
-    document.getElementById('personnelRank').value = member.rank || '';
-    document.getElementById('personnelEmployeeId').value = member.employeeId || '';
-    document.getElementById('personnelEmail').value = member.email || '';
-    document.getElementById('personnelPassword').value = member.password || '';
-    document.getElementById('personnelStation').value = member.station || 'Station 1';
-    document.getElementById('personnelShift').value = member.shift || 'A Shift';
-    document.getElementById('personnelStatus').value = member.status || 'Active';
-    document.getElementById('personnelAdminAccess').value = member.adminAccess || 'No';
-    document.getElementById('personnelCertifications').value = member.certifications || '';
+    setPersonnelForm(member);
     document.getElementById('personnelEditIndex').value = personnelButton.dataset.editPersonnel;
-    document.getElementById('personnelSaveMessage').textContent = `Editing ${member.name || member.employeeId}`;
+    document.getElementById('personnelSaveMessage').textContent = `Editing ${personnelDisplayName(member)}`;
     return;
   }
   const clearPersonnelButton = event.target.closest('#clearPersonnelForm');
@@ -927,16 +1001,20 @@ workspace.addEventListener('submit', event => {
   if (event.target.id === 'personnelAdminForm') {
     event.preventDefault();
     const formData = new FormData(event.target);
-    const employeeId = String(formData.get('personnelEmployeeId') || '').trim();
-    const email = String(formData.get('personnelEmail') || '').trim().toLowerCase();
-    const enteredPassword = String(formData.get('personnelPassword') || '').trim();
     const indexValue = formData.get('personnelEditIndex');
     const message = document.getElementById('personnelSaveMessage');
     const existingRecord = indexValue === '' ? null : data.personnel[Number(indexValue)];
-    const password = enteredPassword || existingRecord?.password || '';
+    const record = personnelRecordFromForm(formData, existingRecord || {});
+    const employeeId = record.employeeId;
+    const email = record.email;
+    const password = record.password;
 
-    if (!employeeId || !email) {
-      message.textContent = 'Employee ID and email are required.';
+    if (!record.firstName || !record.lastName || !email) {
+      message.textContent = 'First name, last name, and email are required.';
+      return;
+    }
+    if (!employeeId) {
+      message.textContent = 'Employee ID / Login ID is required.';
       return;
     }
     if (!password) {
@@ -954,19 +1032,6 @@ workspace.addEventListener('submit', event => {
       return;
     }
     const priorEmail = existingRecord?.email || '';
-    const record = {
-      name: formData.get('personnelName'),
-      rank: formData.get('personnelRank'),
-      employeeId,
-      email,
-      password,
-      station: formData.get('personnelStation'),
-      shift: formData.get('personnelShift'),
-      phone: '',
-      status: formData.get('personnelStatus'),
-      adminAccess: formData.get('personnelAdminAccess'),
-      certifications: formData.get('personnelCertifications')
-    };
     if (indexValue === '') data.personnel.push(record);
     else data.personnel[Number(indexValue)] = { ...data.personnel[Number(indexValue)], ...record };
     saveData();
