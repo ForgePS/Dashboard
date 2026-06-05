@@ -706,13 +706,19 @@ function renderAdmin() {
   workspace.innerHTML = `
     <div class="admin-launch-grid">
       ${adminLaunchCard('personnel-file', 'Personnel', 'Personnel File', data.personnel.length, 'Create and edit full personnel files, login access, page permissions, and qualifiers.')}
-      ${adminLaunchCard('permissions', 'Access', 'Page Permissions', data.personnel.length, 'Choose exactly which RMS pages each person can view.')}
       ${adminLaunchCard('apparatus-setup', 'Fleet', 'Apparatus Setup', '+', 'Add new apparatus to the RMS fleet and assign default details.')}
       ${adminLaunchCard('apparatus-list', 'Fleet', 'Current Apparatus', data.maintenance.length, 'Review and remove apparatus from the RMS fleet list.')}
       ${adminLaunchCard('apparatus-use', 'Metrics', 'Apparatus Use', totalRuns, 'Log run time, mileage, call type, and station by apparatus.')}
       ${adminLaunchCard('readiness', 'Readiness', '95/95 Summary', `${(totalMinutes / 60).toFixed(1)}h`, 'Review imported run hours and readiness calculations.')}
       ${adminLaunchCard('recent-runs', 'Activity', 'Recent Apparatus Runs', recentRuns.length, 'See the latest apparatus run metrics entered into Admin.')}
     </div>
+    <section class="admin-home-permissions">
+      <header class="admin-card-head">
+        <div><span>Access</span><h2>Page Permissions</h2></div>
+        <b>${data.personnel.length}</b>
+      </header>
+      <div class="admin-page-body">${adminPermissionsPage()}</div>
+    </section>
   `;
 }
 
@@ -730,7 +736,6 @@ function adminLaunchCard(mode, label, titleText, count, detail) {
 function adminPage(mode, context) {
   const pages = {
     'personnel-file': ['Personnel', 'Personnel File', data.personnel.length, adminPersonnelFile()],
-    permissions: ['Access', 'Page Permissions', data.personnel.length, adminPermissionsPage()],
     'apparatus-setup': ['Fleet', 'Apparatus Setup', '+', adminApparatusSetup()],
     'apparatus-list': ['Fleet', 'Current Apparatus', data.maintenance.length, adminApparatusList()],
     'apparatus-use': ['Metrics', 'Apparatus Use', context.totalRuns, adminApparatusUse()],

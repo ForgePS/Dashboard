@@ -485,7 +485,7 @@ textarea {
 
 .admin-launch-card {
   position: relative;
-  min-height: 178px;
+  min-height: 148px;
   display: grid;
   gap: 8px;
   align-content: start;
@@ -549,6 +549,15 @@ textarea {
 .admin-page {
   display: grid;
   gap: 14px;
+}
+
+.admin-home-permissions {
+  margin-top: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
 }
 
 .admin-page-head {
