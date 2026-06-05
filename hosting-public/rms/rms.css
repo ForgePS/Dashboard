@@ -1104,6 +1104,91 @@ textarea:focus {
   gap: 14px;
 }
 
+.personnel-card-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.personnel-card {
+  min-height: 238px;
+  display: grid;
+  gap: 9px;
+  justify-items: center;
+  align-content: start;
+  padding: 14px;
+  color: var(--ink);
+  background: linear-gradient(135deg, #ffffff, #f7fafc);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.personnel-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(213, 32, 45, .34);
+  box-shadow: 0 24px 58px rgba(13, 27, 42, .16);
+}
+
+.personnel-photo,
+.personnel-photo-fallback {
+  width: 100%;
+  max-width: 162px;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  object-fit: cover;
+  background: linear-gradient(135deg, #d5202d, #18283a);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 40px;
+  font-weight: 900;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16);
+}
+
+.personnel-card span {
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.personnel-card strong {
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.personnel-profile-card {
+  display: grid;
+  grid-template-columns: 116px 1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7fafc;
+}
+
+.personnel-profile-photo,
+.personnel-profile-photo.personnel-photo-fallback {
+  width: 116px;
+  height: 116px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.personnel-profile-card h3 {
+  margin: 0 0 4px;
+}
+
+.personnel-profile-card p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 800;
+}
+
 .record-card,
 .apparatus-card {
   padding: 15px;
@@ -1482,6 +1567,42 @@ textarea:focus {
   align-items: start;
 }
 
+.personnel-photo-admin {
+  display: grid;
+  grid-template-columns: 128px 1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7fafc;
+}
+
+.personnel-photo-preview {
+  width: 128px;
+  height: 128px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #fff;
+  background: linear-gradient(135deg, #d5202d, #18283a);
+  font-size: 34px;
+  font-weight: 900;
+  overflow: hidden;
+}
+
+.personnel-photo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
 .form-field {
   display: grid;
   gap: 6px;
@@ -1671,6 +1792,9 @@ body,
 .builder-row,
 .builder-field-row,
 .queue-item,
+.personnel-card,
+.personnel-profile-card,
+.personnel-photo-admin,
 .check-grid label {
   color: #f4f7fb;
   background:
@@ -1694,6 +1818,8 @@ body,
 }
 
 .admin-launch-card em,
+.personnel-card span,
+.personnel-profile-card p,
 .record-card small,
 .apparatus-card small,
 .muted,
@@ -1710,6 +1836,8 @@ body,
 .admin-card-head h2,
 .admin-page-head h2,
 .admin-launch-card strong,
+.personnel-card strong,
+.personnel-profile-card h3,
 .record-card strong,
 .apparatus-card strong,
 .training-card h3,
@@ -1750,6 +1878,7 @@ textarea,
   .stats-grid,
   .maintenance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .record-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .personnel-card-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .hub-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .admin-launch-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1767,6 +1896,7 @@ textarea,
   #searchInput { width: 100%; }
   .stats-grid,
   .record-grid,
+  .personnel-card-grid,
   .dashboard-grid,
   .hub-card-grid,
   .admin-launch-grid,
@@ -1779,4 +1909,7 @@ textarea,
   .rms-hub-head { grid-template-columns: 64px 1fr; }
   .rms-hub-head .secondary { grid-column: 1 / -1; }
   .rms-hub-head img { width: 64px; height: 64px; }
+  .personnel-photo-admin,
+  .personnel-profile-card,
+  .photo-fields { grid-template-columns: 1fr; }
 }

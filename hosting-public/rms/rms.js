@@ -303,6 +303,7 @@ function mergePersonnel(saved = seed.personnel) {
       station: 'Station 1',
       shift: 'A Shift',
       phone: '',
+      photoUrl: '',
       email: '',
       password: '',
       status: 'Active',
@@ -342,6 +343,17 @@ function mergePersonnel(saved = seed.personnel) {
 
 function personnelDisplayName(member = {}) {
   return [member.firstName, member.middleName, member.lastName].filter(Boolean).join(' ').trim() || member.name || member.employeeId || 'Personnel';
+}
+
+function personnelInitials(member = {}) {
+  const name = personnelDisplayName(member);
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'PE';
+}
+
+function personnelPhotoHtml(member = {}, className = 'personnel-photo') {
+  return member.photoUrl
+    ? `<img class="${className}" src="${esc(member.photoUrl)}" alt="${esc(personnelDisplayName(member))}" />`
+    : `<div class="${className} personnel-photo-fallback">${esc(personnelInitials(member))}</div>`;
 }
 
 function normalizePageSettings(member = {}) {
@@ -867,30 +879,58 @@ function renderPersonnel() {
   ]);
 
   workspace.innerHTML = `
-    <section class="record-grid">
-      ${roster.map(member => `
-        <article class="record-card">
-          <header>
-            <div><strong>${esc(personnelDisplayName(member))}</strong><small>${esc(member.rank || member.position || '')}</small></div>
-            <span class="pill ${member.status === 'Active' ? 'green' : 'amber'}">${esc(member.status || 'Active')}</span>
-          </header>
-          <div class="info-list">
-            <div class="info-line"><span>Agency ID</span><b>${esc(member.agencyPersonnelId || member.employeeId || '--')}</b></div>
-            <div class="info-line"><span>Station</span><b>${esc(member.station || '--')}</b></div>
-            <div class="info-line"><span>Shift</span><b>${esc(member.shift || '--')}</b></div>
-            <div class="info-line"><span>EMS Level</span><b>${esc(member.emsProviderLevel || '--')}</b></div>
-            <div class="info-line"><span>Phone</span><b>${esc(member.phone || '--')}</b></div>
-            <div class="info-line"><span>Employment</span><b>${esc(member.employmentStatus || '--')}</b></div>
-          </div>
-          <div class="pill-row">
-            ${(member.qualifiers || []).slice(0, 4).map(item => `<span class="pill blue">${esc(item)}</span>`).join('')}
-            <span class="pill">${esc((member.pagePermissions || []).length)} Pages</span>
-            ${member.adminAccess === 'Yes' ? '<span class="pill red">Admin</span>' : ''}
-          </div>
-          <p class="muted">${esc(member.certifications || 'No notes entered.')}</p>
-        </article>
+    <section class="personnel-card-grid">
+      ${roster.map((member, index) => `
+        <button class="personnel-card" data-view-personnel="${index}" type="button">
+          ${personnelPhotoHtml(member)}
+          <span>${esc(member.rank && member.rank !== '--' ? member.rank : member.position || 'Personnel')}</span>
+          <strong>${esc(personnelDisplayName(member))}</strong>
+        </button>
       `).join('') || emptyPanel('personnel')}
     </section>
+  `;
+}
+
+function openPersonnelProfile(index) {
+  const member = data.personnel[index];
+  if (!member) return;
+  editing = { sectionId: 'personnel-profile', index };
+  modalSection.textContent = 'Personnel';
+  modalTitle.textContent = personnelDisplayName(member);
+  deleteRecordBtn.style.display = 'none';
+  form.querySelector('[value="save"]').style.display = 'none';
+  modalFields.innerHTML = isAdminUser() ? personnelAdminProfileHtml(member, index) : personnelPublicProfileHtml(member);
+  modal.showModal();
+}
+
+function personnelPublicProfileHtml(member) {
+  return `
+    <section class="personnel-profile-card full">
+      ${personnelPhotoHtml(member, 'personnel-profile-photo')}
+      <div>
+        <h3>${esc(personnelDisplayName(member))}</h3>
+        <p>${esc(member.rank && member.rank !== '--' ? member.rank : member.position || 'Personnel')}</p>
+      </div>
+    </section>
+    <div class="info-list full">
+      <div class="info-line"><span>Station</span><b>${esc(member.station || '--')}</b></div>
+      <div class="info-line"><span>Shift</span><b>${esc(member.shift || '--')}</b></div>
+      <div class="info-line"><span>Phone</span><b>${esc(member.phone || '--')}</b></div>
+      <div class="info-line"><span>Email</span><b>${esc(member.email || '--')}</b></div>
+    </div>
+  `;
+}
+
+function personnelAdminProfileHtml(member, index) {
+  const fullRows = personnelFileFields.map(([key, label]) => `
+    <div class="info-line"><span>${esc(label)}</span><b>${esc(member[key] || '--')}</b></div>
+  `).join('');
+  return `
+    ${personnelPublicProfileHtml(member)}
+    <div class="form-field full">
+      <button class="primary" data-open-personnel-admin="${index}" type="button">Full Admin File</button>
+    </div>
+    <div class="info-list full">${fullRows}</div>
   `;
 }
 
@@ -1143,14 +1183,8 @@ function renderAdmin() {
       ${adminLaunchCard('apparatus-use', 'Metrics', 'Apparatus Use', totalRuns, 'Log run time, mileage, call type, and station by apparatus.')}
       ${adminLaunchCard('readiness', 'Readiness', '95/95 Summary', `${(totalMinutes / 60).toFixed(1)}h`, 'Review imported run hours and readiness calculations.')}
       ${adminLaunchCard('recent-runs', 'Activity', 'Recent Apparatus Runs', recentRuns.length, 'See the latest apparatus run metrics entered into Admin.')}
+      ${adminLaunchCard('page-settings', 'Settings', 'Page Settings Tree', appSections().length, 'Open page settings and page permissions in one tree view.')}
     </div>
-    <details class="admin-settings-panel">
-      <summary class="admin-card-head">
-        <div><span>Settings</span><h2>Page Settings Tree</h2></div>
-        <b>${appSections().length}</b>
-      </summary>
-      <div class="admin-page-body">${adminSettingsTree()}</div>
-    </details>
   `;
 }
 
@@ -1173,7 +1207,8 @@ function adminPage(mode, context) {
     'apparatus-list': ['Fleet', 'Current Apparatus', data.maintenance.length, adminApparatusList()],
     'apparatus-use': ['Metrics', 'Apparatus Use', context.totalRuns, adminApparatusUse()],
     readiness: ['Readiness', '95/95 Summary', `${(context.totalMinutes / 60).toFixed(1)}h`, adminReadinessSummary()],
-    'recent-runs': ['Activity', 'Recent Apparatus Runs', context.recentRuns.length, adminRecentRuns(context.recentRuns)]
+    'recent-runs': ['Activity', 'Recent Apparatus Runs', context.recentRuns.length, adminRecentRuns(context.recentRuns)],
+    'page-settings': ['Settings', 'Page Settings Tree', appSections().length, adminSettingsTree()]
   };
   const page = pages[mode] || pages['personnel-file'];
   return `
@@ -1304,6 +1339,16 @@ function adminBuilderPage() {
 function adminPersonnelFile() {
   return `
     <form id="personnelAdminForm" class="personnel-file-form">
+      <div class="personnel-photo-admin full">
+        <div id="personnelPhotoPreview" class="personnel-photo-preview">PE</div>
+        <div class="photo-fields">
+          ${fieldHtml('personnel_photoUrl', 'Photo URL')}
+          <div class="form-field">
+            <label for="personnel_photoFile">Upload Photo</label>
+            <input id="personnel_photoFile" name="personnel_photoFile" type="file" accept="image/*" />
+          </div>
+        </div>
+      </div>
       ${personnelFileFields.map(([key, label, type = 'text', options = []]) => fieldHtml(`personnel_${key}`, label, type, options)).join('')}
       ${fieldHtml('personnel_employeeId', 'Employee ID / Login ID')}
       ${fieldHtml('personnel_password', 'Password')}
@@ -1454,6 +1499,7 @@ function openGenericModal(sectionId, index = null) {
   modalSection.textContent = appSections().find(section => section.id === sectionId)?.title || sectionId;
   modalTitle.textContent = index === null ? 'Add Record' : 'Edit Record';
   deleteRecordBtn.style.display = index === null ? 'none' : '';
+  form.querySelector('[value="save"]').style.display = '';
   modalFields.innerHTML = schema.map(([key, label, type = 'text', options = []]) => fieldHtml(key, label, type, options, record[key])).join('');
   modal.showModal();
 }
@@ -1464,6 +1510,7 @@ function openMaintenanceModal(index) {
   modalSection.textContent = 'Maintenance';
   modalTitle.textContent = `${item.name}`;
   deleteRecordBtn.style.display = 'none';
+  form.querySelector('[value="save"]').style.display = '';
   modalFields.innerHTML = maintenanceFields(item);
   modal.showModal();
 }
@@ -1492,6 +1539,11 @@ function setPersonnelForm(member = {}) {
   document.getElementById('personnel_password').value = member.password || '';
   document.getElementById('personnel_adminAccess').value = member.adminAccess || 'No';
   document.getElementById('personnel_isTrainingInstructor').value = member.isTrainingInstructor || 'No';
+  document.getElementById('personnel_photoUrl').value = member.photoUrl || '';
+  const preview = document.getElementById('personnelPhotoPreview');
+  if (preview) {
+    preview.innerHTML = member.photoUrl ? `<img src="${esc(member.photoUrl)}" alt="${esc(personnelDisplayName(member))}" />` : esc(personnelInitials(member));
+  }
   document.querySelectorAll('[name="personnel_qualifiers"]').forEach(input => {
     input.checked = (member.qualifiers || []).includes(input.value);
   });
@@ -1500,11 +1552,23 @@ function setPersonnelForm(member = {}) {
   });
 }
 
-function personnelRecordFromForm(formData, existingRecord = {}) {
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function personnelRecordFromForm(formData, existingRecord = {}) {
   const record = {};
   personnelFileFields.forEach(([key]) => {
     record[key] = formData.get(`personnel_${key}`) || '';
   });
+  const photoFile = formData.get('personnel_photoFile');
+  record.photoUrl = String(formData.get('personnel_photoUrl') || existingRecord.photoUrl || '').trim();
+  if (photoFile && photoFile.size) record.photoUrl = await fileToDataUrl(photoFile);
   record.email = String(record.email || '').trim().toLowerCase();
   record.employeeId = String(formData.get('personnel_employeeId') || record.agencyPersonnelId || existingRecord.employeeId || '').trim();
   record.agencyPersonnelId = String(record.agencyPersonnelId || record.employeeId || '').trim();
@@ -1659,6 +1723,8 @@ workspace.addEventListener('click', event => {
   if (hubSignOutButton) return signOut();
   const addTrainingButton = event.target.closest('[data-add-training]');
   if (addTrainingButton) return openGenericModal('training');
+  const personnelCardButton = event.target.closest('[data-view-personnel]');
+  if (personnelCardButton) return openPersonnelProfile(Number(personnelCardButton.dataset.viewPersonnel));
   const adminModeButton = event.target.closest('[data-admin-mode]');
   if (adminModeButton) {
     adminMode = adminModeButton.dataset.adminMode;
@@ -1781,14 +1847,37 @@ workspace.addEventListener('click', event => {
   if (apparatus) openMaintenanceModal(Number(apparatus.dataset.apparatusIndex));
 });
 
+modal.addEventListener('click', event => {
+  const adminFileButton = event.target.closest('[data-open-personnel-admin]');
+  if (!adminFileButton || !isAdminUser()) return;
+  const index = Number(adminFileButton.dataset.openPersonnelAdmin);
+  const member = data.personnel[index];
+  if (!member) return;
+  modal.close();
+  activeSection = 'admin';
+  adminMode = 'personnel-file';
+  render();
+  setPersonnelForm(member);
+  document.getElementById('personnelEditIndex').value = String(index);
+  document.getElementById('personnelSaveMessage').textContent = `Editing ${personnelDisplayName(member)}`;
+});
+
 workspace.addEventListener('change', event => {
   if (event.target.id === 'permissionPersonIndex') {
     permissionEditIndex = Number(event.target.value || 0);
     renderAdmin();
   }
+  if (event.target.id === 'personnel_photoFile') {
+    const file = event.target.files?.[0];
+    const preview = document.getElementById('personnelPhotoPreview');
+    if (!file || !preview) return;
+    fileToDataUrl(file).then(result => {
+      preview.innerHTML = `<img src="${esc(result)}" alt="Personnel photo preview" />`;
+    });
+  }
 });
 
-workspace.addEventListener('submit', event => {
+workspace.addEventListener('submit', async event => {
   if (event.target.id === 'builderPageForm') {
     event.preventDefault();
     const formData = new FormData(event.target);
@@ -1901,7 +1990,7 @@ workspace.addEventListener('submit', event => {
     const indexValue = formData.get('personnelEditIndex');
     const message = document.getElementById('personnelSaveMessage');
     const existingRecord = indexValue === '' ? null : data.personnel[Number(indexValue)];
-    const record = personnelRecordFromForm(formData, existingRecord || {});
+    const record = await personnelRecordFromForm(formData, existingRecord || {});
     const employeeId = record.employeeId;
     const email = record.email;
     const password = record.password;
