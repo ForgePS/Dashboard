@@ -94,10 +94,12 @@ const schemas = {
     ['certifications', 'Certifications / Notes', 'textarea']
   ],
   training: [
-    ['course', 'Course'], ['date', 'Date', 'date'], ['instructor', 'Instructor'], ['hours', 'Hours', 'number'],
-    ['category', 'Category', 'select', ['Fire', 'EMS', 'Driver', 'Officer', 'Hazmat', 'Technical Rescue']],
-    ['members', 'Members'], ['status', 'Status', 'select', ['Scheduled', 'Completed', 'Needs Documentation']],
-    ['notes', 'Notes', 'textarea']
+    ['course', 'Class / Certification Name'], ['date', 'Start Date', 'date'], ['endDate', 'End Date', 'date'],
+    ['instructor', 'Instructor'], ['hours', 'Hours', 'number'],
+    ['category', 'Category', 'select', ['Fire', 'EMS', 'Driver', 'Officer', 'Hazmat', 'Technical Rescue', 'ISO', 'LMS']],
+    ['members', 'Attendees / Assigned Members'], ['completion', 'Completion %', 'number'],
+    ['expirationDate', 'Expiration Date', 'date'], ['status', 'Status', 'select', ['Scheduled', 'In Progress', 'Completed', 'Overdue', 'Needs Documentation', 'Expired']],
+    ['notes', 'Objectives / Notes', 'textarea']
   ],
   preplans: [
     ['occupancy', 'Occupancy'], ['address', 'Address'], ['contact', 'Contact'], ['phone', 'Phone'],
@@ -145,7 +147,10 @@ const seed = {
     { name: 'Battalion 100', rank: 'Battalion Chief', employeeId: '100', station: 'Station 1', shift: 'Day Staff', phone: '', email: 'admin@hornlakefire.com', password: '100', status: 'Active', adminAccess: 'Yes', certifications: 'Command, Fire Officer' }
   ],
   training: [
-    { course: 'Driver Operator Review', date: '2026-06-04', instructor: 'Training Officer', hours: '2', category: 'Driver', members: 'Engine companies', status: 'Scheduled', notes: '' }
+    { course: 'Hose Drills', date: '2026-06-12', endDate: '2026-06-12', instructor: 'Training Officer', hours: '2', category: 'Fire', members: 'A Shift', completion: '0', expirationDate: '', status: 'Scheduled', notes: 'Company-level hose deployment and advancement.' },
+    { course: 'Driver Pump Operator', date: '2026-06-18', endDate: '2026-06-18', instructor: 'Training Officer', hours: '4', category: 'Driver', members: 'Operators', completion: '78', expirationDate: '2027-06-18', status: 'In Progress', notes: 'Pump operations, positioning, and water supply.' },
+    { course: 'EMT - Basic', date: '2026-05-20', endDate: '2026-06-30', instructor: 'EMS Chief', hours: '8', category: 'EMS', members: 'EMS personnel', completion: '86', expirationDate: '2028-06-30', status: 'In Progress', notes: 'Continuing education tracking.' },
+    { course: 'Fire Officer I', date: '2026-07-01', endDate: '2026-07-01', instructor: 'Command Staff', hours: '3', category: 'Officer', members: 'Company officers', completion: '0', expirationDate: '2028-07-01', status: 'Scheduled', notes: 'Officer development module.' }
   ],
   preplans: [],
   inspections: [],
@@ -552,6 +557,7 @@ function render() {
   addRecordBtn.style.display = activeSection === 'dashboard' || activeSection === 'maintenance' || activeSection === 'admin' || activeSection === 'personnel' ? 'none' : '';
   if (activeSection === 'dashboard') return renderDashboard();
   if (activeSection === 'personnel') return renderPersonnel();
+  if (activeSection === 'training') return renderTraining();
   if (activeSection === 'hydrants') return renderHydrants();
   if (activeSection === 'maintenance') return renderMaintenance();
   if (activeSection === 'admin') return renderAdmin();
@@ -709,6 +715,148 @@ function renderPersonnel() {
       `).join('') || emptyPanel('personnel')}
     </section>
   `;
+}
+
+function renderTraining() {
+  const records = filterRecords(data.training || []);
+  const overdue = records.filter(item => trainingStatus(item) === 'Overdue').length;
+  const inProgress = records.filter(item => trainingStatus(item) === 'In Progress').length;
+  const completedHours = records
+    .filter(item => trainingStatus(item) === 'Completed')
+    .reduce((sum, item) => sum + Number(item.hours || 0), 0);
+  const averageCompletion = records.length
+    ? Math.round(records.reduce((sum, item) => sum + trainingCompletion(item), 0) / records.length)
+    : 0;
+
+  renderStats([
+    { label: 'Training Records', value: records.length },
+    { label: 'In Progress', value: inProgress },
+    { label: 'Overdue', value: overdue },
+    { label: 'Completed Hours', value: completedHours }
+  ]);
+
+  const upcomingClasses = records
+    .filter(item => ['Scheduled', 'Overdue', 'Needs Documentation'].includes(trainingStatus(item)))
+    .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
+    .slice(0, 6);
+  const activeCerts = records
+    .filter(item => item.expirationDate || ['In Progress', 'Completed', 'Expired'].includes(trainingStatus(item)))
+    .sort((a, b) => trainingCompletion(b) - trainingCompletion(a))
+    .slice(0, 6);
+  const certProgress = records
+    .filter(item => trainingStatus(item) === 'In Progress')
+    .sort((a, b) => String(a.endDate || '').localeCompare(String(b.endDate || '')))
+    .slice(0, 6);
+  const complianceQueue = records
+    .filter(item => ['Overdue', 'Needs Documentation', 'Expired'].includes(trainingStatus(item)))
+    .sort((a, b) => String(a.endDate || a.expirationDate || '').localeCompare(String(b.endDate || b.expirationDate || '')))
+    .slice(0, 6);
+
+  workspace.innerHTML = `
+    <section class="training-hero panel">
+      <div>
+        <span>Training Hub</span>
+        <h2>Department Training Dashboard</h2>
+        <p class="muted">Manage upcoming classes, certifications, compliance items, and completion progress from one page.</p>
+      </div>
+      <div class="training-hero-actions">
+        <div class="training-score">
+          <small>Average Completion</small>
+          <strong>${averageCompletion}%</strong>
+        </div>
+        <button class="primary" type="button" data-add-training>Add Training</button>
+      </div>
+    </section>
+    <section class="training-dashboard-grid">
+      ${trainingTableCard('Active And Upcoming Classes', upcomingClasses, ['Class Name', 'Status', 'Start Date', 'Completion', 'Actions'], item => `
+        <td><strong>${esc(item.course || 'Training')}</strong><small>${esc(item.category || '')}</small></td>
+        <td>${trainingStatusPill(item)}</td>
+        <td>${esc(formatDate(item.date))}</td>
+        <td>${trainingProgress(item)}</td>
+        <td>${trainingActionButton(item)}</td>
+      `)}
+      ${trainingTableCard('My Active Certifications', activeCerts, ['Certification Name', 'Progress', 'Expiration Date', 'Actions'], item => `
+        <td><strong>${esc(item.course || 'Certification')}</strong><small>${esc(item.instructor || '')}</small></td>
+        <td>${trainingProgress(item)}</td>
+        <td>${esc(formatDate(item.expirationDate))}</td>
+        <td>${trainingActionButton(item)}</td>
+      `)}
+      ${trainingTableCard('Certifications In Progress', certProgress, ['Class Name', 'End Date', 'Attendee(s)', 'Actions'], item => `
+        <td><strong>${esc(item.course || 'Class')}</strong><small>${esc(item.category || '')}</small></td>
+        <td>${esc(formatDate(item.endDate))}</td>
+        <td>${esc(item.members || '--')}</td>
+        <td>${trainingActionButton(item)}</td>
+      `)}
+      ${trainingTableCard('Compliance And Documentation Queue', complianceQueue, ['Class Name', 'Status', 'Due Date', 'Actions'], item => `
+        <td><strong>${esc(item.course || 'Requirement')}</strong><small>${esc(item.members || '')}</small></td>
+        <td>${trainingStatusPill(item)}</td>
+        <td>${esc(formatDate(item.endDate || item.expirationDate || item.date))}</td>
+        <td>${trainingActionButton(item)}</td>
+      `)}
+    </section>
+  `;
+}
+
+function trainingTableCard(titleText, rows, headings, rowHtml) {
+  return `
+    <article class="training-card">
+      <header>
+        <h3>${esc(titleText)}</h3>
+        <button class="icon-button" type="button" data-add-training title="Add training record">+</button>
+      </header>
+      <div class="training-table-wrap">
+        <table class="training-table">
+          <thead><tr>${headings.map(heading => `<th>${esc(heading)}</th>`).join('')}</tr></thead>
+          <tbody>
+            ${rows.map((item) => `<tr>${rowHtml(item)}</tr>`).join('') || `<tr><td colspan="${headings.length}"><p class="muted">No records to show.</p></td></tr>`}
+          </tbody>
+        </table>
+      </div>
+      <footer><span>Show:</span><button type="button">20</button><button type="button">50</button><button type="button">All</button></footer>
+    </article>
+  `;
+}
+
+function trainingCompletion(item) {
+  if (item.status === 'Completed') return 100;
+  return Math.max(0, Math.min(100, Number(item.completion || 0)));
+}
+
+function trainingStatus(item) {
+  const status = item.status || 'Scheduled';
+  const today = new Date().toISOString().slice(0, 10);
+  if (status === 'Completed') return 'Completed';
+  if (status === 'Expired') return 'Expired';
+  if ((item.endDate && item.endDate < today || item.expirationDate && item.expirationDate < today) && status !== 'Completed') return 'Overdue';
+  return status;
+}
+
+function trainingStatusPill(item) {
+  const status = trainingStatus(item);
+  const color = /complete/i.test(status) ? 'green' : /overdue|expired|needs/i.test(status) ? 'red' : /progress/i.test(status) ? 'amber' : 'blue';
+  return `<span class="pill ${color}">${esc(status)}</span>`;
+}
+
+function trainingProgress(item) {
+  const value = trainingCompletion(item);
+  return `
+    <div class="training-progress">
+      <span><i style="width:${value}%"></i></span>
+      <small>${value}%</small>
+    </div>
+  `;
+}
+
+function trainingActionButton(item) {
+  const index = data.training.indexOf(item);
+  return `<button class="small-button training-go-button" type="button" data-edit-section="training" data-edit-index="${index}">Go to Class</button>`;
+}
+
+function formatDate(value) {
+  if (!value) return '--';
+  const parts = String(value).split('-');
+  if (parts.length !== 3) return value;
+  return `${parts[1]}/${parts[2]}/${parts[0]}`;
 }
 
 function renderRecords(sectionId) {
@@ -1305,6 +1453,8 @@ nav.addEventListener('click', event => {
 workspace.addEventListener('click', event => {
   const jumpButton = event.target.closest('[data-jump-section]');
   if (jumpButton) return setSection(jumpButton.dataset.jumpSection);
+  const addTrainingButton = event.target.closest('[data-add-training]');
+  if (addTrainingButton) return openGenericModal('training');
   const adminModeButton = event.target.closest('[data-admin-mode]');
   if (adminModeButton) {
     adminMode = adminModeButton.dataset.adminMode;
