@@ -172,6 +172,7 @@ let adminMode = 'home';
 let permissionEditIndex = 0;
 let builderPageId = 'incidents';
 let builderSyncStatus = 'Local';
+let builderMessage = '';
 let dataSyncStatus = 'Loading';
 let sharedDataReady = false;
 let sharedDataSaveTimer = null;
@@ -386,6 +387,30 @@ function pageOptions() {
   return appSections().map(section => ({ id: section.id, title: section.title }));
 }
 
+function slugifyPageId(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function grantPageToAdmins(pageId) {
+  data.personnel.forEach(member => {
+    if (member.adminAccess !== 'Yes') return;
+    member.pagePermissions = Array.isArray(member.pagePermissions) ? member.pagePermissions : [];
+    if (!member.pagePermissions.includes(pageId)) member.pagePermissions.push(pageId);
+    member.pageSettings = normalizePageSettings(member);
+  });
+}
+
+function removePageFromPermissions(pageId) {
+  data.personnel.forEach(member => {
+    member.pagePermissions = (member.pagePermissions || []).filter(id => id !== pageId);
+    if (member.pageSettings && typeof member.pageSettings === 'object') delete member.pageSettings[pageId];
+  });
+}
+
 function topLevelSections() {
   const ids = new Set(appSections().map(section => section.id));
   return appSections().filter(section => !section.parentId || !ids.has(section.parentId));
@@ -428,8 +453,12 @@ async function saveSharedBuilderConfig() {
     });
     if (!response.ok) throw new Error(`Config save returned ${response.status}`);
     builderSyncStatus = 'Shared';
+    builderMessage = 'Builder saved.';
+    return true;
   } catch {
     builderSyncStatus = 'Local';
+    builderMessage = 'Builder did not save. Try again.';
+    return false;
   }
 }
 
@@ -1111,6 +1140,7 @@ function adminBuilderPage() {
     <div class="builder-grid">
       <section class="builder-panel">
         <h3>Page Menu <span class="pill blue">${esc(builderSyncStatus)}</span></h3>
+        ${builderMessage ? `<p class="form-message">${esc(builderMessage)}</p>` : ''}
         <div class="builder-page-list">
           ${appSections().map((section, index) => `
             <div class="builder-row ${section.id === builderPageId ? 'active' : ''}">
@@ -1137,8 +1167,8 @@ function adminBuilderPage() {
         </form>
         <h3>Add New Page</h3>
         <form id="builderAddPageForm" class="run-log-form">
-          ${fieldHtml('newBuilderPageId', 'Page ID')}
           ${fieldHtml('newBuilderPageTitle', 'Page Name')}
+          ${fieldHtml('newBuilderPageId', 'Page ID, optional')}
           ${fieldHtml('newBuilderPageIcon', 'Icon / Initials')}
           ${fieldHtml('newBuilderPageParent', 'Parent Page', 'select', [{ label: 'No Parent / Main Page', value: '' }, ...appSections().map(section => ({ label: section.title, value: section.id }))])}
           <div class="form-field full"><button class="primary" type="submit">Add Page & Sync</button></div>
@@ -1559,7 +1589,10 @@ workspace.addEventListener('click', event => {
     const [page] = pages.splice(index, 1);
     pages.splice(nextIndex, 0, page);
     saveData();
-    saveSharedBuilderConfig();
+    saveSharedBuilderConfig().then(() => {
+      renderAdmin();
+      renderNav();
+    });
     renderAdmin();
     renderNav();
     return;
@@ -1570,7 +1603,7 @@ workspace.addEventListener('click', event => {
     fields.splice(Number(builderRemoveField.dataset.builderRemoveField), 1);
     data.builder.schemas[builderPageId] = fields;
     saveData();
-    saveSharedBuilderConfig();
+    saveSharedBuilderConfig().then(renderAdmin);
     renderAdmin();
     return;
   }
@@ -1586,9 +1619,13 @@ workspace.addEventListener('click', event => {
       .map(section => section.parentId === pageId ? { ...section, parentId: '' } : section);
     delete data.builder.schemas[pageId];
     delete data[pageId];
+    removePageFromPermissions(pageId);
     builderPageId = data.builder.sections.find(section => section.id !== 'dashboard' && section.id !== 'admin')?.id || 'dashboard';
     saveData();
-    saveSharedBuilderConfig();
+    saveSharedBuilderConfig().then(() => {
+      renderAdmin();
+      renderNav();
+    });
     renderAdmin();
     renderNav();
     return;
@@ -1659,7 +1696,10 @@ workspace.addEventListener('submit', event => {
     page.icon = String(formData.get('builderPageIcon') || page.icon).trim().slice(0, 3).toUpperCase() || page.icon;
     page.parentId = String(formData.get('builderPageParent') || '');
     saveData();
-    saveSharedBuilderConfig();
+    saveSharedBuilderConfig().then(() => {
+      renderAdmin();
+      renderNav();
+    });
     renderAdmin();
     renderNav();
     return;
@@ -1667,17 +1707,31 @@ workspace.addEventListener('submit', event => {
   if (event.target.id === 'builderAddPageForm') {
     event.preventDefault();
     const formData = new FormData(event.target);
-    const id = String(formData.get('newBuilderPageId') || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
     const titleText = String(formData.get('newBuilderPageTitle') || '').trim();
+    let id = slugifyPageId(formData.get('newBuilderPageId') || titleText);
     const icon = String(formData.get('newBuilderPageIcon') || id.slice(0, 2) || 'PG').trim().slice(0, 3).toUpperCase();
     const parentId = String(formData.get('newBuilderPageParent') || '');
-    if (!id || !titleText || data.builder.sections.some(section => section.id === id)) return;
+    if (!titleText) {
+      builderMessage = 'Enter a page name first.';
+      renderAdmin();
+      return;
+    }
+    if (!id) id = slugifyPageId(titleText);
+    if (data.builder.sections.some(section => section.id === id)) {
+      builderMessage = 'That page already exists.';
+      renderAdmin();
+      return;
+    }
     data.builder.sections.splice(Math.max(data.builder.sections.length - 1, 0), 0, { id, title: titleText, icon, parentId });
     data.builder.schemas[id] = [];
     data[id] = data[id] || [];
+    grantPageToAdmins(id);
     builderPageId = id;
     saveData();
-    saveSharedBuilderConfig();
+    saveSharedBuilderConfig().then(() => {
+      renderAdmin();
+      renderNav();
+    });
     renderAdmin();
     renderNav();
     return;
@@ -1693,7 +1747,7 @@ workspace.addEventListener('submit', event => {
     data.builder.schemas[builderPageId] = data.builder.schemas[builderPageId] || [];
     data.builder.schemas[builderPageId].push([key, label, type, type === 'select' ? options : []]);
     saveData();
-    saveSharedBuilderConfig();
+    saveSharedBuilderConfig().then(renderAdmin);
     renderAdmin();
     return;
   }
@@ -1709,7 +1763,7 @@ workspace.addEventListener('submit', event => {
       return [key, label, type, type === 'select' ? options : []];
     }).filter(field => field[0] && field[1]);
     saveData();
-    saveSharedBuilderConfig();
+    saveSharedBuilderConfig().then(renderAdmin);
     renderAdmin();
     return;
   }
