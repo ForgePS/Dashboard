@@ -3399,6 +3399,7 @@ function normalizeRmsBuilderConfig(input = {}) {
       id: String(section.id || '').trim(),
       icon: String(section.icon || 'PG').trim().slice(0, 3).toUpperCase(),
       title: String(section.title || section.id || '').trim(),
+      parentId: String(section.parentId || '').trim(),
     })).filter((section) => section.id && section.title)
     : [];
   const schemas = input.schemas && typeof input.schemas === 'object' ? input.schemas : {};

@@ -181,6 +181,20 @@ button {
   box-shadow: 0 14px 26px rgba(213, 32, 45, .24);
 }
 
+.nav-sub-button {
+  width: calc(100% - 18px);
+  margin-left: 18px;
+  min-height: 38px;
+  grid-template-columns: 26px 1fr;
+  color: #b9c7d8;
+}
+
+.nav-sub-button .nav-icon {
+  width: 23px;
+  height: 23px;
+  font-size: 10px;
+}
+
 .nav-icon {
   width: 28px;
   height: 28px;

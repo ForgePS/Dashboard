@@ -253,7 +253,12 @@ function normalizeBuilder(builder = {}) {
   const builderSections = Array.isArray(builder.sections) && builder.sections.length ? builder.sections : defaultSections;
   const builderSchemas = builder.schemas && typeof builder.schemas === 'object' ? builder.schemas : defaultSchemas;
   return {
-    sections: builderSections.map(section => ({ id: section.id, icon: section.icon || 'PG', title: section.title || section.id })),
+    sections: builderSections.map(section => ({
+      id: section.id,
+      icon: section.icon || 'PG',
+      title: section.title || section.id,
+      parentId: section.parentId || ''
+    })),
     schemas: Object.fromEntries(Object.entries({ ...defaultSchemas, ...builderSchemas }).map(([key, fields]) => [
       key,
       Array.isArray(fields) ? fields.map(normalizeBuilderField) : []
@@ -365,6 +370,15 @@ function appSchemas() {
 
 function pageOptions() {
   return appSections().map(section => ({ id: section.id, title: section.title }));
+}
+
+function topLevelSections() {
+  const ids = new Set(appSections().map(section => section.id));
+  return appSections().filter(section => !section.parentId || !ids.has(section.parentId));
+}
+
+function childSections(parentId) {
+  return appSections().filter(section => section.parentId === parentId);
 }
 
 function saveData() {
@@ -481,11 +495,18 @@ function fuelCost(item) {
 }
 
 function renderNav() {
-  nav.innerHTML = visibleSections().map(section => `
+  const visibleIds = new Set(visibleSections().map(section => section.id));
+  nav.innerHTML = topLevelSections().filter(section => visibleIds.has(section.id)).map(section => `
     <button class="nav-button ${section.id === activeSection ? 'active' : ''}" data-section="${section.id}" type="button">
       <span class="nav-icon">${section.icon}</span>
       <span>${section.title}</span>
     </button>
+    ${childSections(section.id).filter(child => visibleIds.has(child.id)).map(child => `
+      <button class="nav-button nav-sub-button ${child.id === activeSection ? 'active' : ''}" data-section="${child.id}" type="button">
+        <span class="nav-icon">${child.icon}</span>
+        <span>${child.title}</span>
+      </button>
+    `).join('')}
   `).join('');
 }
 
@@ -836,33 +857,36 @@ function adminPage(mode, context) {
 }
 
 function adminSettingsTree() {
+  const renderSettingsNode = (section) => `
+    <details class="admin-settings-node">
+      <summary>
+        <span class="nav-icon">${esc(section.icon)}</span>
+        <strong>${esc(section.title)}</strong>
+        <em>${section.id === 'admin' ? 'Access controls' : childSections(section.id).length ? `${childSections(section.id).length} subpages` : 'Page settings'}</em>
+      </summary>
+      ${section.id === 'admin' ? `
+        <div class="admin-settings-children">
+          <details class="admin-settings-node nested">
+            <summary>
+              <span class="nav-icon">PG</span>
+              <strong>Page Permissions</strong>
+              <em>Select personnel, edit access, save</em>
+            </summary>
+            <div class="admin-settings-content">${adminPermissionsPage()}</div>
+          </details>
+          ${childSections(section.id).map(child => renderSettingsNode(child)).join('')}
+        </div>
+      ` : `
+        <div class="admin-settings-content">
+          <p class="muted">${esc(section.title)} settings can be added here as this RMS module grows.</p>
+          ${childSections(section.id).length ? `<div class="admin-settings-children">${childSections(section.id).map(child => renderSettingsNode(child)).join('')}</div>` : ''}
+        </div>
+      `}
+    </details>
+  `;
   return `
     <div class="admin-settings-tree">
-      ${appSections().map(section => `
-        <details class="admin-settings-node">
-          <summary>
-            <span class="nav-icon">${esc(section.icon)}</span>
-            <strong>${esc(section.title)}</strong>
-            <em>${section.id === 'admin' ? 'Access controls' : 'Page settings'}</em>
-          </summary>
-          ${section.id === 'admin' ? `
-            <div class="admin-settings-children">
-              <details class="admin-settings-node nested">
-                <summary>
-                  <span class="nav-icon">PG</span>
-                  <strong>Page Permissions</strong>
-                  <em>Select personnel, edit access, save</em>
-                </summary>
-                <div class="admin-settings-content">${adminPermissionsPage()}</div>
-              </details>
-            </div>
-          ` : `
-            <div class="admin-settings-content">
-              <p class="muted">${esc(section.title)} settings can be added here as this RMS module grows.</p>
-            </div>
-          `}
-        </details>
-      `).join('')}
+      ${topLevelSections().map(section => renderSettingsNode(section)).join('')}
     </div>
   `;
 }
@@ -871,6 +895,9 @@ function adminBuilderPage() {
   if (!appSections().some(section => section.id === builderPageId)) builderPageId = appSections().find(section => section.id !== 'dashboard' && section.id !== 'admin')?.id || 'incidents';
   const selectedSection = appSections().find(section => section.id === builderPageId) || appSections()[0];
   const fields = appSchemas()[selectedSection.id] || [];
+  const parentOptions = [{ label: 'No Parent / Main Page', value: '' }, ...appSections()
+    .filter(section => section.id !== selectedSection.id)
+    .map(section => ({ label: section.title, value: section.id }))];
   return `
     <div class="builder-grid">
       <section class="builder-panel">
@@ -893,6 +920,7 @@ function adminBuilderPage() {
           <input type="hidden" name="builderPageId" value="${esc(selectedSection.id)}" />
           ${fieldHtml('builderPageTitle', 'Page Name', 'text', [], selectedSection.title)}
           ${fieldHtml('builderPageIcon', 'Menu Icon / Initials', 'text', [], selectedSection.icon)}
+          ${fieldHtml('builderPageParent', 'Parent Page', 'select', parentOptions, selectedSection.parentId || '')}
           <div class="form-field full"><button class="primary" type="submit">Save Page & Sync</button></div>
         </form>
         <h3>Add New Page</h3>
@@ -900,6 +928,7 @@ function adminBuilderPage() {
           ${fieldHtml('newBuilderPageId', 'Page ID')}
           ${fieldHtml('newBuilderPageTitle', 'Page Name')}
           ${fieldHtml('newBuilderPageIcon', 'Icon / Initials')}
+          ${fieldHtml('newBuilderPageParent', 'Parent Page', 'select', [{ label: 'No Parent / Main Page', value: '' }, ...appSections().map(section => ({ label: section.title, value: section.id }))])}
           <div class="form-field full"><button class="primary" type="submit">Add Page & Sync</button></div>
         </form>
       </section>
@@ -1388,6 +1417,7 @@ workspace.addEventListener('submit', event => {
     if (!page) return;
     page.title = String(formData.get('builderPageTitle') || page.title).trim() || page.title;
     page.icon = String(formData.get('builderPageIcon') || page.icon).trim().slice(0, 3).toUpperCase() || page.icon;
+    page.parentId = String(formData.get('builderPageParent') || '');
     saveData();
     saveSharedBuilderConfig();
     renderAdmin();
@@ -1400,8 +1430,9 @@ workspace.addEventListener('submit', event => {
     const id = String(formData.get('newBuilderPageId') || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
     const titleText = String(formData.get('newBuilderPageTitle') || '').trim();
     const icon = String(formData.get('newBuilderPageIcon') || id.slice(0, 2) || 'PG').trim().slice(0, 3).toUpperCase();
+    const parentId = String(formData.get('newBuilderPageParent') || '');
     if (!id || !titleText || data.builder.sections.some(section => section.id === id)) return;
-    data.builder.sections.splice(Math.max(data.builder.sections.length - 1, 0), 0, { id, title: titleText, icon });
+    data.builder.sections.splice(Math.max(data.builder.sections.length - 1, 0), 0, { id, title: titleText, icon, parentId });
     data.builder.schemas[id] = [];
     data[id] = data[id] || [];
     builderPageId = id;
