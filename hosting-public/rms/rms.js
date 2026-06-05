@@ -610,7 +610,13 @@ function fuelCost(item) {
 
 function renderNav() {
   const visibleIds = new Set(visibleSections().map(section => section.id));
-  nav.innerHTML = topLevelSections().filter(section => visibleIds.has(section.id)).map(section => `
+  const hubButton = `
+    <button class="nav-button ${activeSection === 'hub' ? 'active' : ''}" data-section="hub" type="button">
+      <span class="nav-icon">MH</span>
+      <span>Main Hub</span>
+    </button>
+  `;
+  nav.innerHTML = hubButton + topLevelSections().filter(section => visibleIds.has(section.id)).map(section => `
     <button class="nav-button ${section.id === activeSection ? 'active' : ''}" data-section="${section.id}" type="button">
       <span class="nav-icon">${section.icon}</span>
       <span>${section.title}</span>
@@ -687,6 +693,7 @@ function render() {
 
 function renderRmsHub() {
   const currentPages = topLevelSections().filter(section => canViewSection(section.id));
+  const userLabel = `Welcome ${personnelDisplayName(currentUser())}`;
   const futurePages = [
     { id: 'dispatch', icon: 'DS', title: 'Dispatch', detail: 'CAD and unit status workspace' },
     { id: 'documents', icon: 'DC', title: 'Documents', detail: 'Policies, files, and attachments' },
@@ -702,7 +709,10 @@ function renderRmsHub() {
           <h1>Main Hub</h1>
           <p class="muted">Choose a workspace to open.</p>
         </div>
-        <button class="secondary" id="hubSignOutBtn" type="button">Sign Out</button>
+        <div class="hub-actions">
+          <span class="user-badge">${esc(userLabel)}</span>
+          <button class="secondary" id="hubSignOutBtn" type="button">Sign Out</button>
+        </div>
       </header>
       <div class="hub-card-grid">
         ${currentPages.map(section => hubPageCard(section, false)).join('')}

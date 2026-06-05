@@ -490,6 +490,13 @@ textarea {
   border-color: rgba(255, 255, 255, .14);
 }
 
+.hub-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
 .hub-card-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
