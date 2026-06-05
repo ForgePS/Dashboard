@@ -15,7 +15,9 @@ const sections = [
   { id: 'admin', icon: 'AD', title: 'Admin' }
 ];
 
-const pagePermissionOptions = sections.map(section => ({ id: section.id, title: section.title }));
+const defaultSections = structuredClone(sections);
+
+const pagePermissionOptions = defaultSections.map(section => ({ id: section.id, title: section.title }));
 const pageSettingOptions = [
   ['view', 'View Page'],
   ['create', 'Create Records'],
@@ -128,6 +130,8 @@ const schemas = {
   ]
 };
 
+const defaultSchemas = structuredClone(schemas);
+
 const seed = {
   apparatusList: apparatusNames,
   incidents: [
@@ -159,6 +163,7 @@ let activeSection = initialSection();
 let maintenanceMode = 'fleet';
 let adminMode = 'home';
 let permissionEditIndex = 0;
+let builderPageId = 'incidents';
 let editing = null;
 
 const signinScreen = document.getElementById('signinScreen');
@@ -219,7 +224,7 @@ function blankApparatus(name, options = {}) {
 
 function loadData() {
   const saved = localStorage.getItem(APP_KEY);
-  if (!saved) return structuredClone(seed);
+  if (!saved) return { ...structuredClone(seed), builder: normalizeBuilder() };
   try {
     const parsed = JSON.parse(saved);
     const savedMaintenance = parsed.maintenance || [];
@@ -232,13 +237,31 @@ function loadData() {
     return {
       ...structuredClone(seed),
       ...parsed,
+      builder: normalizeBuilder(parsed.builder),
       personnel: mergePersonnel(parsed.personnel),
       apparatusList: [...new Set(fleetNames)],
       maintenance: mergeMaintenance(savedMaintenance, [...new Set(fleetNames)])
     };
   } catch {
-    return structuredClone(seed);
+    return { ...structuredClone(seed), builder: normalizeBuilder() };
   }
+}
+
+function normalizeBuilder(builder = {}) {
+  const builderSections = Array.isArray(builder.sections) && builder.sections.length ? builder.sections : defaultSections;
+  const builderSchemas = builder.schemas && typeof builder.schemas === 'object' ? builder.schemas : defaultSchemas;
+  return {
+    sections: builderSections.map(section => ({ id: section.id, icon: section.icon || 'PG', title: section.title || section.id })),
+    schemas: Object.fromEntries(Object.entries({ ...defaultSchemas, ...builderSchemas }).map(([key, fields]) => [
+      key,
+      Array.isArray(fields) ? fields.map(normalizeBuilderField) : []
+    ]))
+  };
+}
+
+function normalizeBuilderField(field = []) {
+  if (Array.isArray(field)) return [field[0] || '', field[1] || field[0] || '', field[2] || 'text', Array.isArray(field[3]) ? field[3] : []];
+  return [field.key || '', field.label || field.key || '', field.type || 'text', Array.isArray(field.options) ? field.options : []];
 }
 
 function mergePersonnel(saved = seed.personnel) {
@@ -262,7 +285,7 @@ function mergePersonnel(saved = seed.personnel) {
       adminAccess: index === 0 ? 'Yes' : 'No',
       certifications: '',
       qualifiers: [],
-      pagePermissions: sections.filter(section => section.id !== 'admin').map(section => section.id),
+      pagePermissions: appSections().filter(section => section.id !== 'admin').map(section => section.id),
       pageSettings: {},
       isTrainingInstructor: 'No',
       ...member,
@@ -281,8 +304,8 @@ function mergePersonnel(saved = seed.personnel) {
     }
     if (!Array.isArray(merged.pagePermissions)) {
       merged.pagePermissions = merged.adminAccess === 'Yes'
-        ? sections.map(section => section.id)
-        : sections.filter(section => section.id !== 'admin').map(section => section.id);
+        ? appSections().map(section => section.id)
+        : appSections().filter(section => section.id !== 'admin').map(section => section.id);
     }
     if (merged.adminAccess === 'Yes' && !merged.pagePermissions.includes('admin')) merged.pagePermissions.push('admin');
     merged.pageSettings = normalizePageSettings(merged);
@@ -301,7 +324,7 @@ function normalizePageSettings(member = {}) {
   const viewPages = new Set(member.pagePermissions || []);
   viewPages.add('dashboard');
   if (member.adminAccess === 'Yes') viewPages.add('admin');
-  return Object.fromEntries(sections.map(section => {
+  return Object.fromEntries(appSections().map(section => {
     const existing = Array.isArray(source[section.id]) ? source[section.id] : [];
     const settings = new Set(existing);
     if (viewPages.has(section.id)) settings.add('view');
@@ -320,6 +343,26 @@ function mergeMaintenance(saved = [], fleetNames = apparatusNames) {
 
 function getApparatusNames() {
   return data.maintenance.map(item => item.name);
+}
+
+function appSections() {
+  try {
+    return data?.builder?.sections || defaultSections;
+  } catch {
+    return defaultSections;
+  }
+}
+
+function appSchemas() {
+  try {
+    return data?.builder?.schemas || defaultSchemas;
+  } catch {
+    return defaultSchemas;
+  }
+}
+
+function pageOptions() {
+  return appSections().map(section => ({ id: section.id, title: section.title }));
 }
 
 function saveData() {
@@ -343,7 +386,7 @@ function canViewSection(sectionId) {
 }
 
 function visibleSections() {
-  return sections.filter(section => canViewSection(section.id));
+  return appSections().filter(section => canViewSection(section.id));
 }
 
 function refreshSigninOptions() {
@@ -415,7 +458,7 @@ function setSection(id) {
   if (!canViewSection(id)) id = 'dashboard';
   if (id === 'admin' && activeSection !== 'admin') adminMode = 'home';
   activeSection = id;
-  title.textContent = sections.find(section => section.id === id)?.title || 'RMS';
+  title.textContent = appSections().find(section => section.id === id)?.title || 'RMS';
   searchInput.value = '';
   const url = new URL(window.location.href);
   if (id === 'dashboard') url.searchParams.delete('section');
@@ -427,7 +470,7 @@ function setSection(id) {
 function initialSection() {
   const params = new URLSearchParams(window.location.search);
   const requested = params.get('section');
-  return sections.some(section => section.id === requested) ? requested : 'dashboard';
+  return appSections().some(section => section.id === requested) ? requested : 'dashboard';
 }
 
 function renderStats(cards) {
@@ -443,7 +486,7 @@ function render() {
   }
   signinScreen.classList.add('hidden');
   if (!canViewSection(activeSection)) activeSection = 'dashboard';
-  title.textContent = sections.find(section => section.id === activeSection)?.title || 'RMS';
+  title.textContent = appSections().find(section => section.id === activeSection)?.title || 'RMS';
   currentUserBadge.textContent = `${currentUser().name || currentUser().employeeId}${isAdminUser() ? ' | Admin' : ''}`;
   rmsHeader.classList.toggle('hidden', activeSection === 'hydrants');
   rmsMain.classList.toggle('rms-main-full', activeSection === 'hydrants');
@@ -617,7 +660,7 @@ function renderRecords(sectionId) {
   renderStats([
     { label: 'Records', value: records.length },
     { label: 'Open', value: records.filter(item => !['Complete', 'Submitted', 'Passed', 'Current', 'Archived'].includes(item.status || item.reviewStatus)).length },
-    { label: 'This Section', value: sections.find(section => section.id === sectionId).title },
+    { label: 'This Section', value: appSections().find(section => section.id === sectionId)?.title || sectionId },
     { label: 'Saved In Browser', value: 'Yes' }
   ]);
 
@@ -655,7 +698,7 @@ function recordCard(sectionId, record, index) {
 }
 
 function emptyPanel(sectionId) {
-  return `<article class="panel wide-card"><h2>No Records Yet</h2><p class="muted">${esc(sections.find(section => section.id === sectionId).title)} records will appear here when they are added.</p></article>`;
+  return `<article class="panel wide-card"><h2>No Records Yet</h2><p class="muted">${esc(appSections().find(section => section.id === sectionId)?.title || sectionId)} records will appear here when they are added.</p></article>`;
 }
 
 function renderMaintenance() {
@@ -705,6 +748,7 @@ function renderAdmin() {
 
   workspace.innerHTML = `
     <div class="admin-launch-grid">
+      ${adminLaunchCard('rms-builder', 'Builder', 'RMS Builder', appSections().length, 'Add pages, edit menu labels, reorder pages, and build page fields without code.')}
       ${adminLaunchCard('personnel-file', 'Personnel', 'Personnel File', data.personnel.length, 'Create and edit full personnel files, login access, page permissions, and qualifiers.')}
       ${adminLaunchCard('apparatus-setup', 'Fleet', 'Apparatus Setup', '+', 'Add new apparatus to the RMS fleet and assign default details.')}
       ${adminLaunchCard('apparatus-list', 'Fleet', 'Current Apparatus', data.maintenance.length, 'Review and remove apparatus from the RMS fleet list.')}
@@ -715,7 +759,7 @@ function renderAdmin() {
     <section class="admin-settings-panel">
       <header class="admin-card-head">
         <div><span>Settings</span><h2>RMS Page Settings Tree</h2></div>
-        <b>${sections.length}</b>
+        <b>${appSections().length}</b>
       </header>
       <div class="admin-page-body">${adminSettingsTree()}</div>
     </section>
@@ -735,6 +779,7 @@ function adminLaunchCard(mode, label, titleText, count, detail) {
 
 function adminPage(mode, context) {
   const pages = {
+    'rms-builder': ['Builder', 'RMS Builder', appSections().length, adminBuilderPage()],
     'personnel-file': ['Personnel', 'Personnel File', data.personnel.length, adminPersonnelFile()],
     'apparatus-setup': ['Fleet', 'Apparatus Setup', '+', adminApparatusSetup()],
     'apparatus-list': ['Fleet', 'Current Apparatus', data.maintenance.length, adminApparatusList()],
@@ -758,7 +803,7 @@ function adminPage(mode, context) {
 function adminSettingsTree() {
   return `
     <div class="admin-settings-tree">
-      ${sections.map(section => `
+      ${appSections().map(section => `
         <details class="admin-settings-node">
           <summary>
             <span class="nav-icon">${esc(section.icon)}</span>
@@ -787,6 +832,65 @@ function adminSettingsTree() {
   `;
 }
 
+function adminBuilderPage() {
+  if (!appSections().some(section => section.id === builderPageId)) builderPageId = appSections().find(section => section.id !== 'dashboard' && section.id !== 'admin')?.id || 'incidents';
+  const selectedSection = appSections().find(section => section.id === builderPageId) || appSections()[0];
+  const fields = appSchemas()[selectedSection.id] || [];
+  return `
+    <div class="builder-grid">
+      <section class="builder-panel">
+        <h3>Page Menu</h3>
+        <div class="builder-page-list">
+          ${appSections().map((section, index) => `
+            <div class="builder-row ${section.id === builderPageId ? 'active' : ''}">
+              <button class="small-button" data-builder-select-page="${esc(section.id)}" type="button">${esc(section.icon)} ${esc(section.title)}</button>
+              <div class="builder-row-actions">
+                <button class="small-button" data-builder-move-page="${index}" data-builder-direction="-1" type="button">Up</button>
+                <button class="small-button" data-builder-move-page="${index}" data-builder-direction="1" type="button">Down</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </section>
+      <section class="builder-panel">
+        <h3>Edit Selected Page</h3>
+        <form id="builderPageForm" class="run-log-form">
+          <input type="hidden" name="builderPageId" value="${esc(selectedSection.id)}" />
+          ${fieldHtml('builderPageTitle', 'Page Name', 'text', [], selectedSection.title)}
+          ${fieldHtml('builderPageIcon', 'Menu Icon / Initials', 'text', [], selectedSection.icon)}
+          <div class="form-field full"><button class="primary" type="submit">Save Page</button></div>
+        </form>
+        <h3>Add New Page</h3>
+        <form id="builderAddPageForm" class="run-log-form">
+          ${fieldHtml('newBuilderPageId', 'Page ID')}
+          ${fieldHtml('newBuilderPageTitle', 'Page Name')}
+          ${fieldHtml('newBuilderPageIcon', 'Icon / Initials')}
+          <div class="form-field full"><button class="primary" type="submit">Add Page</button></div>
+        </form>
+      </section>
+      <section class="builder-panel builder-panel-wide">
+        <h3>${esc(selectedSection.title)} Fields</h3>
+        <div class="builder-field-list">
+          ${fields.map((field, index) => `
+            <div class="builder-field-row">
+              <strong>${esc(field[1])}</strong>
+              <small>${esc(field[0])} | ${esc(field[2] || 'text')}${field[3]?.length ? ` | ${esc(field[3].join(', '))}` : ''}</small>
+              <button class="danger-button" data-builder-remove-field="${index}" type="button">Remove</button>
+            </div>
+          `).join('') || '<p class="muted">No fields yet.</p>'}
+        </div>
+        <form id="builderFieldForm" class="run-log-form">
+          ${fieldHtml('builderFieldKey', 'Field Key')}
+          ${fieldHtml('builderFieldLabel', 'Field Label')}
+          ${fieldHtml('builderFieldType', 'Field Type', 'select', ['text', 'number', 'date', 'email', 'tel', 'select', 'textarea'])}
+          ${fieldHtml('builderFieldOptions', 'Dropdown Options, comma separated')}
+          <div class="form-field full"><button class="primary" type="submit">Add Field</button></div>
+        </form>
+      </section>
+    </div>
+  `;
+}
+
 function adminPersonnelFile() {
   return `
     <form id="personnelAdminForm" class="personnel-file-form">
@@ -794,7 +898,7 @@ function adminPersonnelFile() {
       ${fieldHtml('personnel_employeeId', 'Employee ID / Login ID')}
       ${fieldHtml('personnel_password', 'Password')}
       ${fieldHtml('personnel_adminAccess', 'Admin Access', 'select', ['No', 'Yes'])}
-      <div class="form-field full"><label>Page Permissions</label><div class="check-grid permission-grid">${pagePermissionOptions.map(page => `<label><input type="checkbox" name="personnel_pagePermissions" value="${esc(page.id)}">${esc(page.title)}</label>`).join('')}</div></div>
+      <div class="form-field full"><label>Page Permissions</label><div class="check-grid permission-grid">${pageOptions().map(page => `<label><input type="checkbox" name="personnel_pagePermissions" value="${esc(page.id)}">${esc(page.title)}</label>`).join('')}</div></div>
       <div class="form-field full"><label>Qualifiers</label><div class="check-grid qualifier-grid">${personnelQualifiers.map(qualifier => `<label><input type="checkbox" name="personnel_qualifiers" value="${esc(qualifier)}">${esc(qualifier)}</label>`).join('')}</div></div>
       <div class="form-field"><label for="personnel_isTrainingInstructor">Is Training Instructor</label><select id="personnel_isTrainingInstructor" name="personnel_isTrainingInstructor"><option>No</option><option>Yes</option></select></div>
       ${fieldHtml('personnel_certifications', 'Certifications / Notes', 'textarea')}
@@ -827,7 +931,7 @@ function adminPermissionsPage() {
         </div>
       </div>
       <div class="permission-tree">
-        ${sections.map((section, index) => {
+        ${appSections().map((section, index) => {
           const pageSettings = settings[section.id] || [];
           const lockedView = section.id === 'dashboard' || member.adminAccess === 'Yes' && section.id === 'admin';
           return `
@@ -935,9 +1039,9 @@ function apparatusCard(item, index) {
 
 function openGenericModal(sectionId, index = null) {
   editing = { sectionId, index };
-  const schema = schemas[sectionId];
+  const schema = appSchemas()[sectionId] || [];
   const record = index === null ? {} : data[sectionId][index];
-  modalSection.textContent = sections.find(section => section.id === sectionId).title;
+  modalSection.textContent = appSections().find(section => section.id === sectionId)?.title || sectionId;
   modalTitle.textContent = index === null ? 'Add Record' : 'Edit Record';
   modalFields.innerHTML = schema.map(([key, label, type = 'text', options = []]) => fieldHtml(key, label, type, options, record[key])).join('');
   modal.showModal();
@@ -1075,9 +1179,10 @@ function partsFields(item) {
 
 function saveGenericRecord(formData) {
   const { sectionId, index } = editing;
-  const schema = schemas[sectionId];
+  const schema = appSchemas()[sectionId] || [];
   const record = {};
   schema.forEach(([key]) => record[key] = formData.get(key) || '');
+  data[sectionId] = data[sectionId] || [];
   if (index === null) data[sectionId].push(record);
   else data[sectionId][index] = record;
 }
@@ -1153,6 +1258,35 @@ workspace.addEventListener('click', event => {
     document.getElementById('personnelSaveMessage').textContent = `Editing ${personnelDisplayName(member)}`;
     return;
   }
+  const builderSelectPage = event.target.closest('[data-builder-select-page]');
+  if (builderSelectPage) {
+    builderPageId = builderSelectPage.dataset.builderSelectPage;
+    renderAdmin();
+    return;
+  }
+  const builderMovePage = event.target.closest('[data-builder-move-page]');
+  if (builderMovePage) {
+    const index = Number(builderMovePage.dataset.builderMovePage);
+    const direction = Number(builderMovePage.dataset.builderDirection);
+    const nextIndex = index + direction;
+    const pages = data.builder.sections;
+    if (nextIndex < 0 || nextIndex >= pages.length) return;
+    const [page] = pages.splice(index, 1);
+    pages.splice(nextIndex, 0, page);
+    saveData();
+    renderAdmin();
+    renderNav();
+    return;
+  }
+  const builderRemoveField = event.target.closest('[data-builder-remove-field]');
+  if (builderRemoveField) {
+    const fields = data.builder.schemas[builderPageId] || [];
+    fields.splice(Number(builderRemoveField.dataset.builderRemoveField), 1);
+    data.builder.schemas[builderPageId] = fields;
+    saveData();
+    renderAdmin();
+    return;
+  }
   const permissionInput = event.target.closest('[data-permission-person]');
   if (permissionInput) {
     const member = data.personnel[Number(permissionInput.dataset.permissionPerson)];
@@ -1209,6 +1343,49 @@ workspace.addEventListener('change', event => {
 });
 
 workspace.addEventListener('submit', event => {
+  if (event.target.id === 'builderPageForm') {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const pageId = String(formData.get('builderPageId') || '');
+    const page = data.builder.sections.find(section => section.id === pageId);
+    if (!page) return;
+    page.title = String(formData.get('builderPageTitle') || page.title).trim() || page.title;
+    page.icon = String(formData.get('builderPageIcon') || page.icon).trim().slice(0, 3).toUpperCase() || page.icon;
+    saveData();
+    renderAdmin();
+    renderNav();
+    return;
+  }
+  if (event.target.id === 'builderAddPageForm') {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const id = String(formData.get('newBuilderPageId') || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+    const titleText = String(formData.get('newBuilderPageTitle') || '').trim();
+    const icon = String(formData.get('newBuilderPageIcon') || id.slice(0, 2) || 'PG').trim().slice(0, 3).toUpperCase();
+    if (!id || !titleText || data.builder.sections.some(section => section.id === id)) return;
+    data.builder.sections.splice(Math.max(data.builder.sections.length - 1, 0), 0, { id, title: titleText, icon });
+    data.builder.schemas[id] = [];
+    data[id] = data[id] || [];
+    builderPageId = id;
+    saveData();
+    renderAdmin();
+    renderNav();
+    return;
+  }
+  if (event.target.id === 'builderFieldForm') {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const key = String(formData.get('builderFieldKey') || '').trim().replace(/[^a-zA-Z0-9]/g, '');
+    const label = String(formData.get('builderFieldLabel') || '').trim();
+    const type = String(formData.get('builderFieldType') || 'text');
+    const options = String(formData.get('builderFieldOptions') || '').split(',').map(item => item.trim()).filter(Boolean);
+    if (!key || !label) return;
+    data.builder.schemas[builderPageId] = data.builder.schemas[builderPageId] || [];
+    data.builder.schemas[builderPageId].push([key, label, type, type === 'select' ? options : []]);
+    saveData();
+    renderAdmin();
+    return;
+  }
   if (event.target.id === 'permissionsForm') {
     event.preventDefault();
     const formData = new FormData(event.target);
@@ -1217,7 +1394,7 @@ workspace.addEventListener('submit', event => {
     if (!member) return;
     const pageSettings = {};
     const pagePermissions = new Set(['dashboard']);
-    sections.forEach(section => {
+    appSections().forEach(section => {
       const values = formData.getAll(`pageSetting_${section.id}`);
       const settings = new Set(values);
       if (section.id === 'dashboard') settings.add('view');

@@ -658,6 +658,67 @@ textarea {
   box-shadow: var(--shadow);
 }
 
+.builder-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, .75fr) minmax(360px, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.builder-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: linear-gradient(135deg, #ffffff, #f7fafc);
+}
+
+.builder-panel-wide {
+  grid-column: 1 / -1;
+}
+
+.builder-panel h3 {
+  margin: 0;
+}
+
+.builder-page-list,
+.builder-field-list {
+  display: grid;
+  gap: 8px;
+}
+
+.builder-row,
+.builder-field-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.builder-row.active {
+  border-color: rgba(213, 32, 45, .38);
+  box-shadow: inset 5px 0 0 var(--red);
+}
+
+.builder-row-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.builder-field-row strong,
+.builder-field-row small {
+  display: block;
+}
+
+.builder-field-row small {
+  color: var(--muted);
+}
+
 .link-button {
   display: inline-flex;
   align-items: center;
