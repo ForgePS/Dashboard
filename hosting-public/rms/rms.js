@@ -628,8 +628,8 @@ function renderNav() {
   const visibleIds = new Set(visibleSections().map(section => section.id));
   const hubButton = `
     <button class="nav-button ${activeSection === 'hub' ? 'active' : ''}" data-section="hub" type="button">
-      <span class="nav-icon">MH</span>
-      <span>Main Hub</span>
+      <span class="nav-icon">DB</span>
+      <span>Dashboard</span>
     </button>
   `;
   nav.innerHTML = hubButton + topLevelSections().filter(section => visibleIds.has(section.id)).map(section => `
@@ -637,7 +637,7 @@ function renderNav() {
       <span class="nav-icon">${section.icon}</span>
       <span>${section.title}</span>
     </button>
-    ${childSections(section.id).filter(child => visibleIds.has(child.id)).map(child => `
+    ${childSections(section.id).filter(child => visibleIds.has(child.id) && !(section.id === 'admin' && child.id === 'dashboard')).map(child => `
       <button class="nav-button nav-sub-button ${child.id === activeSection ? 'active' : ''}" data-section="${child.id}" type="button">
         <span class="nav-icon">${child.icon}</span>
         <span>${child.title}</span>
@@ -722,7 +722,7 @@ function renderRmsHub() {
         <img src="/horn-lake-logo.png" alt="Horn Lake Fire Department" />
         <div>
           <p class="kicker">Horn Lake Fire Department</p>
-          <h1>Main Hub</h1>
+          <h1>Dashboard</h1>
           <p class="muted">Choose a workspace to open.</p>
         </div>
         <div class="hub-actions">
