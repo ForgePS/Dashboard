@@ -326,33 +326,12 @@ textarea {
   min-width: 0;
 }
 
-.panel-headline {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
 .link-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: 40px;
   text-decoration: none;
-}
-
-.hydrant-rms-panel {
-  min-height: calc(100vh - 205px);
-}
-
-.hydrant-frame {
-  width: 100%;
-  height: calc(100vh - 285px);
-  min-height: 620px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #111a24;
 }
 
 .record-grid {
@@ -558,6 +537,14 @@ textarea {
 
 .form-field.full {
   grid-column: 1 / -1;
+}
+
+.form-message {
+  grid-column: 1 / -1;
+  margin: 0;
+  min-height: 20px;
+  color: var(--red);
+  font-weight: 800;
 }
 
 .check-grid {

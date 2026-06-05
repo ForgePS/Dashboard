@@ -411,25 +411,7 @@ function lowInventory() {
 }
 
 function renderHydrants() {
-  renderStats([
-    { label: 'Hydrant Dashboard', value: 'Live' },
-    { label: 'Status Feed', value: 'OOS' },
-    { label: 'Map', value: 'Enabled' },
-    { label: 'Source', value: 'Built Page' }
-  ]);
-
-  workspace.innerHTML = `
-    <section class="panel hydrant-rms-panel">
-      <div class="panel-headline">
-        <div>
-          <h2>Out of Service Hydrants</h2>
-          <p class="muted">Live hydrant dashboard pulled into the RMS.</p>
-        </div>
-        <a class="primary link-button" href="/hydrants/" target="_blank" rel="noopener">Open Full Page</a>
-      </div>
-      <iframe class="hydrant-frame" src="/hydrants/" title="Out of Service Hydrants"></iframe>
-    </section>
-  `;
+  window.location.href = '/hydrants/';
 }
 
 function renderPersonnel() {
@@ -563,8 +545,10 @@ function renderAdmin() {
           ${fieldHtml('personnelAdminAccess', 'Admin Access', 'select', ['No', 'Yes'])}
           ${fieldHtml('personnelCertifications', 'Certifications', 'textarea')}
           <input type="hidden" id="personnelEditIndex" name="personnelEditIndex" value="" />
+          <p id="personnelSaveMessage" class="form-message full"></p>
           <div class="form-field full">
             <button class="primary" type="submit">Save Personnel</button>
+            <button class="secondary" id="clearPersonnelForm" type="button">Clear Form</button>
           </div>
         </form>
       </section>
@@ -834,6 +818,14 @@ workspace.addEventListener('click', event => {
     document.getElementById('personnelAdminAccess').value = member.adminAccess || 'No';
     document.getElementById('personnelCertifications').value = member.certifications || '';
     document.getElementById('personnelEditIndex').value = personnelButton.dataset.editPersonnel;
+    document.getElementById('personnelSaveMessage').textContent = `Editing ${member.name || member.employeeId}`;
+    return;
+  }
+  const clearPersonnelButton = event.target.closest('#clearPersonnelForm');
+  if (clearPersonnelButton) {
+    document.getElementById('personnelAdminForm').reset();
+    document.getElementById('personnelEditIndex').value = '';
+    document.getElementById('personnelSaveMessage').textContent = '';
     return;
   }
   const removeButton = event.target.closest('[data-remove-apparatus]');
@@ -867,20 +859,31 @@ workspace.addEventListener('submit', event => {
     const formData = new FormData(event.target);
     const employeeId = String(formData.get('personnelEmployeeId') || '').trim();
     const email = String(formData.get('personnelEmail') || '').trim().toLowerCase();
-    const password = String(formData.get('personnelPassword') || '').trim();
-    if (!employeeId || !email || !password) return;
+    const enteredPassword = String(formData.get('personnelPassword') || '').trim();
     const indexValue = formData.get('personnelEditIndex');
+    const message = document.getElementById('personnelSaveMessage');
+    const existingRecord = indexValue === '' ? null : data.personnel[Number(indexValue)];
+    const password = enteredPassword || existingRecord?.password || '';
+
+    if (!employeeId || !email) {
+      message.textContent = 'Employee ID and email are required.';
+      return;
+    }
+    if (!password) {
+      message.textContent = 'Password is required for new personnel.';
+      return;
+    }
     const existingIndex = data.personnel.findIndex((member, index) => member.employeeId === employeeId && String(index) !== String(indexValue));
     if (existingIndex >= 0) {
-      window.alert(`${employeeId} is already assigned to another personnel record.`);
+      message.textContent = `${employeeId} is already assigned to another personnel record.`;
       return;
     }
     const existingEmailIndex = data.personnel.findIndex((member, index) => String(member.email || '').toLowerCase() === email && String(index) !== String(indexValue));
     if (existingEmailIndex >= 0) {
-      window.alert(`${email} is already assigned to another personnel record.`);
+      message.textContent = `${email} is already assigned to another personnel record.`;
       return;
     }
-    const priorEmail = indexValue === '' ? '' : data.personnel[Number(indexValue)]?.email || '';
+    const priorEmail = existingRecord?.email || '';
     const record = {
       name: formData.get('personnelName'),
       rank: formData.get('personnelRank'),
@@ -904,6 +907,10 @@ workspace.addEventListener('submit', event => {
     }
     if (String(currentUserId).toLowerCase() === email && record.adminAccess !== 'Yes') activeSection = 'dashboard';
     renderAdmin();
+    setTimeout(() => {
+      const savedMessage = document.getElementById('personnelSaveMessage');
+      if (savedMessage) savedMessage.textContent = 'Personnel saved.';
+    }, 0);
     return;
   }
   if (event.target.id === 'apparatusSetupForm') {
