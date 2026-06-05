@@ -92,6 +92,7 @@ const schemas = {
 };
 
 const seed = {
+  apparatusList: apparatusNames,
   incidents: [
     { incidentNumber: 'HL-260604-001', date: '2026-06-04', type: 'Medical Assist', address: 'Goodman Rd W', station: 'Station 1', apparatus: 'Rescue 1', officer: 'Battalion 100', status: 'Open', notes: 'Initial record awaiting final narrative.' }
   ],
@@ -112,29 +113,7 @@ const seed = {
   ],
   reports: [],
   admin: [],
-  maintenance: apparatusNames.map(name => ({
-    name,
-    type: apparatusType(name),
-    status: 'Needs Data',
-    location: 'Station 1',
-    make: '',
-    model: '',
-    year: '',
-    vin: '',
-    mileage: '',
-    engineHours: '',
-    serviceLogs: [],
-    fuelLogs: [],
-    runLogs: [],
-    parts: maintenanceParts.map(([part, number]) => ({ part, number })),
-    selectedServiceItems: [],
-    operatingHours: 0,
-    failures: 0,
-    repairHours: 0,
-    downtime: 0,
-    testCycles: 0,
-    notes: ''
-  }))
+  maintenance: apparatusNames.map(name => blankApparatus(name))
 };
 
 let data = loadData();
@@ -163,22 +142,65 @@ function apparatusType(name) {
   return 'Fleet';
 }
 
+function blankApparatus(name, options = {}) {
+  return {
+    name,
+    type: options.type || apparatusType(name),
+    status: options.status || 'Needs Data',
+    location: options.location || 'Station 1',
+    make: '',
+    model: '',
+    year: '',
+    vin: '',
+    mileage: '',
+    engineHours: '',
+    serviceLogs: [],
+    fuelLogs: [],
+    runLogs: [],
+    parts: maintenanceParts.map(([part, number]) => ({ part, number })),
+    selectedServiceItems: [],
+    operatingHours: 0,
+    failures: 0,
+    repairHours: 0,
+    downtime: 0,
+    testCycles: 0,
+    notes: ''
+  };
+}
+
 function loadData() {
   const saved = localStorage.getItem(APP_KEY);
   if (!saved) return structuredClone(seed);
   try {
     const parsed = JSON.parse(saved);
-    return { ...structuredClone(seed), ...parsed, maintenance: mergeMaintenance(parsed.maintenance) };
+    const savedMaintenance = parsed.maintenance || [];
+    const customNames = savedMaintenance
+      .map(item => item?.name)
+      .filter(name => name && !apparatusNames.includes(name));
+    const fleetNames = Array.isArray(parsed.apparatusList)
+      ? parsed.apparatusList
+      : [...apparatusNames, ...customNames];
+    return {
+      ...structuredClone(seed),
+      ...parsed,
+      apparatusList: [...new Set(fleetNames)],
+      maintenance: mergeMaintenance(savedMaintenance, [...new Set(fleetNames)])
+    };
   } catch {
     return structuredClone(seed);
   }
 }
 
-function mergeMaintenance(saved = []) {
-  return apparatusNames.map(name => {
+function mergeMaintenance(saved = [], fleetNames = apparatusNames) {
+  return fleetNames.map(name => {
     const found = saved.find(item => item.name === name) || {};
-    return { ...seed.maintenance.find(item => item.name === name), ...found };
+    const seeded = seed.maintenance.find(item => item.name === name) || blankApparatus(name);
+    return { ...seeded, ...found };
   });
+}
+
+function getApparatusNames() {
+  return data.maintenance.map(item => item.name);
 }
 
 function saveData() {
@@ -400,9 +422,27 @@ function renderAdmin() {
   workspace.innerHTML = `
     <div class="dashboard-grid">
       <section class="panel">
+        <h2>Apparatus Setup</h2>
+        <form id="apparatusSetupForm" class="run-log-form">
+          ${fieldHtml('newApparatusName', 'Apparatus Name')}
+          ${fieldHtml('newApparatusType', 'Apparatus Type', 'select', ['Pumper', 'Ladder Truck', 'Brush Truck', 'Ambulance', 'Fleet', 'Support Vehicle'])}
+          ${fieldHtml('newApparatusStatus', 'Status', 'select', ['Needs Data', 'In Service', 'Reserve', 'In Shop', 'Out of Service', 'Needs Inspection'])}
+          ${fieldHtml('newApparatusLocation', 'Location', 'select', ['Station 1', 'Station 2', 'Station 3'])}
+          <div class="form-field full">
+            <button class="primary" type="submit">Add Apparatus</button>
+          </div>
+        </form>
+      </section>
+      <section class="panel">
+        <h2>Current Apparatus</h2>
+        <div class="queue-list">
+          ${data.maintenance.map((item, index) => `<div class="queue-item"><div><strong>${esc(item.name)}</strong><br><small>${esc(item.type)} | ${esc(item.location)} | ${esc(item.status)}</small></div><button class="danger-button" data-remove-apparatus="${index}" type="button">Remove</button></div>`).join('')}
+        </div>
+      </section>
+      <section class="panel">
         <h2>Apparatus Use Metrics</h2>
         <form id="runLogForm" class="run-log-form">
-          ${fieldHtml('runApparatus', 'Apparatus', 'select', apparatusNames)}
+          ${fieldHtml('runApparatus', 'Apparatus', 'select', getApparatusNames())}
           ${fieldHtml('runIncident', 'Incident Number')}
           ${fieldHtml('runDate', 'Run Date', 'date', [], new Date().toISOString().slice(0, 10))}
           ${fieldHtml('runType', 'Call Type')}
@@ -626,6 +666,19 @@ nav.addEventListener('click', event => {
 workspace.addEventListener('click', event => {
   const jumpButton = event.target.closest('[data-jump-section]');
   if (jumpButton) return setSection(jumpButton.dataset.jumpSection);
+  const removeButton = event.target.closest('[data-remove-apparatus]');
+  if (removeButton) {
+    const index = Number(removeButton.dataset.removeApparatus);
+    const item = data.maintenance[index];
+    if (!item) return;
+    const ok = window.confirm(`Remove ${item.name} from the RMS apparatus list?`);
+    if (!ok) return;
+    data.maintenance.splice(index, 1);
+    data.apparatusList = data.maintenance.map(apparatus => apparatus.name);
+    saveData();
+    renderAdmin();
+    return;
+  }
   const editButton = event.target.closest('[data-edit-section]');
   if (editButton) return openGenericModal(editButton.dataset.editSection, Number(editButton.dataset.editIndex));
   const modeButton = event.target.closest('[data-maint-mode]');
@@ -639,6 +692,26 @@ workspace.addEventListener('click', event => {
 });
 
 workspace.addEventListener('submit', event => {
+  if (event.target.id === 'apparatusSetupForm') {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const name = String(formData.get('newApparatusName') || '').trim();
+    if (!name) return;
+    const exists = data.maintenance.some(item => item.name.toLowerCase() === name.toLowerCase());
+    if (exists) {
+      window.alert(`${name} is already in the apparatus list.`);
+      return;
+    }
+    data.maintenance.push(blankApparatus(name, {
+      type: formData.get('newApparatusType'),
+      status: formData.get('newApparatusStatus'),
+      location: formData.get('newApparatusLocation')
+    }));
+    data.apparatusList = data.maintenance.map(apparatus => apparatus.name);
+    saveData();
+    renderAdmin();
+    return;
+  }
   if (event.target.id !== 'runLogForm') return;
   event.preventDefault();
   const formData = new FormData(event.target);
