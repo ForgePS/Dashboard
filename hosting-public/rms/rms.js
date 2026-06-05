@@ -15,6 +15,8 @@ const sections = [
   { id: 'admin', icon: 'AD', title: 'Admin' }
 ];
 
+const pagePermissionOptions = sections.map(section => ({ id: section.id, title: section.title }));
+
 const apparatusNames = [
   'Rescue 1', 'Engine 2', 'Engine 3', 'Engine 4', 'Truck 1', 'Truck 3',
   'Unit 1', 'Unit 2', 'Unit 3', 'Unit 4', 'Unit 5', 'NW1',
@@ -250,6 +252,7 @@ function mergePersonnel(saved = seed.personnel) {
       adminAccess: index === 0 ? 'Yes' : 'No',
       certifications: '',
       qualifiers: [],
+      pagePermissions: sections.filter(section => section.id !== 'admin').map(section => section.id),
       isTrainingInstructor: 'No',
       ...member,
       adminAccess: member.adminAccess || (index === 0 ? 'Yes' : 'No')
@@ -265,6 +268,12 @@ function mergePersonnel(saved = seed.personnel) {
     if (!Array.isArray(merged.qualifiers)) {
       merged.qualifiers = String(merged.qualifiers || merged.certifications || '').split(',').map(item => item.trim()).filter(Boolean);
     }
+    if (!Array.isArray(merged.pagePermissions)) {
+      merged.pagePermissions = merged.adminAccess === 'Yes'
+        ? sections.map(section => section.id)
+        : sections.filter(section => section.id !== 'admin').map(section => section.id);
+    }
+    if (merged.adminAccess === 'Yes' && !merged.pagePermissions.includes('admin')) merged.pagePermissions.push('admin');
     if (!merged.email && index === 0) merged.email = 'admin@hornlakefire.com';
     if (!merged.password) merged.password = merged.employeeId || '100';
     return merged;
@@ -299,8 +308,16 @@ function isAdminUser() {
   return currentUser()?.adminAccess === 'Yes';
 }
 
+function canViewSection(sectionId) {
+  if (sectionId === 'dashboard') return true;
+  const user = currentUser();
+  if (!user) return false;
+  if (sectionId === 'admin') return isAdminUser() && (user.pagePermissions || []).includes('admin');
+  return !Array.isArray(user.pagePermissions) || user.pagePermissions.includes(sectionId);
+}
+
 function visibleSections() {
-  return sections.filter(section => section.id !== 'admin' || isAdminUser());
+  return sections.filter(section => canViewSection(section.id));
 }
 
 function refreshSigninOptions() {
@@ -317,7 +334,7 @@ function finishSignin(email) {
   currentUserId = email;
   localStorage.setItem(SESSION_KEY, currentUserId);
   signinScreen.classList.add('hidden');
-  if (activeSection === 'admin' && !isAdminUser()) activeSection = 'dashboard';
+  if (!canViewSection(activeSection)) activeSection = 'dashboard';
   render();
 }
 
@@ -369,7 +386,7 @@ function renderNav() {
 }
 
 function setSection(id) {
-  if (id === 'admin' && !isAdminUser()) id = 'dashboard';
+  if (!canViewSection(id)) id = 'dashboard';
   activeSection = id;
   title.textContent = sections.find(section => section.id === id)?.title || 'RMS';
   searchInput.value = '';
@@ -398,7 +415,7 @@ function render() {
     return;
   }
   signinScreen.classList.add('hidden');
-  if (activeSection === 'admin' && !isAdminUser()) activeSection = 'dashboard';
+  if (!canViewSection(activeSection)) activeSection = 'dashboard';
   title.textContent = sections.find(section => section.id === activeSection)?.title || 'RMS';
   currentUserBadge.textContent = `${currentUser().name || currentUser().employeeId}${isAdminUser() ? ' | Admin' : ''}`;
   rmsHeader.classList.toggle('hidden', activeSection === 'hydrants');
@@ -558,6 +575,7 @@ function renderPersonnel() {
           </div>
           <div class="pill-row">
             ${(member.qualifiers || []).slice(0, 4).map(item => `<span class="pill blue">${esc(item)}</span>`).join('')}
+            <span class="pill">${esc((member.pagePermissions || []).length)} Pages</span>
             ${member.adminAccess === 'Yes' ? '<span class="pill red">Admin</span>' : ''}
           </div>
           <p class="muted">${esc(member.certifications || 'No notes entered.')}</p>
@@ -664,6 +682,7 @@ function renderAdmin() {
           ${fieldHtml('personnel_employeeId', 'Employee ID / Login ID')}
           ${fieldHtml('personnel_password', 'Password')}
           ${fieldHtml('personnel_adminAccess', 'Admin Access', 'select', ['No', 'Yes'])}
+          <div class="form-field full"><label>Page Permissions</label><div class="check-grid permission-grid">${pagePermissionOptions.map(page => `<label><input type="checkbox" name="personnel_pagePermissions" value="${esc(page.id)}">${esc(page.title)}</label>`).join('')}</div></div>
           <div class="form-field full"><label>Qualifiers</label><div class="check-grid qualifier-grid">${personnelQualifiers.map(qualifier => `<label><input type="checkbox" name="personnel_qualifiers" value="${esc(qualifier)}">${esc(qualifier)}</label>`).join('')}</div></div>
           <div class="form-field"><label for="personnel_isTrainingInstructor">Is Training Instructor</label><select id="personnel_isTrainingInstructor" name="personnel_isTrainingInstructor"><option>No</option><option>Yes</option></select></div>
           ${fieldHtml('personnel_certifications', 'Certifications / Notes', 'textarea')}
@@ -681,7 +700,7 @@ function renderAdmin() {
           <b>${data.personnel.length}</b>
         </header>
         <div class="queue-list">
-          ${data.personnel.map((member, index) => `<div class="queue-item"><div><strong>${esc(member.name || member.employeeId)}</strong><br><small>${esc(member.email || 'No email')} | ${esc(member.rank || '')} | Admin: ${member.adminAccess === 'Yes' ? 'Yes' : 'No'}</small></div><button class="small-button" data-edit-personnel="${index}" type="button">Edit</button></div>`).join('')}
+          ${data.personnel.map((member, index) => `<div class="queue-item"><div><strong>${esc(member.name || member.employeeId)}</strong><br><small>${esc(member.email || 'No email')} | ${esc(member.rank || '')} | Pages: ${(member.pagePermissions || []).length} | Admin: ${member.adminAccess === 'Yes' ? 'Yes' : 'No'}</small></div><button class="small-button" data-edit-personnel="${index}" type="button">Edit</button></div>`).join('')}
         </div>
       </section>
       <section class="admin-card">
@@ -828,6 +847,9 @@ function setPersonnelForm(member = {}) {
   document.querySelectorAll('[name="personnel_qualifiers"]').forEach(input => {
     input.checked = (member.qualifiers || []).includes(input.value);
   });
+  document.querySelectorAll('[name="personnel_pagePermissions"]').forEach(input => {
+    input.checked = (member.pagePermissions || []).includes(input.value);
+  });
 }
 
 function personnelRecordFromForm(formData, existingRecord = {}) {
@@ -841,6 +863,10 @@ function personnelRecordFromForm(formData, existingRecord = {}) {
   record.password = String(formData.get('personnel_password') || existingRecord.password || '').trim();
   record.adminAccess = formData.get('personnel_adminAccess') || 'No';
   record.qualifiers = formData.getAll('personnel_qualifiers');
+  record.pagePermissions = formData.getAll('personnel_pagePermissions');
+  if (!record.pagePermissions.includes('dashboard')) record.pagePermissions.unshift('dashboard');
+  if (record.adminAccess === 'Yes' && !record.pagePermissions.includes('admin')) record.pagePermissions.push('admin');
+  if (record.adminAccess !== 'Yes') record.pagePermissions = record.pagePermissions.filter(page => page !== 'admin');
   record.isTrainingInstructor = formData.get('personnel_isTrainingInstructor') || 'No';
   record.certifications = formData.get('personnel_certifications') || '';
   record.name = personnelDisplayName(record);

@@ -723,6 +723,10 @@ textarea {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.permission-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
 .check-grid label {
   display: flex;
   gap: 8px;
@@ -750,6 +754,7 @@ textarea {
   .record-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .admin-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .personnel-file-form { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .permission-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .qualifier-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
