@@ -149,6 +149,7 @@ let data = loadData();
 let currentUserId = localStorage.getItem(SESSION_KEY) || '';
 let activeSection = initialSection();
 let maintenanceMode = 'fleet';
+let adminMode = 'home';
 let editing = null;
 
 const signinScreen = document.getElementById('signinScreen');
@@ -387,6 +388,7 @@ function renderNav() {
 
 function setSection(id) {
   if (!canViewSection(id)) id = 'dashboard';
+  if (id === 'admin' && activeSection !== 'admin') adminMode = 'home';
   activeSection = id;
   title.textContent = sections.find(section => section.id === id)?.title || 'RMS';
   searchInput.value = '';
@@ -670,105 +672,125 @@ function renderAdmin() {
     .sort((a, b) => String(b.date).localeCompare(String(a.date)))
     .slice(0, 12);
 
+  const context = { totalRuns, totalMinutes, recentRuns };
+  if (adminMode !== 'home') {
+    workspace.innerHTML = adminPage(adminMode, context);
+    return;
+  }
+
   workspace.innerHTML = `
-    <div class="admin-card-grid">
-      <section class="admin-card admin-card-wide">
-        <header class="admin-card-head">
-          <div><span>Personnel</span><h2>Personnel File</h2></div>
-          <b>${data.personnel.length}</b>
-        </header>
-        <form id="personnelAdminForm" class="personnel-file-form">
-          ${personnelFileFields.map(([key, label, type = 'text', options = []]) => fieldHtml(`personnel_${key}`, label, type, options)).join('')}
-          ${fieldHtml('personnel_employeeId', 'Employee ID / Login ID')}
-          ${fieldHtml('personnel_password', 'Password')}
-          ${fieldHtml('personnel_adminAccess', 'Admin Access', 'select', ['No', 'Yes'])}
-          <div class="form-field full"><label>Page Permissions</label><div class="check-grid permission-grid">${pagePermissionOptions.map(page => `<label><input type="checkbox" name="personnel_pagePermissions" value="${esc(page.id)}">${esc(page.title)}</label>`).join('')}</div></div>
-          <div class="form-field full"><label>Qualifiers</label><div class="check-grid qualifier-grid">${personnelQualifiers.map(qualifier => `<label><input type="checkbox" name="personnel_qualifiers" value="${esc(qualifier)}">${esc(qualifier)}</label>`).join('')}</div></div>
-          <div class="form-field"><label for="personnel_isTrainingInstructor">Is Training Instructor</label><select id="personnel_isTrainingInstructor" name="personnel_isTrainingInstructor"><option>No</option><option>Yes</option></select></div>
-          ${fieldHtml('personnel_certifications', 'Certifications / Notes', 'textarea')}
-          <input type="hidden" id="personnelEditIndex" name="personnelEditIndex" value="" />
-          <p id="personnelSaveMessage" class="form-message full"></p>
-          <div class="form-field full">
-            <button class="primary" type="submit">Save Personnel</button>
-            <button class="secondary" id="clearPersonnelForm" type="button">Clear Form</button>
-          </div>
-        </form>
-      </section>
-      <section class="admin-card">
-        <header class="admin-card-head">
-          <div><span>Directory</span><h2>Editable Personnel</h2></div>
-          <b>${data.personnel.length}</b>
-        </header>
-        <div class="queue-list">
-          ${data.personnel.map((member, index) => `<div class="queue-item"><div><strong>${esc(member.name || member.employeeId)}</strong><br><small>${esc(member.email || 'No email')} | ${esc(member.rank || '')} | Pages: ${(member.pagePermissions || []).length} | Admin: ${member.adminAccess === 'Yes' ? 'Yes' : 'No'}</small></div><button class="small-button" data-edit-personnel="${index}" type="button">Edit</button></div>`).join('')}
-        </div>
-      </section>
-      <section class="admin-card">
-        <header class="admin-card-head">
-          <div><span>Fleet</span><h2>Apparatus Setup</h2></div>
-          <b>+</b>
-        </header>
-        <form id="apparatusSetupForm" class="run-log-form">
-          ${fieldHtml('newApparatusName', 'Apparatus Name')}
-          ${fieldHtml('newApparatusType', 'Apparatus Type', 'select', ['Pumper', 'Ladder Truck', 'Brush Truck', 'Ambulance', 'Fleet', 'Support Vehicle'])}
-          ${fieldHtml('newApparatusStatus', 'Status', 'select', ['Needs Data', 'In Service', 'Reserve', 'In Shop', 'Out of Service', 'Needs Inspection'])}
-          ${fieldHtml('newApparatusLocation', 'Location', 'select', ['Station 1', 'Station 2', 'Station 3'])}
-          <div class="form-field full">
-            <button class="primary" type="submit">Add Apparatus</button>
-          </div>
-        </form>
-      </section>
-      <section class="admin-card">
-        <header class="admin-card-head">
-          <div><span>Fleet</span><h2>Current Apparatus</h2></div>
-          <b>${data.maintenance.length}</b>
-        </header>
-        <div class="queue-list">
-          ${data.maintenance.map((item, index) => `<div class="queue-item"><div><strong>${esc(item.name)}</strong><br><small>${esc(item.type)} | ${esc(item.location)} | ${esc(item.status)}</small></div><button class="danger-button" data-remove-apparatus="${index}" type="button">Remove</button></div>`).join('')}
-        </div>
-      </section>
-      <section class="admin-card">
-        <header class="admin-card-head">
-          <div><span>Metrics</span><h2>Apparatus Use</h2></div>
-          <b>${totalRuns}</b>
-        </header>
-        <form id="runLogForm" class="run-log-form">
-          ${fieldHtml('runApparatus', 'Apparatus', 'select', getApparatusNames())}
-          ${fieldHtml('runIncident', 'Incident Number')}
-          ${fieldHtml('runDate', 'Run Date', 'date', [], new Date().toISOString().slice(0, 10))}
-          ${fieldHtml('runType', 'Call Type')}
-          ${fieldHtml('runMinutes', 'Total Call Time Minutes', 'number')}
-          ${fieldHtml('runMiles', 'Run Miles', 'number')}
-          ${fieldHtml('runStation', 'Station', 'select', ['Station 1', 'Station 2', 'Station 3'])}
-          ${fieldHtml('runNotes', 'Run Notes', 'textarea')}
-          <div class="form-field full">
-            <button class="primary" type="submit">Log Apparatus Run</button>
-          </div>
-        </form>
-      </section>
-      <section class="admin-card">
-        <header class="admin-card-head">
-          <div><span>Readiness</span><h2>95/95 Summary</h2></div>
-          <b>${(totalMinutes / 60).toFixed(1)}</b>
-        </header>
-        <div class="queue-list">
-          ${data.maintenance.map(item => {
-            const metric = calc95(item);
-            return `<div class="queue-item"><div><strong>${esc(item.name)}</strong><br><small>${(metric.runHours || 0).toFixed(2)} imported run hours | ${(metric.totalOperatingHours || 0).toFixed(2)} total operating hours</small></div><span class="pill ${metric.passes ? 'green' : 'amber'}">${metric.availability.toFixed(1)}%</span></div>`;
-          }).join('')}
-        </div>
-      </section>
-      <section class="admin-card admin-card-wide">
-      <header class="admin-card-head">
-        <div><span>Activity</span><h2>Recent Apparatus Runs</h2></div>
-        <b>${recentRuns.length}</b>
-      </header>
-      <div class="queue-list">
-        ${recentRuns.length ? recentRuns.map(log => `<div class="queue-item"><div><strong>${esc(log.apparatus)} - ${esc(log.incident || 'Run')}</strong><br><small>${esc(log.date || 'No date')} | ${esc(log.callType || 'Call')} | ${esc(log.callMinutes || 0)} minutes | ${esc(log.station || '')}</small></div><span class="pill blue">${esc(log.miles || 0)} mi</span></div>`).join('') : '<p class="muted">No apparatus run metrics logged yet.</p>'}
-      </div>
-    </section>
+    <div class="admin-launch-grid">
+      ${adminLaunchCard('personnel-file', 'Personnel', 'Personnel File', data.personnel.length, 'Create and edit full personnel files, login access, page permissions, and qualifiers.')}
+      ${adminLaunchCard('personnel-list', 'Directory', 'Editable Personnel', data.personnel.length, 'Open existing personnel records and make quick edits.')}
+      ${adminLaunchCard('apparatus-setup', 'Fleet', 'Apparatus Setup', '+', 'Add new apparatus to the RMS fleet and assign default details.')}
+      ${adminLaunchCard('apparatus-list', 'Fleet', 'Current Apparatus', data.maintenance.length, 'Review and remove apparatus from the RMS fleet list.')}
+      ${adminLaunchCard('apparatus-use', 'Metrics', 'Apparatus Use', totalRuns, 'Log run time, mileage, call type, and station by apparatus.')}
+      ${adminLaunchCard('readiness', 'Readiness', '95/95 Summary', `${(totalMinutes / 60).toFixed(1)}h`, 'Review imported run hours and readiness calculations.')}
+      ${adminLaunchCard('recent-runs', 'Activity', 'Recent Apparatus Runs', recentRuns.length, 'See the latest apparatus run metrics entered into Admin.')}
     </div>
   `;
+}
+
+function adminLaunchCard(mode, label, titleText, count, detail) {
+  return `
+    <button class="admin-launch-card" data-admin-mode="${mode}" type="button">
+      <span>${esc(label)}</span>
+      <strong>${esc(titleText)}</strong>
+      <em>${esc(detail)}</em>
+      <b>${esc(count)}</b>
+    </button>
+  `;
+}
+
+function adminPage(mode, context) {
+  const pages = {
+    'personnel-file': ['Personnel', 'Personnel File', data.personnel.length, adminPersonnelFile()],
+    'personnel-list': ['Directory', 'Editable Personnel', data.personnel.length, adminPersonnelList()],
+    'apparatus-setup': ['Fleet', 'Apparatus Setup', '+', adminApparatusSetup()],
+    'apparatus-list': ['Fleet', 'Current Apparatus', data.maintenance.length, adminApparatusList()],
+    'apparatus-use': ['Metrics', 'Apparatus Use', context.totalRuns, adminApparatusUse()],
+    readiness: ['Readiness', '95/95 Summary', `${(context.totalMinutes / 60).toFixed(1)}h`, adminReadinessSummary()],
+    'recent-runs': ['Activity', 'Recent Apparatus Runs', context.recentRuns.length, adminRecentRuns(context.recentRuns)]
+  };
+  const page = pages[mode] || pages['personnel-file'];
+  return `
+    <section class="admin-page">
+      <header class="admin-page-head">
+        <button class="secondary" data-admin-mode="home" type="button">Back to Admin</button>
+        <div><span>${esc(page[0])}</span><h2>${esc(page[1])}</h2></div>
+        <b>${esc(page[2])}</b>
+      </header>
+      <div class="admin-page-body">${page[3]}</div>
+    </section>
+  `;
+}
+
+function adminPersonnelFile() {
+  return `
+    <form id="personnelAdminForm" class="personnel-file-form">
+      ${personnelFileFields.map(([key, label, type = 'text', options = []]) => fieldHtml(`personnel_${key}`, label, type, options)).join('')}
+      ${fieldHtml('personnel_employeeId', 'Employee ID / Login ID')}
+      ${fieldHtml('personnel_password', 'Password')}
+      ${fieldHtml('personnel_adminAccess', 'Admin Access', 'select', ['No', 'Yes'])}
+      <div class="form-field full"><label>Page Permissions</label><div class="check-grid permission-grid">${pagePermissionOptions.map(page => `<label><input type="checkbox" name="personnel_pagePermissions" value="${esc(page.id)}">${esc(page.title)}</label>`).join('')}</div></div>
+      <div class="form-field full"><label>Qualifiers</label><div class="check-grid qualifier-grid">${personnelQualifiers.map(qualifier => `<label><input type="checkbox" name="personnel_qualifiers" value="${esc(qualifier)}">${esc(qualifier)}</label>`).join('')}</div></div>
+      <div class="form-field"><label for="personnel_isTrainingInstructor">Is Training Instructor</label><select id="personnel_isTrainingInstructor" name="personnel_isTrainingInstructor"><option>No</option><option>Yes</option></select></div>
+      ${fieldHtml('personnel_certifications', 'Certifications / Notes', 'textarea')}
+      <input type="hidden" id="personnelEditIndex" name="personnelEditIndex" value="" />
+      <p id="personnelSaveMessage" class="form-message full"></p>
+      <div class="form-field full">
+        <button class="primary" type="submit">Save Personnel</button>
+        <button class="secondary" id="clearPersonnelForm" type="button">Clear Form</button>
+      </div>
+    </form>
+  `;
+}
+
+function adminPersonnelList() {
+  return `<div class="queue-list">${data.personnel.map((member, index) => `<div class="queue-item"><div><strong>${esc(member.name || member.employeeId)}</strong><br><small>${esc(member.email || 'No email')} | ${esc(member.rank || '')} | Pages: ${(member.pagePermissions || []).length} | Admin: ${member.adminAccess === 'Yes' ? 'Yes' : 'No'}</small></div><button class="small-button" data-edit-personnel="${index}" type="button">Edit</button></div>`).join('')}</div>`;
+}
+
+function adminApparatusSetup() {
+  return `
+    <form id="apparatusSetupForm" class="run-log-form">
+      ${fieldHtml('newApparatusName', 'Apparatus Name')}
+      ${fieldHtml('newApparatusType', 'Apparatus Type', 'select', ['Pumper', 'Ladder Truck', 'Brush Truck', 'Ambulance', 'Fleet', 'Support Vehicle'])}
+      ${fieldHtml('newApparatusStatus', 'Status', 'select', ['Needs Data', 'In Service', 'Reserve', 'In Shop', 'Out of Service', 'Needs Inspection'])}
+      ${fieldHtml('newApparatusLocation', 'Location', 'select', ['Station 1', 'Station 2', 'Station 3'])}
+      <div class="form-field full"><button class="primary" type="submit">Add Apparatus</button></div>
+    </form>
+  `;
+}
+
+function adminApparatusList() {
+  return `<div class="queue-list">${data.maintenance.map((item, index) => `<div class="queue-item"><div><strong>${esc(item.name)}</strong><br><small>${esc(item.type)} | ${esc(item.location)} | ${esc(item.status)}</small></div><button class="danger-button" data-remove-apparatus="${index}" type="button">Remove</button></div>`).join('')}</div>`;
+}
+
+function adminApparatusUse() {
+  return `
+    <form id="runLogForm" class="run-log-form">
+      ${fieldHtml('runApparatus', 'Apparatus', 'select', getApparatusNames())}
+      ${fieldHtml('runIncident', 'Incident Number')}
+      ${fieldHtml('runDate', 'Run Date', 'date', [], new Date().toISOString().slice(0, 10))}
+      ${fieldHtml('runType', 'Call Type')}
+      ${fieldHtml('runMinutes', 'Total Call Time Minutes', 'number')}
+      ${fieldHtml('runMiles', 'Run Miles', 'number')}
+      ${fieldHtml('runStation', 'Station', 'select', ['Station 1', 'Station 2', 'Station 3'])}
+      ${fieldHtml('runNotes', 'Run Notes', 'textarea')}
+      <div class="form-field full"><button class="primary" type="submit">Log Apparatus Run</button></div>
+    </form>
+  `;
+}
+
+function adminReadinessSummary() {
+  return `<div class="queue-list">${data.maintenance.map(item => {
+    const metric = calc95(item);
+    return `<div class="queue-item"><div><strong>${esc(item.name)}</strong><br><small>${(metric.runHours || 0).toFixed(2)} imported run hours | ${(metric.totalOperatingHours || 0).toFixed(2)} total operating hours</small></div><span class="pill ${metric.passes ? 'green' : 'amber'}">${metric.availability.toFixed(1)}%</span></div>`;
+  }).join('')}</div>`;
+}
+
+function adminRecentRuns(recentRuns) {
+  return `<div class="queue-list">${recentRuns.length ? recentRuns.map(log => `<div class="queue-item"><div><strong>${esc(log.apparatus)} - ${esc(log.incident || 'Run')}</strong><br><small>${esc(log.date || 'No date')} | ${esc(log.callType || 'Call')} | ${esc(log.callMinutes || 0)} minutes | ${esc(log.station || '')}</small></div><span class="pill blue">${esc(log.miles || 0)} mi</span></div>`).join('') : '<p class="muted">No apparatus run metrics logged yet.</p>'}</div>`;
 }
 
 function modeTitle(mode) {
@@ -1003,10 +1025,18 @@ nav.addEventListener('click', event => {
 workspace.addEventListener('click', event => {
   const jumpButton = event.target.closest('[data-jump-section]');
   if (jumpButton) return setSection(jumpButton.dataset.jumpSection);
+  const adminModeButton = event.target.closest('[data-admin-mode]');
+  if (adminModeButton) {
+    adminMode = adminModeButton.dataset.adminMode;
+    renderAdmin();
+    return;
+  }
   const personnelButton = event.target.closest('[data-edit-personnel]');
   if (personnelButton) {
     const member = data.personnel[Number(personnelButton.dataset.editPersonnel)];
     if (!member) return;
+    adminMode = 'personnel-file';
+    renderAdmin();
     setPersonnelForm(member);
     document.getElementById('personnelEditIndex').value = personnelButton.dataset.editPersonnel;
     document.getElementById('personnelSaveMessage').textContent = `Editing ${personnelDisplayName(member)}`;
