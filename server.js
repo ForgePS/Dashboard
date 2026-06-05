@@ -3390,6 +3390,63 @@ app.get('/hydrants', (req, res) => {
   sendHtmlFileOrFallback(res, 'hydrants.html', 'Out of Service Hydrants', '/api/hydrants-status');
 });
 
+const RMS_CONFIG_COLLECTION = 'rmsConfig';
+const RMS_CONFIG_DOC_ID = 'main';
+
+function normalizeRmsBuilderConfig(input = {}) {
+  const sections = Array.isArray(input.sections)
+    ? input.sections.map((section) => ({
+      id: String(section.id || '').trim(),
+      icon: String(section.icon || 'PG').trim().slice(0, 3).toUpperCase(),
+      title: String(section.title || section.id || '').trim(),
+    })).filter((section) => section.id && section.title)
+    : [];
+  const schemas = input.schemas && typeof input.schemas === 'object' ? input.schemas : {};
+  const normalizedSchemas = {};
+  Object.entries(schemas).forEach(([pageId, fields]) => {
+    normalizedSchemas[pageId] = Array.isArray(fields)
+      ? fields.map((field) => Array.isArray(field)
+        ? [
+          String(field[0] || '').trim(),
+          String(field[1] || field[0] || '').trim(),
+          String(field[2] || 'text').trim(),
+          Array.isArray(field[3]) ? field[3].map((option) => String(option).trim()).filter(Boolean) : [],
+        ]
+        : [
+          String(field.key || '').trim(),
+          String(field.label || field.key || '').trim(),
+          String(field.type || 'text').trim(),
+          Array.isArray(field.options) ? field.options.map((option) => String(option).trim()).filter(Boolean) : [],
+        ]).filter((field) => field[0] && field[1])
+      : [];
+  });
+  return { sections, schemas: normalizedSchemas };
+}
+
+app.get('/api/rms-config', async (req, res) => {
+  try {
+    if (!firestoreDb) return res.json({ ok: true, config: null, source: 'local-only' });
+    const doc = await firestoreDb.collection(RMS_CONFIG_COLLECTION).doc(RMS_CONFIG_DOC_ID).get();
+    res.json({ ok: true, config: doc.exists ? doc.data() : null, source: 'firestore' });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/rms-config', async (req, res) => {
+  try {
+    if (!firestoreDb) throw new Error('RMS configuration storage is unavailable.');
+    const config = normalizeRmsBuilderConfig(req.body || {});
+    await firestoreDb.collection(RMS_CONFIG_COLLECTION).doc(RMS_CONFIG_DOC_ID).set({
+      ...config,
+      updated_at: new Date().toISOString(),
+    }, { merge: true });
+    res.json({ ok: true, config });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
 const EDITABLE_HYDRANT_OVERRIDES_COLLECTION = 'editableHydrantOverrides';
 const EDITABLE_HYDRANT_TESTS_COLLECTION = 'editableHydrantTests';
 const EDITABLE_HYDRANT_INSPECTIONS_COLLECTION = 'editableHydrantInspections';

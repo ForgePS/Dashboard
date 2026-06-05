@@ -1,5 +1,6 @@
 const APP_KEY = 'hlfdRmsData';
 const SESSION_KEY = 'hlfdRmsSession';
+const RMS_CONFIG_API = '/api/rms-config';
 const sections = [
   { id: 'dashboard', icon: 'DB', title: 'Dashboard' },
   { id: 'incidents', icon: 'IN', title: 'Incidents' },
@@ -164,6 +165,7 @@ let maintenanceMode = 'fleet';
 let adminMode = 'home';
 let permissionEditIndex = 0;
 let builderPageId = 'incidents';
+let builderSyncStatus = 'Local';
 let editing = null;
 
 const signinScreen = document.getElementById('signinScreen');
@@ -367,6 +369,39 @@ function pageOptions() {
 
 function saveData() {
   localStorage.setItem(APP_KEY, JSON.stringify(data));
+}
+
+async function loadSharedBuilderConfig() {
+  try {
+    const response = await fetch(RMS_CONFIG_API);
+    if (!response.ok) throw new Error(`Config returned ${response.status}`);
+    const payload = await response.json();
+    if (payload.config?.sections?.length) {
+      data.builder = normalizeBuilder(payload.config);
+      builderSyncStatus = 'Shared';
+      saveData();
+      render();
+      return;
+    }
+    builderSyncStatus = 'Local';
+  } catch {
+    builderSyncStatus = 'Local';
+  }
+}
+
+async function saveSharedBuilderConfig() {
+  try {
+    builderSyncStatus = 'Saving';
+    const response = await fetch(RMS_CONFIG_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data.builder || normalizeBuilder()),
+    });
+    if (!response.ok) throw new Error(`Config save returned ${response.status}`);
+    builderSyncStatus = 'Shared';
+  } catch {
+    builderSyncStatus = 'Local';
+  }
 }
 
 function currentUser() {
@@ -839,7 +874,7 @@ function adminBuilderPage() {
   return `
     <div class="builder-grid">
       <section class="builder-panel">
-        <h3>Page Menu</h3>
+        <h3>Page Menu <span class="pill blue">${esc(builderSyncStatus)}</span></h3>
         <div class="builder-page-list">
           ${appSections().map((section, index) => `
             <div class="builder-row ${section.id === builderPageId ? 'active' : ''}">
@@ -858,14 +893,14 @@ function adminBuilderPage() {
           <input type="hidden" name="builderPageId" value="${esc(selectedSection.id)}" />
           ${fieldHtml('builderPageTitle', 'Page Name', 'text', [], selectedSection.title)}
           ${fieldHtml('builderPageIcon', 'Menu Icon / Initials', 'text', [], selectedSection.icon)}
-          <div class="form-field full"><button class="primary" type="submit">Save Page</button></div>
+          <div class="form-field full"><button class="primary" type="submit">Save Page & Sync</button></div>
         </form>
         <h3>Add New Page</h3>
         <form id="builderAddPageForm" class="run-log-form">
           ${fieldHtml('newBuilderPageId', 'Page ID')}
           ${fieldHtml('newBuilderPageTitle', 'Page Name')}
           ${fieldHtml('newBuilderPageIcon', 'Icon / Initials')}
-          <div class="form-field full"><button class="primary" type="submit">Add Page</button></div>
+          <div class="form-field full"><button class="primary" type="submit">Add Page & Sync</button></div>
         </form>
       </section>
       <section class="builder-panel builder-panel-wide">
@@ -884,7 +919,7 @@ function adminBuilderPage() {
           ${fieldHtml('builderFieldLabel', 'Field Label')}
           ${fieldHtml('builderFieldType', 'Field Type', 'select', ['text', 'number', 'date', 'email', 'tel', 'select', 'textarea'])}
           ${fieldHtml('builderFieldOptions', 'Dropdown Options, comma separated')}
-          <div class="form-field full"><button class="primary" type="submit">Add Field</button></div>
+          <div class="form-field full"><button class="primary" type="submit">Add Field & Sync</button></div>
         </form>
       </section>
     </div>
@@ -1274,6 +1309,7 @@ workspace.addEventListener('click', event => {
     const [page] = pages.splice(index, 1);
     pages.splice(nextIndex, 0, page);
     saveData();
+    saveSharedBuilderConfig();
     renderAdmin();
     renderNav();
     return;
@@ -1284,6 +1320,7 @@ workspace.addEventListener('click', event => {
     fields.splice(Number(builderRemoveField.dataset.builderRemoveField), 1);
     data.builder.schemas[builderPageId] = fields;
     saveData();
+    saveSharedBuilderConfig();
     renderAdmin();
     return;
   }
@@ -1352,6 +1389,7 @@ workspace.addEventListener('submit', event => {
     page.title = String(formData.get('builderPageTitle') || page.title).trim() || page.title;
     page.icon = String(formData.get('builderPageIcon') || page.icon).trim().slice(0, 3).toUpperCase() || page.icon;
     saveData();
+    saveSharedBuilderConfig();
     renderAdmin();
     renderNav();
     return;
@@ -1368,6 +1406,7 @@ workspace.addEventListener('submit', event => {
     data[id] = data[id] || [];
     builderPageId = id;
     saveData();
+    saveSharedBuilderConfig();
     renderAdmin();
     renderNav();
     return;
@@ -1383,6 +1422,7 @@ workspace.addEventListener('submit', event => {
     data.builder.schemas[builderPageId] = data.builder.schemas[builderPageId] || [];
     data.builder.schemas[builderPageId].push([key, label, type, type === 'select' ? options : []]);
     saveData();
+    saveSharedBuilderConfig();
     renderAdmin();
     return;
   }
@@ -1534,3 +1574,4 @@ form.addEventListener('submit', event => {
 });
 
 render();
+loadSharedBuilderConfig();

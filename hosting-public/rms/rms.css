@@ -680,6 +680,10 @@ textarea {
 
 .builder-panel h3 {
   margin: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
 }
 
 .builder-page-list,
