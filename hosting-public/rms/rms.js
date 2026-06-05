@@ -1637,6 +1637,8 @@ nav.addEventListener('click', event => {
 });
 
 workspace.addEventListener('click', event => {
+  const sectionButton = event.target.closest('[data-section]');
+  if (sectionButton) return setSection(sectionButton.dataset.section);
   const jumpButton = event.target.closest('[data-jump-section]');
   if (jumpButton) return setSection(jumpButton.dataset.jumpSection);
   const hubSignOutButton = event.target.closest('#hubSignOutBtn');
