@@ -2,6 +2,7 @@ const APP_KEY = 'hlfdRmsData';
 const SESSION_KEY = 'hlfdRmsSession';
 const RMS_CONFIG_API = '/api/rms-config';
 const RMS_DATA_API = '/api/rms-data';
+const INACTIVITY_LIMIT_MS = 15 * 60 * 1000;
 const sections = [
   { id: 'dashboard', icon: 'DB', title: 'Dashboard' },
   { id: 'incidents', icon: 'IN', title: 'Incidents' },
@@ -176,6 +177,7 @@ let builderMessage = '';
 let dataSyncStatus = 'Loading';
 let sharedDataReady = false;
 let sharedDataSaveTimer = null;
+let inactivityTimer = null;
 let editing = null;
 
 const signinScreen = document.getElementById('signinScreen');
@@ -193,6 +195,7 @@ const searchInput = document.getElementById('searchInput');
 const addRecordBtn = document.getElementById('addRecordBtn');
 const signOutBtn = document.getElementById('signOutBtn');
 const currentUserBadge = document.getElementById('currentUserBadge');
+const rmsHomeBtn = document.getElementById('rmsHomeBtn');
 const modal = document.getElementById('recordModal');
 const form = document.getElementById('recordForm');
 const modalFields = document.getElementById('modalFields');
@@ -546,8 +549,25 @@ function finishSignin(email) {
   currentUserId = email;
   localStorage.setItem(SESSION_KEY, currentUserId);
   signinScreen.classList.add('hidden');
-  if (!canViewSection(activeSection)) activeSection = 'dashboard';
+  activeSection = 'hub';
+  resetInactivityTimer();
   render();
+}
+
+function signOut(message = '') {
+  localStorage.removeItem(SESSION_KEY);
+  currentUserId = '';
+  activeSection = 'hub';
+  window.clearTimeout(inactivityTimer);
+  showSignin(message);
+}
+
+function resetInactivityTimer() {
+  if (!currentUserId) return;
+  window.clearTimeout(inactivityTimer);
+  inactivityTimer = window.setTimeout(() => {
+    signOut('Signed out after 15 minutes of inactivity.');
+  }, INACTIVITY_LIMIT_MS);
 }
 
 function esc(value) {
@@ -605,14 +625,22 @@ function renderNav() {
 }
 
 function setSection(id) {
+  if (id === 'hub') {
+    activeSection = 'hub';
+    searchInput.value = '';
+    const url = new URL(window.location.href);
+    url.searchParams.delete('section');
+    window.history.replaceState({}, '', url);
+    render();
+    return;
+  }
   if (!canViewSection(id)) id = 'dashboard';
   if (id === 'admin' && activeSection !== 'admin') adminMode = 'home';
   activeSection = id;
   title.textContent = appSections().find(section => section.id === id)?.title || 'RMS';
   searchInput.value = '';
   const url = new URL(window.location.href);
-  if (id === 'dashboard') url.searchParams.delete('section');
-  else url.searchParams.set('section', id);
+  url.searchParams.set('section', id);
   window.history.replaceState({}, '', url);
   render();
 }
@@ -620,7 +648,7 @@ function setSection(id) {
 function initialSection() {
   const params = new URLSearchParams(window.location.search);
   const requested = params.get('section');
-  return appSections().some(section => section.id === requested) ? requested : 'dashboard';
+  return appSections().some(section => section.id === requested) ? requested : 'hub';
 }
 
 function renderStats(cards) {
@@ -635,14 +663,18 @@ function render() {
     return;
   }
   signinScreen.classList.add('hidden');
-  if (!canViewSection(activeSection)) activeSection = 'dashboard';
+  if (activeSection !== 'hub' && !canViewSection(activeSection)) activeSection = 'hub';
   title.textContent = appSections().find(section => section.id === activeSection)?.title || 'RMS';
   currentUserBadge.textContent = `${currentUser().name || currentUser().employeeId}${isAdminUser() ? ' | Admin' : ''}`;
-  rmsHeader.classList.toggle('hidden', activeSection === 'hydrants');
+  document.querySelector('.rms-shell').classList.toggle('rms-shell-hub', activeSection === 'hub');
+  rmsHeader.classList.toggle('hidden', activeSection === 'hydrants' || activeSection === 'hub');
   rmsMain.classList.toggle('rms-main-full', activeSection === 'hydrants');
-  statsGrid.classList.toggle('hidden', activeSection === 'hydrants');
+  rmsMain.classList.toggle('rms-main-hub', activeSection === 'hub');
+  statsGrid.classList.toggle('hidden', activeSection === 'hydrants' || activeSection === 'hub');
   workspace.classList.toggle('workspace-full', activeSection === 'hydrants');
+  workspace.classList.toggle('workspace-hub', activeSection === 'hub');
   renderNav();
+  if (activeSection === 'hub') return renderRmsHub();
   addRecordBtn.style.display = activeSection === 'dashboard' || activeSection === 'maintenance' || activeSection === 'admin' || activeSection === 'personnel' ? 'none' : '';
   if (activeSection === 'dashboard') return renderDashboard();
   if (activeSection === 'personnel') return renderPersonnel();
@@ -651,6 +683,44 @@ function render() {
   if (activeSection === 'maintenance') return renderMaintenance();
   if (activeSection === 'admin') return renderAdmin();
   renderRecords(activeSection);
+}
+
+function renderRmsHub() {
+  const currentPages = topLevelSections().filter(section => canViewSection(section.id));
+  const futurePages = [
+    { id: 'dispatch', icon: 'DS', title: 'Dispatch', detail: 'CAD and unit status workspace' },
+    { id: 'documents', icon: 'DC', title: 'Documents', detail: 'Policies, files, and attachments' },
+    { id: 'scheduling', icon: 'SC', title: 'Scheduling', detail: 'Shift calendar and staffing view' },
+    { id: 'assets', icon: 'AS', title: 'Assets', detail: 'Equipment tracking beyond apparatus' }
+  ];
+  workspace.innerHTML = `
+    <section class="rms-hub">
+      <header class="rms-hub-head">
+        <img src="/horn-lake-logo.png" alt="Horn Lake Fire Department" />
+        <div>
+          <p class="kicker">Horn Lake Fire Department</p>
+          <h1>RMS Main Hub</h1>
+          <p class="muted">Choose a workspace to open the records management system.</p>
+        </div>
+        <button class="secondary" id="hubSignOutBtn" type="button">Sign Out</button>
+      </header>
+      <div class="hub-card-grid">
+        ${currentPages.map(section => hubPageCard(section, false)).join('')}
+        ${futurePages.map(section => hubPageCard(section, true)).join('')}
+      </div>
+    </section>
+  `;
+}
+
+function hubPageCard(section, future = false) {
+  return `
+    <button class="hub-card ${future ? 'future' : ''}" type="button" ${future ? 'disabled' : `data-section="${esc(section.id)}"`}>
+      <span class="nav-icon">${esc(section.icon)}</span>
+      <strong>${esc(section.title)}</strong>
+      <small>${esc(future ? section.detail : `${childSections(section.id).length} subpages`)}</small>
+      <em>${future ? 'Future' : 'Open'}</em>
+    </button>
+  `;
 }
 
 function renderDashboard() {
@@ -1554,6 +1624,8 @@ nav.addEventListener('click', event => {
 workspace.addEventListener('click', event => {
   const jumpButton = event.target.closest('[data-jump-section]');
   if (jumpButton) return setSection(jumpButton.dataset.jumpSection);
+  const hubSignOutButton = event.target.closest('#hubSignOutBtn');
+  if (hubSignOutButton) return signOut();
   const addTrainingButton = event.target.closest('[data-add-training]');
   if (addTrainingButton) return openGenericModal('training');
   const adminModeButton = event.target.closest('[data-admin-mode]');
@@ -1883,11 +1955,10 @@ workspace.addEventListener('submit', event => {
 
 addRecordBtn.addEventListener('click', () => openGenericModal(activeSection));
 searchInput.addEventListener('input', render);
-signOutBtn.addEventListener('click', () => {
-  localStorage.removeItem(SESSION_KEY);
-  currentUserId = '';
-  activeSection = 'dashboard';
-  showSignin();
+rmsHomeBtn.addEventListener('click', () => setSection('hub'));
+signOutBtn.addEventListener('click', () => signOut());
+['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach(eventName => {
+  window.addEventListener(eventName, resetInactivityTimer, { passive: true });
 });
 
 signinForm.addEventListener('submit', event => {
