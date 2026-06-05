@@ -356,6 +356,7 @@ function render() {
   addRecordBtn.style.display = activeSection === 'dashboard' || activeSection === 'maintenance' || activeSection === 'admin' || activeSection === 'personnel' ? 'none' : '';
   if (activeSection === 'dashboard') return renderDashboard();
   if (activeSection === 'personnel') return renderPersonnel();
+  if (activeSection === 'hydrants') return renderHydrants();
   if (activeSection === 'maintenance') return renderMaintenance();
   if (activeSection === 'admin') return renderAdmin();
   renderRecords(activeSection);
@@ -407,6 +408,28 @@ function queueItem(name, detail) {
 
 function lowInventory() {
   return data.inventory.filter(item => Number(item.quantity || 0) <= Number(item.minimum || 0));
+}
+
+function renderHydrants() {
+  renderStats([
+    { label: 'Hydrant Dashboard', value: 'Live' },
+    { label: 'Status Feed', value: 'OOS' },
+    { label: 'Map', value: 'Enabled' },
+    { label: 'Source', value: 'Built Page' }
+  ]);
+
+  workspace.innerHTML = `
+    <section class="panel hydrant-rms-panel">
+      <div class="panel-headline">
+        <div>
+          <h2>Out of Service Hydrants</h2>
+          <p class="muted">Live hydrant dashboard pulled into the RMS.</p>
+        </div>
+        <a class="primary link-button" href="/hydrants/" target="_blank" rel="noopener">Open Full Page</a>
+      </div>
+      <iframe class="hydrant-frame" src="/hydrants/" title="Out of Service Hydrants"></iframe>
+    </section>
+  `;
 }
 
 function renderPersonnel() {
