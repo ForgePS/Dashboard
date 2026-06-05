@@ -837,7 +837,7 @@ function renderHoseTesting() {
   workspace.innerHTML = `
     <iframe
       class="external-app-frame"
-      src="/fire-forms/?view=hose"
+      src="/fire-forms/?view=hose&rms=42"
       title="Hose Testing"
       onload="window.syncHoseTestingFrame && window.syncHoseTestingFrame(this)"
     ></iframe>
@@ -898,6 +898,28 @@ window.syncHydrantsFrame = function syncHydrantsFrame(frame) {
       }
     `;
     doc.head.appendChild(style);
+    if (frame._rmsHoseSyncTimer) window.clearInterval(frame._rmsHoseSyncTimer);
+    const syncSelectedHosesToEntry = () => {
+      try {
+        const selectedHoses = [...doc.querySelectorAll('.hose-select-grid button.active strong')]
+          .map(item => item.textContent.trim())
+          .filter(Boolean);
+        if (!selectedHoses.length) return;
+        const entrySection = [...doc.querySelectorAll('.pre-fire-editor')]
+          .find(section => /Hose Test Entry/i.test(section.textContent || ''));
+        const hoseInput = entrySection?.querySelector('textarea');
+        if (!hoseInput) return;
+        const nextValue = [...new Set(selectedHoses)].join(', ');
+        if (hoseInput.value === nextValue) return;
+        const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(hoseInput), 'value')?.set;
+        if (setter) setter.call(hoseInput, nextValue);
+        else hoseInput.value = nextValue;
+        hoseInput.dispatchEvent(new Event('input', { bubbles: true }));
+        hoseInput.dispatchEvent(new Event('change', { bubbles: true }));
+      } catch {}
+    };
+    frame._rmsHoseSyncTimer = window.setInterval(syncSelectedHosesToEntry, 250);
+    syncSelectedHosesToEntry();
   } catch {}
 };
 
