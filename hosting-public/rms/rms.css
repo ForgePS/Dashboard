@@ -412,6 +412,71 @@ textarea {
   min-width: 0;
 }
 
+.admin-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.admin-card {
+  min-width: 0;
+  max-height: 620px;
+  overflow: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.admin-card-wide {
+  grid-column: 1 / -1;
+}
+
+.admin-card-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(135deg, #ffffff, #f5f8fb);
+}
+
+.admin-card-head span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--red);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.admin-card-head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.admin-card-head b {
+  min-width: 38px;
+  min-height: 38px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--red), #a81824);
+  box-shadow: 0 12px 24px rgba(213, 32, 45, .2);
+}
+
+.admin-card > form,
+.admin-card > .queue-list {
+  padding: 14px;
+}
+
 .link-button {
   display: inline-flex;
   align-items: center;
@@ -683,6 +748,7 @@ textarea {
   .stats-grid,
   .maintenance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .record-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .admin-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .personnel-file-form { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .qualifier-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -697,6 +763,7 @@ textarea {
   .stats-grid,
   .record-grid,
   .dashboard-grid,
+  .admin-card-grid,
   .maintenance-grid,
   .form-grid,
   .personnel-file-form,

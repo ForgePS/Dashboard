@@ -653,9 +653,12 @@ function renderAdmin() {
     .slice(0, 12);
 
   workspace.innerHTML = `
-    <div class="dashboard-grid">
-      <section class="panel wide-card">
-        <h2>Personnel Management</h2>
+    <div class="admin-card-grid">
+      <section class="admin-card admin-card-wide">
+        <header class="admin-card-head">
+          <div><span>Personnel</span><h2>Personnel File</h2></div>
+          <b>${data.personnel.length}</b>
+        </header>
         <form id="personnelAdminForm" class="personnel-file-form">
           ${personnelFileFields.map(([key, label, type = 'text', options = []]) => fieldHtml(`personnel_${key}`, label, type, options)).join('')}
           ${fieldHtml('personnel_employeeId', 'Employee ID / Login ID')}
@@ -672,14 +675,20 @@ function renderAdmin() {
           </div>
         </form>
       </section>
-      <section class="panel">
-        <h2>Editable Personnel</h2>
+      <section class="admin-card">
+        <header class="admin-card-head">
+          <div><span>Directory</span><h2>Editable Personnel</h2></div>
+          <b>${data.personnel.length}</b>
+        </header>
         <div class="queue-list">
           ${data.personnel.map((member, index) => `<div class="queue-item"><div><strong>${esc(member.name || member.employeeId)}</strong><br><small>${esc(member.email || 'No email')} | ${esc(member.rank || '')} | Admin: ${member.adminAccess === 'Yes' ? 'Yes' : 'No'}</small></div><button class="small-button" data-edit-personnel="${index}" type="button">Edit</button></div>`).join('')}
         </div>
       </section>
-      <section class="panel">
-        <h2>Apparatus Setup</h2>
+      <section class="admin-card">
+        <header class="admin-card-head">
+          <div><span>Fleet</span><h2>Apparatus Setup</h2></div>
+          <b>+</b>
+        </header>
         <form id="apparatusSetupForm" class="run-log-form">
           ${fieldHtml('newApparatusName', 'Apparatus Name')}
           ${fieldHtml('newApparatusType', 'Apparatus Type', 'select', ['Pumper', 'Ladder Truck', 'Brush Truck', 'Ambulance', 'Fleet', 'Support Vehicle'])}
@@ -690,14 +699,20 @@ function renderAdmin() {
           </div>
         </form>
       </section>
-      <section class="panel">
-        <h2>Current Apparatus</h2>
+      <section class="admin-card">
+        <header class="admin-card-head">
+          <div><span>Fleet</span><h2>Current Apparatus</h2></div>
+          <b>${data.maintenance.length}</b>
+        </header>
         <div class="queue-list">
           ${data.maintenance.map((item, index) => `<div class="queue-item"><div><strong>${esc(item.name)}</strong><br><small>${esc(item.type)} | ${esc(item.location)} | ${esc(item.status)}</small></div><button class="danger-button" data-remove-apparatus="${index}" type="button">Remove</button></div>`).join('')}
         </div>
       </section>
-      <section class="panel">
-        <h2>Apparatus Use Metrics</h2>
+      <section class="admin-card">
+        <header class="admin-card-head">
+          <div><span>Metrics</span><h2>Apparatus Use</h2></div>
+          <b>${totalRuns}</b>
+        </header>
         <form id="runLogForm" class="run-log-form">
           ${fieldHtml('runApparatus', 'Apparatus', 'select', getApparatusNames())}
           ${fieldHtml('runIncident', 'Incident Number')}
@@ -712,8 +727,11 @@ function renderAdmin() {
           </div>
         </form>
       </section>
-      <section class="panel">
-        <h2>95/95 Import Summary</h2>
+      <section class="admin-card">
+        <header class="admin-card-head">
+          <div><span>Readiness</span><h2>95/95 Summary</h2></div>
+          <b>${(totalMinutes / 60).toFixed(1)}</b>
+        </header>
         <div class="queue-list">
           ${data.maintenance.map(item => {
             const metric = calc95(item);
@@ -721,13 +739,16 @@ function renderAdmin() {
           }).join('')}
         </div>
       </section>
-    </div>
-    <section class="panel">
-      <h2>Recent Apparatus Runs</h2>
+      <section class="admin-card admin-card-wide">
+      <header class="admin-card-head">
+        <div><span>Activity</span><h2>Recent Apparatus Runs</h2></div>
+        <b>${recentRuns.length}</b>
+      </header>
       <div class="queue-list">
         ${recentRuns.length ? recentRuns.map(log => `<div class="queue-item"><div><strong>${esc(log.apparatus)} - ${esc(log.incident || 'Run')}</strong><br><small>${esc(log.date || 'No date')} | ${esc(log.callType || 'Call')} | ${esc(log.callMinutes || 0)} minutes | ${esc(log.station || '')}</small></div><span class="pill blue">${esc(log.miles || 0)} mi</span></div>`).join('') : '<p class="muted">No apparatus run metrics logged yet.</p>'}
       </div>
     </section>
+    </div>
   `;
 }
 
