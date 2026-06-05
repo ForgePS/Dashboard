@@ -16,6 +16,14 @@ const sections = [
 ];
 
 const pagePermissionOptions = sections.map(section => ({ id: section.id, title: section.title }));
+const pageSettingOptions = [
+  ['view', 'View Page'],
+  ['create', 'Create Records'],
+  ['edit', 'Edit Records'],
+  ['delete', 'Delete Records'],
+  ['reports', 'Reports / Export'],
+  ['settings', 'Page Settings']
+];
 
 const apparatusNames = [
   'Rescue 1', 'Engine 2', 'Engine 3', 'Engine 4', 'Truck 1', 'Truck 3',
@@ -150,6 +158,7 @@ let currentUserId = localStorage.getItem(SESSION_KEY) || '';
 let activeSection = initialSection();
 let maintenanceMode = 'fleet';
 let adminMode = 'home';
+let permissionEditIndex = 0;
 let editing = null;
 
 const signinScreen = document.getElementById('signinScreen');
@@ -254,6 +263,7 @@ function mergePersonnel(saved = seed.personnel) {
       certifications: '',
       qualifiers: [],
       pagePermissions: sections.filter(section => section.id !== 'admin').map(section => section.id),
+      pageSettings: {},
       isTrainingInstructor: 'No',
       ...member,
       adminAccess: member.adminAccess || (index === 0 ? 'Yes' : 'No')
@@ -275,6 +285,7 @@ function mergePersonnel(saved = seed.personnel) {
         : sections.filter(section => section.id !== 'admin').map(section => section.id);
     }
     if (merged.adminAccess === 'Yes' && !merged.pagePermissions.includes('admin')) merged.pagePermissions.push('admin');
+    merged.pageSettings = normalizePageSettings(merged);
     if (!merged.email && index === 0) merged.email = 'admin@hornlakefire.com';
     if (!merged.password) merged.password = merged.employeeId || '100';
     return merged;
@@ -283,6 +294,20 @@ function mergePersonnel(saved = seed.personnel) {
 
 function personnelDisplayName(member = {}) {
   return [member.firstName, member.middleName, member.lastName].filter(Boolean).join(' ').trim() || member.name || member.employeeId || 'Personnel';
+}
+
+function normalizePageSettings(member = {}) {
+  const source = member.pageSettings && typeof member.pageSettings === 'object' ? member.pageSettings : {};
+  const viewPages = new Set(member.pagePermissions || []);
+  viewPages.add('dashboard');
+  if (member.adminAccess === 'Yes') viewPages.add('admin');
+  return Object.fromEntries(sections.map(section => {
+    const existing = Array.isArray(source[section.id]) ? source[section.id] : [];
+    const settings = new Set(existing);
+    if (viewPages.has(section.id)) settings.add('view');
+    if (section.id === 'dashboard' || member.adminAccess === 'Yes' && section.id === 'admin') settings.add('view');
+    return [section.id, [...settings]];
+  }));
 }
 
 function mergeMaintenance(saved = [], fleetNames = apparatusNames) {
@@ -681,7 +706,6 @@ function renderAdmin() {
   workspace.innerHTML = `
     <div class="admin-launch-grid">
       ${adminLaunchCard('personnel-file', 'Personnel', 'Personnel File', data.personnel.length, 'Create and edit full personnel files, login access, page permissions, and qualifiers.')}
-      ${adminLaunchCard('personnel-list', 'Directory', 'Editable Personnel', data.personnel.length, 'Open existing personnel records and make quick edits.')}
       ${adminLaunchCard('permissions', 'Access', 'Page Permissions', data.personnel.length, 'Choose exactly which RMS pages each person can view.')}
       ${adminLaunchCard('apparatus-setup', 'Fleet', 'Apparatus Setup', '+', 'Add new apparatus to the RMS fleet and assign default details.')}
       ${adminLaunchCard('apparatus-list', 'Fleet', 'Current Apparatus', data.maintenance.length, 'Review and remove apparatus from the RMS fleet list.')}
@@ -706,7 +730,6 @@ function adminLaunchCard(mode, label, titleText, count, detail) {
 function adminPage(mode, context) {
   const pages = {
     'personnel-file': ['Personnel', 'Personnel File', data.personnel.length, adminPersonnelFile()],
-    'personnel-list': ['Directory', 'Editable Personnel', data.personnel.length, adminPersonnelList()],
     permissions: ['Access', 'Page Permissions', data.personnel.length, adminPermissionsPage()],
     'apparatus-setup': ['Fleet', 'Apparatus Setup', '+', adminApparatusSetup()],
     'apparatus-list': ['Fleet', 'Current Apparatus', data.maintenance.length, adminApparatusList()],
@@ -753,27 +776,46 @@ function adminPersonnelList() {
 }
 
 function adminPermissionsPage() {
+  if (!data.personnel[permissionEditIndex]) permissionEditIndex = 0;
+  const member = data.personnel[permissionEditIndex] || {};
+  const settings = normalizePageSettings(member);
   return `
-    <div class="permission-editor-list">
-      ${data.personnel.map((member, index) => `
-        <section class="permission-editor-card">
-          <header>
-            <div>
-              <strong>${esc(personnelDisplayName(member))}</strong>
-              <small>${esc(member.email || member.employeeId || 'No login listed')}</small>
-            </div>
-            <span class="pill ${member.adminAccess === 'Yes' ? 'red' : 'blue'}">${member.adminAccess === 'Yes' ? 'Admin' : 'User'}</span>
-          </header>
-          <div class="check-grid permission-grid">
-            ${pagePermissionOptions.map(page => {
-              const checked = page.id === 'dashboard' || member.adminAccess === 'Yes' && page.id === 'admin' || (member.pagePermissions || []).includes(page.id);
-              const locked = page.id === 'dashboard' || member.adminAccess === 'Yes' && page.id === 'admin';
-              return `<label><input type="checkbox" data-permission-person="${index}" data-permission-page="${esc(page.id)}" ${checked ? 'checked' : ''} ${locked ? 'disabled' : ''}>${esc(page.title)}</label>`;
-            }).join('')}
-          </div>
-        </section>
-      `).join('')}
-    </div>
+    <form id="permissionsForm" class="permission-editor-card">
+      <div class="permission-editor-top">
+        ${fieldHtml('permissionPersonIndex', 'Personnel Name', 'select', data.personnel.map((person, index) => ({ label: personnelDisplayName(person), value: String(index) })), String(permissionEditIndex))}
+        <div class="permission-editor-summary">
+          <strong>${esc(personnelDisplayName(member))}</strong>
+          <small>${esc(member.email || member.employeeId || 'No login listed')}</small>
+          <span class="pill ${member.adminAccess === 'Yes' ? 'red' : 'blue'}">${member.adminAccess === 'Yes' ? 'Admin' : 'User'}</span>
+        </div>
+      </div>
+      <div class="permission-tree">
+        ${sections.map((section, index) => {
+          const pageSettings = settings[section.id] || [];
+          const lockedView = section.id === 'dashboard' || member.adminAccess === 'Yes' && section.id === 'admin';
+          return `
+            <details class="permission-tree-item" ${index < 2 ? 'open' : ''}>
+              <summary>
+                <span class="nav-icon">${esc(section.icon)}</span>
+                <strong>${esc(section.title)}</strong>
+                <em>${pageSettings.includes('view') ? 'Visible' : 'Hidden'}</em>
+              </summary>
+              <div class="check-grid permission-settings-grid">
+                ${pageSettingOptions.map(([setting, label]) => {
+                  const checked = pageSettings.includes(setting) || setting === 'view' && lockedView;
+                  const disabled = setting === 'view' && lockedView;
+                  return `<label><input type="checkbox" name="pageSetting_${esc(section.id)}" value="${esc(setting)}" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}>${esc(label)}</label>`;
+                }).join('')}
+              </div>
+            </details>
+          `;
+        }).join('')}
+      </div>
+      <p id="permissionsSaveMessage" class="form-message full"></p>
+      <div class="form-field full">
+        <button class="primary" type="submit">Save Page Permissions</button>
+      </div>
+    </form>
   `;
 }
 
@@ -878,7 +920,11 @@ function fieldHtml(key, label, type = 'text', options = [], value = '') {
     return `<div class="form-field full"><label for="${key}">${label}</label><textarea id="${key}" name="${key}">${esc(value)}</textarea></div>`;
   }
   if (type === 'select') {
-    return `<div class="form-field"><label for="${key}">${label}</label><select id="${key}" name="${key}">${options.map(option => `<option ${option === value ? 'selected' : ''}>${esc(option)}</option>`).join('')}</select></div>`;
+    return `<div class="form-field"><label for="${key}">${label}</label><select id="${key}" name="${key}">${options.map(option => {
+      const optionValue = typeof option === 'object' ? option.value : option;
+      const optionLabel = typeof option === 'object' ? option.label : option;
+      return `<option value="${esc(optionValue)}" ${String(optionValue) === String(value) ? 'selected' : ''}>${esc(optionLabel)}</option>`;
+    }).join('')}</select></div>`;
   }
   return `<div class="form-field"><label for="${key}">${label}</label><input id="${key}" name="${key}" type="${type}" value="${esc(value)}" /></div>`;
 }
@@ -920,6 +966,7 @@ function personnelRecordFromForm(formData, existingRecord = {}) {
   record.certifications = formData.get('personnel_certifications') || '';
   record.name = personnelDisplayName(record);
   record.phone = record.phone || '';
+  record.pageSettings = normalizePageSettings(record);
   return record;
 }
 
@@ -1117,7 +1164,39 @@ workspace.addEventListener('click', event => {
   if (apparatus) openMaintenanceModal(Number(apparatus.dataset.apparatusIndex));
 });
 
+workspace.addEventListener('change', event => {
+  if (event.target.id === 'permissionPersonIndex') {
+    permissionEditIndex = Number(event.target.value || 0);
+    renderAdmin();
+  }
+});
+
 workspace.addEventListener('submit', event => {
+  if (event.target.id === 'permissionsForm') {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const member = data.personnel[permissionEditIndex];
+    const message = document.getElementById('permissionsSaveMessage');
+    if (!member) return;
+    const pageSettings = {};
+    const pagePermissions = new Set(['dashboard']);
+    sections.forEach(section => {
+      const values = formData.getAll(`pageSetting_${section.id}`);
+      const settings = new Set(values);
+      if (section.id === 'dashboard') settings.add('view');
+      if (member.adminAccess === 'Yes' && section.id === 'admin') settings.add('view');
+      pageSettings[section.id] = [...settings];
+      if (settings.has('view')) pagePermissions.add(section.id);
+    });
+    if (member.adminAccess === 'Yes') pagePermissions.add('admin');
+    else pagePermissions.delete('admin');
+    member.pageSettings = pageSettings;
+    member.pagePermissions = [...pagePermissions];
+    saveData();
+    if (message) message.textContent = 'Page permissions saved.';
+    renderNav();
+    return;
+  }
   if (event.target.id === 'personnelAdminForm') {
     event.preventDefault();
     const formData = new FormData(event.target);

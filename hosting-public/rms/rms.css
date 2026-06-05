@@ -875,6 +875,76 @@ textarea {
   color: var(--muted);
 }
 
+.permission-editor-top {
+  display: grid;
+  grid-template-columns: minmax(280px, .45fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: end;
+}
+
+.permission-editor-summary {
+  min-height: 64px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.permission-editor-summary strong,
+.permission-editor-summary small {
+  display: block;
+}
+
+.permission-editor-summary small {
+  margin-right: auto;
+}
+
+.permission-tree {
+  display: grid;
+  gap: 10px;
+}
+
+.permission-tree-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.permission-tree-item summary {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.permission-tree-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.permission-tree-item summary em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.permission-tree-item[open] summary {
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(135deg, #ffffff, #f7fafc);
+}
+
+.permission-settings-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 12px;
+}
+
 .check-grid label {
   display: flex;
   gap: 8px;
