@@ -637,7 +637,7 @@ function setSection(id) {
   if (!canViewSection(id)) id = 'dashboard';
   if (id === 'admin' && activeSection !== 'admin') adminMode = 'home';
   activeSection = id;
-  title.textContent = appSections().find(section => section.id === id)?.title || 'RMS';
+  title.textContent = appSections().find(section => section.id === id)?.title || 'Application';
   searchInput.value = '';
   const url = new URL(window.location.href);
   url.searchParams.set('section', id);
@@ -664,7 +664,7 @@ function render() {
   }
   signinScreen.classList.add('hidden');
   if (activeSection !== 'hub' && !canViewSection(activeSection)) activeSection = 'hub';
-  title.textContent = appSections().find(section => section.id === activeSection)?.title || 'RMS';
+  title.textContent = appSections().find(section => section.id === activeSection)?.title || 'Application';
   currentUserBadge.textContent = `Welcome ${personnelDisplayName(currentUser())}${isAdminUser() ? ' | Admin' : ''}`;
   document.querySelector('.rms-shell').classList.toggle('rms-shell-hub', activeSection === 'hub');
   rmsHeader.classList.toggle('hidden', activeSection === 'hydrants' || activeSection === 'hub');
@@ -699,8 +699,8 @@ function renderRmsHub() {
         <img src="/horn-lake-logo.png" alt="Horn Lake Fire Department" />
         <div>
           <p class="kicker">Horn Lake Fire Department</p>
-          <h1>RMS Main Hub</h1>
-          <p class="muted">Choose a workspace to open the records management system.</p>
+          <h1>Main Hub</h1>
+          <p class="muted">Choose a workspace to open.</p>
         </div>
         <button class="secondary" id="hubSignOutBtn" type="button">Sign Out</button>
       </header>
@@ -1126,17 +1126,17 @@ function renderAdmin() {
       <div class="admin-page-body">${dashboardOverviewHtml(false)}</div>
     </section>
     <div class="admin-launch-grid">
-      ${adminLaunchCard('rms-builder', 'Builder', 'RMS Builder', appSections().length, 'Add pages, edit menu labels, reorder pages, and build page fields without code.')}
+      ${adminLaunchCard('rms-builder', 'Builder', 'Page Builder', appSections().length, 'Add pages, edit menu labels, reorder pages, and build page fields without code.')}
       ${adminLaunchCard('personnel-file', 'Personnel', 'Personnel File', data.personnel.length, 'Create and edit full personnel files, login access, page permissions, and qualifiers.')}
-      ${adminLaunchCard('apparatus-setup', 'Fleet', 'Apparatus Setup', '+', 'Add new apparatus to the RMS fleet and assign default details.')}
-      ${adminLaunchCard('apparatus-list', 'Fleet', 'Current Apparatus', data.maintenance.length, 'Review and remove apparatus from the RMS fleet list.')}
+      ${adminLaunchCard('apparatus-setup', 'Fleet', 'Apparatus Setup', '+', 'Add new apparatus to the fleet and assign default details.')}
+      ${adminLaunchCard('apparatus-list', 'Fleet', 'Current Apparatus', data.maintenance.length, 'Review and remove apparatus from the fleet list.')}
       ${adminLaunchCard('apparatus-use', 'Metrics', 'Apparatus Use', totalRuns, 'Log run time, mileage, call type, and station by apparatus.')}
       ${adminLaunchCard('readiness', 'Readiness', '95/95 Summary', `${(totalMinutes / 60).toFixed(1)}h`, 'Review imported run hours and readiness calculations.')}
       ${adminLaunchCard('recent-runs', 'Activity', 'Recent Apparatus Runs', recentRuns.length, 'See the latest apparatus run metrics entered into Admin.')}
     </div>
     <details class="admin-settings-panel">
       <summary class="admin-card-head">
-        <div><span>Settings</span><h2>RMS Page Settings Tree</h2></div>
+        <div><span>Settings</span><h2>Page Settings Tree</h2></div>
         <b>${appSections().length}</b>
       </summary>
       <div class="admin-page-body">${adminSettingsTree()}</div>
@@ -1157,7 +1157,7 @@ function adminLaunchCard(mode, label, titleText, count, detail) {
 
 function adminPage(mode, context) {
   const pages = {
-    'rms-builder': ['Builder', 'RMS Builder', appSections().length, adminBuilderPage()],
+    'rms-builder': ['Builder', 'Page Builder', appSections().length, adminBuilderPage()],
     'personnel-file': ['Personnel', 'Personnel File', data.personnel.length, adminPersonnelFile()],
     'apparatus-setup': ['Fleet', 'Apparatus Setup', '+', adminApparatusSetup()],
     'apparatus-list': ['Fleet', 'Current Apparatus', data.maintenance.length, adminApparatusList()],
@@ -1200,7 +1200,7 @@ function adminSettingsTree() {
         </div>
       ` : `
         <div class="admin-settings-content">
-          <p class="muted">${esc(section.title)} settings can be added here as this RMS module grows.</p>
+          <p class="muted">${esc(section.title)} settings can be added here as this module grows.</p>
           ${childSections(section.id).length ? `<div class="admin-settings-children">${childSections(section.id).map(child => renderSettingsNode(child)).join('')}</div>` : ''}
         </div>
       `}
@@ -1227,15 +1227,19 @@ function adminBuilderPage() {
         <h3>Page Menu <span class="pill blue">${esc(builderSyncStatus)}</span></h3>
         ${builderMessage ? `<p class="form-message">${esc(builderMessage)}</p>` : ''}
         <div class="builder-page-list">
-          ${appSections().map((section, index) => `
+          ${appSections().map((section, index) => {
+            const canDeletePage = !['dashboard', 'admin'].includes(section.id);
+            return `
             <div class="builder-row ${section.id === builderPageId ? 'active' : ''}">
               <button class="small-button" data-builder-select-page="${esc(section.id)}" type="button">${esc(section.icon)} ${esc(section.title)}</button>
               <div class="builder-row-actions">
                 <button class="small-button" data-builder-move-page="${index}" data-builder-direction="-1" type="button">Up</button>
                 <button class="small-button" data-builder-move-page="${index}" data-builder-direction="1" type="button">Down</button>
+                ${canDeletePage ? `<button class="danger-button" data-builder-delete-page="${esc(section.id)}" type="button">Delete</button>` : ''}
               </div>
             </div>
-          `).join('')}
+          `;
+          }).join('')}
         </div>
       </section>
       <section class="builder-panel">
@@ -1701,7 +1705,7 @@ workspace.addEventListener('click', event => {
     const pageId = builderDeletePage.dataset.builderDeletePage;
     const page = data.builder.sections.find(section => section.id === pageId);
     if (!page || ['dashboard', 'admin'].includes(pageId)) return;
-    const ok = window.confirm(`Delete ${page.title} from the RMS menu? Records on that page will also be removed.`);
+    const ok = window.confirm(`Delete ${page.title} from the menu? Records on that page will also be removed.`);
     if (!ok) return;
     data.builder.sections = data.builder.sections
       .filter(section => section.id !== pageId)
@@ -1747,7 +1751,7 @@ workspace.addEventListener('click', event => {
     const index = Number(removeButton.dataset.removeApparatus);
     const item = data.maintenance[index];
     if (!item) return;
-    const ok = window.confirm(`Remove ${item.name} from the RMS apparatus list?`);
+    const ok = window.confirm(`Remove ${item.name} from the apparatus list?`);
     if (!ok) return;
     data.maintenance.splice(index, 1);
     data.apparatusList = data.maintenance.map(apparatus => apparatus.name);
