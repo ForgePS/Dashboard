@@ -1,25 +1,90 @@
-const ACTIVE911_TAKEOVER_DURATION_MS =
-  Number(new URLSearchParams(window.location.search).get('takeoverMinutes') || 5) * 60 * 1000;
 const ACTIVE911_MONITOR_MS = 5000;
 const DEFAULT_MVIX_PLAYBACK_URL = 'https://vp-iqewtzht.cms.mvix.com/playback';
 let takeoverInProgress = false;
+let mvixConfig = null;
 
-function playbackUrl() {
-  const params = new URLSearchParams(window.location.search);
-  return params.get('playbackUrl') || DEFAULT_MVIX_PLAYBACK_URL;
+function pageParams() {
+  return new URLSearchParams(window.location.search);
+}
+
+function takeoverDurationMs() {
+  const params = pageParams();
+  const fromQuery = Number(params.get('takeoverMinutes'));
+  const fromConfig = Number(mvixConfig?.wrapper?.takeoverMinutes);
+  const minutes = Number.isFinite(fromQuery) && fromQuery > 0
+    ? fromQuery
+    : Number.isFinite(fromConfig) && fromConfig > 0
+      ? fromConfig
+      : 5;
+  return minutes * 60 * 1000;
+}
+
+function resolveStation() {
+  const params = pageParams();
+  const fromQuery = String(params.get('station') || '').trim();
+  if (['1', '2', '3'].includes(fromQuery)) return fromQuery;
+
+  const path = window.location.pathname.toLowerCase();
+  const match = path.match(/station([123])/);
+  return match ? match[1] : '';
+}
+
+function shouldShowBadge() {
+  const params = pageParams();
+  if (params.get('badge') === '1') return true;
+  if (params.get('badge') === '0') return false;
+  return mvixConfig?.wrapper?.hideStatusBadge !== true;
+}
+
+function hostedSignageUrl(station) {
+  const url = new URL('/mvix/signage', window.location.origin);
+  if (station) url.searchParams.set('station', station);
+  return url.toString();
+}
+
+function resolvePlaybackUrl() {
+  const params = pageParams();
+  const explicit = params.get('playbackUrl');
+  if (explicit) return explicit;
+
+  const signageMode = String(
+    params.get('signageMode') ||
+    mvixConfig?.signageMode ||
+    'hosted'
+  ).toLowerCase();
+
+  if (signageMode === 'cms') {
+    return mvixConfig?.mvixOrgPlaybackUrl || DEFAULT_MVIX_PLAYBACK_URL;
+  }
+
+  return hostedSignageUrl(resolveStation());
+}
+
+async function loadMvixConfig() {
+  try {
+    const response = await fetch(`/api/mvix-config?ts=${Date.now()}`, { cache: 'no-store' });
+    const data = await response.json();
+    if (data.ok) mvixConfig = data;
+  } catch (err) {
+    console.warn('MVIX config unavailable, using defaults:', err.message);
+  }
 }
 
 function loadPlaylist() {
   const frame = document.getElementById('mvixFrame');
-  if (frame) frame.src = playbackUrl();
+  if (frame) frame.src = resolvePlaybackUrl();
+}
+
+function updateBadgeVisibility() {
+  const badge = document.getElementById('statusBadge');
+  if (!badge) return;
+  badge.hidden = !shouldShowBadge();
 }
 
 function stationAlertPath() {
-  const params = new URLSearchParams(window.location.search);
-  const path = window.location.pathname.toLowerCase();
-  const station = String(params.get('station') || path.match(/station([123])/)?.[1] || '').trim();
+  const station = resolveStation();
   const returnTo = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
-  const duration = encodeURIComponent(String(ACTIVE911_TAKEOVER_DURATION_MS / 60000));
+  const duration = encodeURIComponent(String(takeoverDurationMs() / 60000));
   const suffix = `?returnTo=${returnTo}&durationMinutes=${duration}`;
 
   if (station === '2') return `/station2/alert${suffix}`;
@@ -48,7 +113,7 @@ async function checkForActiveCall() {
       return;
     }
 
-    if (Date.now() - sentAt <= ACTIVE911_TAKEOVER_DURATION_MS) {
+    if (Date.now() - sentAt <= takeoverDurationMs()) {
       takeoverInProgress = true;
       if (badge) badge.textContent = 'Active911 alert received - taking over';
       window.location.replace(stationAlertPath());
@@ -61,6 +126,12 @@ async function checkForActiveCall() {
   }
 }
 
-loadPlaylist();
-checkForActiveCall();
-setInterval(checkForActiveCall, ACTIVE911_MONITOR_MS);
+async function init() {
+  await loadMvixConfig();
+  updateBadgeVisibility();
+  loadPlaylist();
+  checkForActiveCall();
+  setInterval(checkForActiveCall, ACTIVE911_MONITOR_MS);
+}
+
+init();

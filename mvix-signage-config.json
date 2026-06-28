@@ -1,0 +1,94 @@
+{
+  "scheduleLibraryId": "709794",
+  "mvixCmsEditUrl": "https://cms.mvix.com/org/schedule-library/list/709794/edit",
+  "mvixOrgPlaybackUrl": "https://vp-iqewtzht.cms.mvix.com/playback",
+  "deployedBaseUrl": "https://firehouse-dashboards.web.app",
+  "signageMode": "hosted",
+  "wrapper": {
+    "takeoverMinutes": 5,
+    "monitorIntervalMs": 5000,
+    "hideStatusBadge": true
+  },
+  "mvixCmsSetup": {
+    "instructions": "Set schedule 709794 to a single full-screen Web Content item pointing at the wrapperUrl for each station. Hosted mode rotates signage from this repo inside the wrapper iframe.",
+    "wrapperUrls": {
+      "default": "https://firehouse-dashboards.web.app/mvix",
+      "station1": "https://firehouse-dashboards.web.app/station1/mvix?station=1",
+      "station2": "https://firehouse-dashboards.web.app/station2/mvix?station=2",
+      "station3": "https://firehouse-dashboards.web.app/station3/mvix?station=3"
+    },
+    "cmsModePlaybackQuery": "?playbackUrl=https%3A%2F%2Fvp-iqewtzht.cms.mvix.com%2Fplayback&takeoverMinutes=5"
+  },
+  "slots": [
+    {
+      "id": "weather",
+      "title": "Horn Lake Weather",
+      "path": "/weather",
+      "durationSeconds": 45,
+      "stations": ["1", "2", "3"]
+    },
+    {
+      "id": "analytics",
+      "title": "Fire Analytics",
+      "path": "/analytics",
+      "durationSeconds": 90,
+      "stations": ["1", "2", "3"]
+    },
+    {
+      "id": "daily-roster",
+      "title": "Daily Roster",
+      "path": "/daily-roster",
+      "durationSeconds": 45,
+      "stations": ["1", "2", "3"]
+    },
+    {
+      "id": "live-document",
+      "title": "Unit Status & OOS",
+      "path": "/live-document",
+      "durationSeconds": 45,
+      "stations": ["1", "2", "3"]
+    },
+    {
+      "id": "training-schedule",
+      "title": "Training Schedule",
+      "path": "/training-schedule",
+      "durationSeconds": 45,
+      "stations": ["1", "2", "3"]
+    },
+    {
+      "id": "ems-expiration-dates",
+      "title": "EMS Expiration Dates",
+      "path": "/ems-expiration-dates",
+      "durationSeconds": 45,
+      "stations": ["1", "2", "3"]
+    },
+    {
+      "id": "events",
+      "title": "Department Events",
+      "path": "/events",
+      "durationSeconds": 45,
+      "stations": ["1", "2", "3"]
+    },
+    {
+      "id": "hydrants",
+      "title": "Out of Service Hydrants",
+      "path": "/hydrants",
+      "durationSeconds": 60,
+      "stations": ["1", "2", "3"]
+    },
+    {
+      "id": "traffic-cameras-301",
+      "title": "Hwy 301 & Goodman Rd Cameras",
+      "path": "/traffic-cameras",
+      "durationSeconds": 60,
+      "stations": ["1", "2", "3"]
+    },
+    {
+      "id": "traffic-cameras-goodman-horn-lake",
+      "title": "Goodman Rd & Horn Lake Rd Cameras",
+      "path": "/goodman-horn-lake-cameras",
+      "durationSeconds": 60,
+      "stations": ["1", "2", "3"]
+    }
+  ]
+}

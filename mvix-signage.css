@@ -15,22 +15,21 @@ iframe {
   background: #05080d;
 }
 
-.status-badge {
+.slot-badge {
   position: fixed;
-  right: 18px;
+  left: 18px;
   bottom: 16px;
-  z-index: 10;
+  z-index: 5;
   padding: 7px 12px;
   border-radius: 999px;
   background: rgba(5, 8, 13, 0.72);
-  color: rgba(226, 232, 240, 0.82);
+  color: rgba(226, 232, 240, 0.72);
   font-family: Arial, Helvetica, sans-serif;
   font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.4px;
 }
 
-.status-badge[hidden] {
+.slot-badge[hidden] {
   display: none;
 }

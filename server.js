@@ -147,6 +147,15 @@ const ACTIVE911_POLL_DETAIL_LIMIT = Number(process.env.ACTIVE911_POLL_DETAIL_LIM
 const ANALYTICS_DASHBOARD_CACHE_MS = Number(process.env.ANALYTICS_DASHBOARD_CACHE_MS || 30000);
 const ACTIVE911_TAKEOVER_CACHE_MS = Number(process.env.ACTIVE911_TAKEOVER_CACHE_MS || 5000);
 
+const MVIX_SIGNAGE_CONFIG_FILE =
+  process.env.MVIX_SIGNAGE_CONFIG_FILE ||
+  path.join(__dirname, 'mvix-signage-config.json');
+const MVIX_SIGNAGE_MODE = String(process.env.MVIX_SIGNAGE_MODE || '').toLowerCase();
+const MVIX_PLAYBACK_URL =
+  process.env.MVIX_PLAYBACK_URL ||
+  'https://vp-iqewtzht.cms.mvix.com/playback';
+const MVIX_SCHEDULE_LIBRARY_ID = process.env.MVIX_SCHEDULE_LIBRARY_ID || '709794';
+
 const ACTIVE911_ACCESS_TOKEN = process.env.ACTIVE911_ACCESS_TOKEN || '';
 const ACTIVE911_ALERTS_URL =
   process.env.ACTIVE911_ALERTS_URL ||
@@ -2530,6 +2539,67 @@ let eventsCache = {
   error: null
 };
 
+let mvixSignageConfigCache = {
+  loadedAt: 0,
+  data: null
+};
+
+function loadMvixSignageConfig(force = false) {
+  const now = Date.now();
+  if (!force && mvixSignageConfigCache.data && now - mvixSignageConfigCache.loadedAt < 30000) {
+    return mvixSignageConfigCache.data;
+  }
+
+  let config = {
+    scheduleLibraryId: MVIX_SCHEDULE_LIBRARY_ID,
+    mvixOrgPlaybackUrl: MVIX_PLAYBACK_URL,
+    signageMode: MVIX_SIGNAGE_MODE || 'hosted',
+    wrapper: {
+      takeoverMinutes: 5,
+      monitorIntervalMs: 5000,
+      hideStatusBadge: true
+    },
+    slots: []
+  };
+
+  try {
+    if (fs.existsSync(MVIX_SIGNAGE_CONFIG_FILE)) {
+      const parsed = JSON.parse(fs.readFileSync(MVIX_SIGNAGE_CONFIG_FILE, 'utf8'));
+      config = {
+        ...config,
+        ...parsed,
+        wrapper: {
+          ...config.wrapper,
+          ...(parsed.wrapper || {})
+        }
+      };
+    }
+  } catch (err) {
+    console.error('Failed to load MVIX signage config:', err.message);
+  }
+
+  if (MVIX_SIGNAGE_MODE) config.signageMode = MVIX_SIGNAGE_MODE;
+  if (MVIX_PLAYBACK_URL) config.mvixOrgPlaybackUrl = MVIX_PLAYBACK_URL;
+  if (MVIX_SCHEDULE_LIBRARY_ID) config.scheduleLibraryId = MVIX_SCHEDULE_LIBRARY_ID;
+
+  mvixSignageConfigCache = {
+    loadedAt: now,
+    data: config
+  };
+
+  return config;
+}
+
+function buildMvixCmsUrls(config, baseUrl) {
+  const origin = String(baseUrl || config.deployedBaseUrl || '').replace(/\/$/, '');
+  const slots = Array.isArray(config.slots) ? config.slots : [];
+
+  return slots.map((slot) => ({
+    ...slot,
+    fullUrl: `${origin}${slot.path}`
+  }));
+}
+
 // ======================================================
 // ANALYTICS ROUTES
 // ======================================================
@@ -2556,6 +2626,10 @@ app.get('/station:station/mvix', (req, res) => {
 
 app.get('/mvix/station:station', (req, res) => {
   sendHtmlFileOrFallback(res, 'mvix-playback.html', 'MVIX Playback With Active911 Override', '/api/active911-takeover');
+});
+
+app.get('/mvix/signage', (req, res) => {
+  sendHtmlFileOrFallback(res, 'mvix-signage.html', 'MVIX Signage Rotation', '/api/mvix-signage');
 });
 
 app.get('/station1', (req, res) => {
@@ -2612,6 +2686,22 @@ app.get('/events', (req, res) => {
 
 app.get('/weather', (req, res) => {
   sendHtmlFileOrFallback(res, 'weather.html', 'Horn Lake Weather', '/api/weather');
+});
+
+app.get('/traffic-cameras', (req, res) => {
+  sendHtmlFileOrFallback(res, 'traffic-cameras.html', 'Hwy 301 & Goodman Rd Cameras');
+});
+
+app.get('/traffic-cameras.html', (req, res) => {
+  sendHtmlFileOrFallback(res, 'traffic-cameras.html', 'Hwy 301 & Goodman Rd Cameras');
+});
+
+app.get('/goodman-horn-lake-cameras', (req, res) => {
+  sendHtmlFileOrFallback(res, 'goodman-horn-lake-cameras.html', 'Goodman Rd & Horn Lake Rd Cameras');
+});
+
+app.get('/goodman-horn-lake-cameras.html', (req, res) => {
+  sendHtmlFileOrFallback(res, 'goodman-horn-lake-cameras.html', 'Goodman Rd & Horn Lake Rd Cameras');
 });
 
 app.get('/active911', (req, res) => {
@@ -2750,6 +2840,37 @@ app.get('/api/latest', async (req, res) => {
 app.get('/api/active911-takeover', async (req, res) => {
   const dashboard = await getCachedActive911TakeoverPayload(5, String(req.query.force || '').toLowerCase() === 'true');
   res.json(dashboard);
+});
+
+app.get('/api/mvix-config', (req, res) => {
+  const config = loadMvixSignageConfig(String(req.query.force || '').toLowerCase() === 'true');
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+  res.json({
+    ok: true,
+    signageMode: config.signageMode || 'hosted',
+    scheduleLibraryId: config.scheduleLibraryId || MVIX_SCHEDULE_LIBRARY_ID,
+    mvixOrgPlaybackUrl: config.mvixOrgPlaybackUrl || MVIX_PLAYBACK_URL,
+    mvixCmsEditUrl: config.mvixCmsEditUrl || null,
+    deployedBaseUrl: config.deployedBaseUrl || baseUrl,
+    wrapper: config.wrapper || {},
+    mvixCmsSetup: config.mvixCmsSetup || null,
+    hostedSignagePath: '/mvix/signage',
+    wrapperPath: '/mvix'
+  });
+});
+
+app.get('/api/mvix-signage', (req, res) => {
+  const config = loadMvixSignageConfig(String(req.query.force || '').toLowerCase() === 'true');
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+  res.json({
+    ok: true,
+    scheduleLibraryId: config.scheduleLibraryId || MVIX_SCHEDULE_LIBRARY_ID,
+    signageMode: config.signageMode || 'hosted',
+    slots: Array.isArray(config.slots) ? config.slots : [],
+    mvixCmsUrls: buildMvixCmsUrls(config, baseUrl)
+  });
 });
 
 app.get('/api/analytics-refresh', async (req, res) => {
@@ -4523,6 +4644,9 @@ app.use('/api', (req, res) => {
       '/api/dashboard',
       '/api/analytics',
       '/api/latest',
+      '/api/active911-takeover',
+      '/api/mvix-config',
+      '/api/mvix-signage',
       '/api/hydrants-status',
       '/api/daily-roster',
       '/api/live-document',
