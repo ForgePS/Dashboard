@@ -2626,7 +2626,7 @@ app.get('/mvix-playback', (req, res) => {
 
 app.get('/mvix', (req, res) => {
   if (!req.query.station && !req.query.signageUrl && !req.query.playbackUrl) {
-    return res.redirect(302, '/station1/mvix?station=1');
+    return res.redirect(302, '/station1/mvix?station=1&takeoverMinutes=5');
   }
   sendHtmlFileOrFallback(res, 'mvix-playback.html', 'MVIX Playback With Active911 Override', '/api/active911-takeover');
 });
@@ -2656,15 +2656,15 @@ app.get('/signage/media/4097765.webp', (req, res) => {
 });
 
 app.get('/station1', (req, res) => {
-  res.redirect(302, '/station1/mvix?station=1');
+  res.redirect(302, '/station1/mvix?station=1&takeoverMinutes=5');
 });
 
 app.get('/station2', (req, res) => {
-  res.redirect(302, '/station2/mvix?station=2');
+  res.redirect(302, '/station2/mvix?station=2&takeoverMinutes=5');
 });
 
 app.get('/station3', (req, res) => {
-  res.redirect(302, '/station3/mvix?station=3');
+  res.redirect(302, '/station3/mvix?station=3&takeoverMinutes=5');
 });
 
 app.get('/daily-roster', async (req, res) => {

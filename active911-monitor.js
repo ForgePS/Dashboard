@@ -3,8 +3,9 @@
     return;
   }
 
-  const TAKEOVER_MINUTES = Number(new URLSearchParams(global.location.search).get('takeoverMinutes') || 5);
-  const TAKEOVER_MS = TAKEOVER_MINUTES * 60 * 1000;
+  const config = global.ACTIVE911_CONFIG || { takeoverMinutes: 5, takeoverMs: 5 * 60 * 1000 };
+  const TAKEOVER_MINUTES = config.takeoverMinutes;
+  const TAKEOVER_MS = config.takeoverMs;
   const POLL_MS = 5000;
   let takeoverInProgress = false;
   let badge = null;
@@ -64,7 +65,7 @@
   }
 
   function armedText(station) {
-    return `Active911 enabled · Station ${station}`;
+    return `Active911 enabled · ${TAKEOVER_MINUTES} min · Station ${station}`;
   }
 
   function alertPath(station) {
