@@ -50,7 +50,7 @@ function resolvePlaybackUrl() {
   const signageMode = String(
     params.get('signageMode') ||
     mvixConfig?.signageMode ||
-    'hosted'
+    'cms'
   ).toLowerCase();
 
   if (signageMode === 'cms') {

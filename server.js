@@ -2553,7 +2553,7 @@ function loadMvixSignageConfig(force = false) {
   let config = {
     scheduleLibraryId: MVIX_SCHEDULE_LIBRARY_ID,
     mvixOrgPlaybackUrl: MVIX_PLAYBACK_URL,
-    signageMode: MVIX_SIGNAGE_MODE || 'hosted',
+    signageMode: MVIX_SIGNAGE_MODE || 'cms',
     wrapper: {
       takeoverMinutes: 5,
       monitorIntervalMs: 5000,
@@ -2593,11 +2593,18 @@ function loadMvixSignageConfig(force = false) {
 function buildMvixCmsUrls(config, baseUrl) {
   const origin = String(baseUrl || config.deployedBaseUrl || '').replace(/\/$/, '');
   const slots = Array.isArray(config.slots) ? config.slots : [];
+  const presetUrls = config.mvixCmsSetup?.contentUrls || {};
 
-  return slots.map((slot) => ({
-    ...slot,
-    fullUrl: `${origin}${slot.path}`
-  }));
+  return slots.map((slot) => {
+    const preset = presetUrls[slot.id] || presetUrls[slot.cmsKey || ''] || '';
+    const url = preset || `${origin}${slot.path}?mvix=1`;
+
+    return {
+      ...slot,
+      mvixCmsUrl: url,
+      fullUrl: url
+    };
+  });
 }
 
 // ======================================================
@@ -2848,7 +2855,7 @@ app.get('/api/mvix-config', (req, res) => {
 
   res.json({
     ok: true,
-    signageMode: config.signageMode || 'hosted',
+    signageMode: config.signageMode || 'cms',
     scheduleLibraryId: config.scheduleLibraryId || MVIX_SCHEDULE_LIBRARY_ID,
     mvixOrgPlaybackUrl: config.mvixOrgPlaybackUrl || MVIX_PLAYBACK_URL,
     mvixCmsEditUrl: config.mvixCmsEditUrl || null,
@@ -2867,7 +2874,7 @@ app.get('/api/mvix-signage', (req, res) => {
   res.json({
     ok: true,
     scheduleLibraryId: config.scheduleLibraryId || MVIX_SCHEDULE_LIBRARY_ID,
-    signageMode: config.signageMode || 'hosted',
+    signageMode: config.signageMode || 'cms',
     slots: Array.isArray(config.slots) ? config.slots : [],
     mvixCmsUrls: buildMvixCmsUrls(config, baseUrl)
   });

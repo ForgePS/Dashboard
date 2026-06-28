@@ -3,21 +3,48 @@
   "mvixCmsEditUrl": "https://cms.mvix.com/org/schedule-library/list/709794/edit",
   "mvixOrgPlaybackUrl": "https://vp-iqewtzht.cms.mvix.com/playback",
   "deployedBaseUrl": "https://firehouse-dashboards.web.app",
-  "signageMode": "hosted",
+  "signageMode": "cms",
+  "contentScheduleId": "709794",
   "wrapper": {
     "takeoverMinutes": 5,
     "monitorIntervalMs": 5000,
     "hideStatusBadge": true
   },
   "mvixCmsSetup": {
-    "instructions": "Set schedule 709794 to a single full-screen Web Content item pointing at the wrapperUrl for each station. Hosted mode rotates signage from this repo inside the wrapper iframe.",
+    "instructions": "Use two layers in MVIX CMS. (1) Assign devices a launcher schedule with one full-screen Web Content item pointing at wrapperUrl — this enables Active911 takeover. (2) Edit schedule 709794 with Web Content items using the contentUrls below; the wrapper iframe plays that schedule through mvixOrgPlaybackUrl.",
+    "launcherSchedule": {
+      "description": "Create or use a thin launcher schedule assigned to each player/device.",
+      "items": [
+        {
+          "type": "web",
+          "title": "Active911 Wrapper",
+          "url": "https://firehouse-dashboards.web.app/mvix"
+        }
+      ]
+    },
+    "contentSchedule": {
+      "scheduleLibraryId": "709794",
+      "editUrl": "https://cms.mvix.com/org/schedule-library/list/709794/edit",
+      "description": "Add each dashboard page below as a Web Content item. Set durations in MVIX CMS."
+    },
     "wrapperUrls": {
       "default": "https://firehouse-dashboards.web.app/mvix",
       "station1": "https://firehouse-dashboards.web.app/station1/mvix?station=1",
       "station2": "https://firehouse-dashboards.web.app/station2/mvix?station=2",
       "station3": "https://firehouse-dashboards.web.app/station3/mvix?station=3"
     },
-    "cmsModePlaybackQuery": "?playbackUrl=https%3A%2F%2Fvp-iqewtzht.cms.mvix.com%2Fplayback&takeoverMinutes=5"
+    "contentUrls": {
+      "weather": "https://firehouse-dashboards.web.app/weather?mvix=1",
+      "analytics": "https://firehouse-dashboards.web.app/analytics?mvix=1",
+      "dailyRoster": "https://firehouse-dashboards.web.app/daily-roster?mvix=1",
+      "liveDocument": "https://firehouse-dashboards.web.app/live-document?mvix=1",
+      "trainingSchedule": "https://firehouse-dashboards.web.app/training-schedule?mvix=1",
+      "emsExpirationDates": "https://firehouse-dashboards.web.app/ems-expiration-dates?mvix=1",
+      "events": "https://firehouse-dashboards.web.app/events?mvix=1",
+      "hydrants": "https://firehouse-dashboards.web.app/hydrants?mvix=1",
+      "trafficCameras301": "https://firehouse-dashboards.web.app/traffic-cameras?mvix=1",
+      "trafficCamerasGoodmanHornLake": "https://firehouse-dashboards.web.app/goodman-horn-lake-cameras?mvix=1"
+    }
   },
   "slots": [
     {
