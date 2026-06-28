@@ -1,20 +1,20 @@
 .active911-status-badge {
   position: fixed;
-  top: 18px;
-  left: 18px;
+  right: 18px;
+  bottom: 18px;
   z-index: 2147483647;
   display: block;
-  padding: 10px 16px;
+  padding: 6px 12px;
   border-radius: 999px;
   background: rgba(5, 8, 13, 0.9);
-  border: 2px solid rgba(148, 163, 184, 0.35);
+  border: 1px solid rgba(148, 163, 184, 0.35);
   color: #f8fafc;
   font-family: Arial, Helvetica, sans-serif;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
   pointer-events: none;
 }
 
