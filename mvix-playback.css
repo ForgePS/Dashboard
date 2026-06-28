@@ -22,13 +22,29 @@ iframe {
   z-index: 10;
   padding: 7px 12px;
   border-radius: 999px;
-  background: rgba(5, 8, 13, 0.72);
-  color: rgba(226, 232, 240, 0.82);
+  background: rgba(5, 8, 13, 0.82);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  color: rgba(226, 232, 240, 0.9);
   font-family: Arial, Helvetica, sans-serif;
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 1px;
   text-transform: uppercase;
+}
+
+.status-badge.is-armed {
+  color: #86efac;
+  border-color: rgba(134, 239, 172, 0.45);
+}
+
+.status-badge.is-warning {
+  color: #fcd34d;
+  border-color: rgba(252, 211, 77, 0.45);
+}
+
+.status-badge.is-alert {
+  color: #fca5a5;
+  border-color: rgba(252, 165, 165, 0.45);
 }
 
 .status-badge[hidden] {
