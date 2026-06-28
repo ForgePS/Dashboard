@@ -2614,6 +2614,14 @@ app.get('/weather', (req, res) => {
   sendHtmlFileOrFallback(res, 'weather.html', 'Horn Lake Weather', '/api/weather');
 });
 
+app.get('/traffic-cameras', (req, res) => {
+  sendHtmlFileOrFallback(res, 'traffic-cameras.html', 'Hwy 301 & Goodman Rd Cameras');
+});
+
+app.get('/traffic-cameras.html', (req, res) => {
+  sendHtmlFileOrFallback(res, 'traffic-cameras.html', 'Hwy 301 & Goodman Rd Cameras');
+});
+
 app.get('/active911', (req, res) => {
   sendHtmlFileOrFallback(res, 'active911.html', 'Active911 Alert Takeover', '/api/latest');
 });
