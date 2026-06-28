@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<title>Goodman Rd & Interstate Blvd</title>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+
+<style>
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+
+    width: 100%;
+    height: 100%;
+
+    overflow: hidden;
+
+    background: #000;
+
+    font-family: Arial, sans-serif;
+}
+
+/* HEADER */
+
+.header {
+    height: 70px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    background: linear-gradient(to bottom, #1a1a1a, #0b0b0b);
+
+    color: white;
+
+    font-size: 34px;
+    font-weight: bold;
+
+    letter-spacing: 1px;
+
+    border-bottom: 2px solid #333;
+}
+
+/* LOADING SCREEN */
+
+body.loading .dashboard {
+    opacity: 0;
+}
+
+body.loading::after {
+    content: "Loading live cameras...";
+
+    position: fixed;
+
+    inset: 70px 0 0 0;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    background: #050505;
+
+    color: white;
+
+    font-size: 28px;
+    font-weight: bold;
+
+    z-index: 9999;
+}
+
+/* DASHBOARD */
+
+.dashboard {
+    width: 100vw;
+
+    height: calc(100vh - 70px);
+
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+
+    grid-template-rows: 1fr 1fr;
+
+    gap: 36px;
+
+    padding: 36px;
+
+    box-sizing: border-box;
+
+    background: #050505;
+
+    opacity: 1;
+
+    transition: opacity 0.4s ease;
+}
+
+/* CAMERA PANEL */
+
+.camera-box {
+    position: relative;
+
+    overflow: hidden;
+
+    background: #000;
+
+    border: 6px solid #4a4a4a;
+
+    border-radius: 10px;
+
+    box-sizing: border-box;
+
+    box-shadow:
+        0 0 12px rgba(255,255,255,0.08),
+        0 0 28px rgba(255,255,255,0.04);
+
+    transition:
+        border-color 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+/* CAMERA TITLE */
+
+.camera-title {
+    position: absolute;
+
+    top: 10px;
+    left: 10px;
+
+    z-index: 100;
+
+    background: rgba(0,0,0,0.65);
+
+    color: white;
+
+    padding: 6px 12px;
+
+    font-size: 18px;
+
+    font-weight: 600;
+
+    border-radius: 4px;
+}
+
+/* VIDEO */
+
+video {
+    width: 100%;
+
+    height: 100%;
+
+    display: block;
+
+    object-fit: cover;
+
+    background: #000;
+}
+
+</style>
+
+</head>
+
+<body class="loading">
+
+<!-- HEADER -->
+
+<div class="header">
+    Goodman Rd & Interstate Blvd
+</div>
+
+<!-- DASHBOARD -->
+
+<div class="dashboard">
+
+        <!-- SOUTH -->
+
+    <div class="camera-box">
+
+        <div class="camera-title">
+            South
+        </div>
+
+        <video
+            id="video2"
+            autoplay
+            muted
+            playsinline
+            controls>
+        </video>
+
+    </div>
+
+    <!-- EAST -->
+
+    <div class="camera-box">
+
+        <div class="camera-title">
+            East
+        </div>
+
+        <video
+            id="video3"
+            autoplay
+            muted
+            playsinline
+            controls>
+        </video>
+
+    </div>
+
+    <!-- WEST -->
+
+    <div class="camera-box">
+
+        <div class="camera-title">
+            West
+        </div>
+
+        <video
+            id="video4"
+            autoplay
+            muted
+            playsinline
+            controls>
+        </video>
+
+    </div>
+
+</div>
+
+<script>
+
+const streams = [
+    {
+        id: "video2",
+        url: "https://streamingshvn1.mdottraffic.com/rtplive/042702.stream/chunklist_w1483501129.m3u8"
+    },
+    {
+        id: "video3",
+        url: "https://streamingshvn1.mdottraffic.com/rtplive/042703.stream/chunklist_w872524007.m3u8"
+    },
+    {
+        id: "video4",
+        url: "https://streamingshvn1.mdottraffic.com/rtplive/042701.stream/chunklist_w278362386.m3u8"
+    },   
+];
+
+const hlsPlayers = new Map();
+const readyStreams = new Set();
+
+const minimumReadyStreams = 1;
+const maxLoadingTime = 12000;
+const streamStartStaggerMs = 500;
+const minimumBufferSeconds = 8;
+
+/*
+ * MDOT streams use 10-second segments with only ~3 segments in the
+ * live playlist. Low-latency settings (liveSyncDuration: 2, etc.)
+ * leave almost no runway ahead of playback and cause stalls ~5s in.
+ */
+const HLS_CONFIG = {
+    enableWorker: true,
+    lowLatencyMode: false,
+    startPosition: -1,
+    initialLiveManifestSize: 2,
+    maxBufferLength: 30,
+    maxMaxBufferLength: 60,
+    backBufferLength: 30,
+    liveSyncDurationCount: 3,
+    liveMaxLatencyDurationCount: 6,
+    maxLiveSyncPlaybackRate: 1,
+    maxBufferHole: 0.5,
+    highBufferWatchdogPeriod: 3
+};
+
+setTimeout(() => {
+    document.body.classList.remove("loading");
+}, maxLoadingTime);
+
+function bufferedAheadSeconds(video) {
+    if (!video.buffered.length) return 0;
+
+    const end = video.buffered.end(video.buffered.length - 1);
+    return Math.max(0, end - video.currentTime);
+}
+
+function markStreamStable(videoId) {
+    if (readyStreams.has(videoId)) return;
+
+    readyStreams.add(videoId);
+
+    if (readyStreams.size >= minimumReadyStreams) {
+        document.body.classList.remove("loading");
+    }
+}
+
+function waitForStablePlayback(video, videoId) {
+    let stableTimer = null;
+
+    function startStableTimer() {
+        clearTimeout(stableTimer);
+
+        stableTimer = setTimeout(() => {
+            const hasBuffer = bufferedAheadSeconds(video) >= minimumBufferSeconds;
+
+            if (!video.paused && !video.seeking && video.readyState >= 2 && hasBuffer) {
+                markStreamStable(videoId);
+            }
+        }, 2000);
+    }
+
+    video.addEventListener("loadeddata", startStableTimer);
+    video.addEventListener("canplay", startStableTimer);
+    video.addEventListener("playing", startStableTimer);
+    video.addEventListener("progress", startStableTimer);
+
+    video.addEventListener("waiting", () => {
+        clearTimeout(stableTimer);
+    });
+
+    video.addEventListener("stalled", () => {
+        clearTimeout(stableTimer);
+    });
+}
+
+function destroyPlayer(videoId) {
+    const player = hlsPlayers.get(videoId);
+
+    if (player) {
+        player.destroy();
+        hlsPlayers.delete(videoId);
+    }
+}
+
+function loadStream(videoId, videoSrc) {
+    const video = document.getElementById(videoId);
+
+    if (!video || !videoSrc) return;
+
+    destroyPlayer(videoId);
+    readyStreams.delete(videoId);
+
+    video.removeAttribute("src");
+    video.load();
+
+    video.preload = "auto";
+
+    waitForStablePlayback(video, videoId);
+
+    /* SAFARI / NATIVE HLS SUPPORT */
+
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = videoSrc;
+
+        video.addEventListener("loadedmetadata", function onMetadata() {
+            video.removeEventListener("loadedmetadata", onMetadata);
+            video.play().catch(() => {});
+        }, { once: true });
+    }
+
+    /* HLS.JS SUPPORT */
+
+    else if (window.Hls && Hls.isSupported()) {
+        const hls = new Hls(HLS_CONFIG);
+
+        hlsPlayers.set(videoId, hls);
+
+        hls.loadSource(videoSrc);
+
+        hls.attachMedia(video);
+
+        hls.on(Hls.Events.MANIFEST_PARSED, function () {
+            video.play().catch(() => {});
+        });
+
+        hls.on(Hls.Events.ERROR, function (event, data) {
+            if (data.fatal) {
+                console.log("Stream Error:", videoId, data.type, data.details);
+
+                destroyPlayer(videoId);
+
+                setTimeout(() => {
+                    loadStream(videoId, videoSrc);
+                }, 5000);
+            }
+        });
+    }
+}
+
+/* LOAD STREAMS (staggered to avoid bandwidth spikes on startup) */
+
+streams.forEach((stream, index) => {
+    setTimeout(() => {
+        loadStream(stream.id, stream.url);
+    }, index * streamStartStaggerMs);
+});
+
+</script>
+
+</body>
+
+</html>

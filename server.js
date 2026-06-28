@@ -137,6 +137,10 @@ const HISTORICAL_ADDRESS_CSV_FILE =
   process.env.HISTORICAL_ADDRESS_CSV_FILE ||
   path.join(__dirname, 'historical-address-volume.csv');
 
+const SIGNAGE_PLAYLIST_FILE =
+  process.env.SIGNAGE_PLAYLIST_FILE ||
+  path.join(__dirname, 'signage-playlist.json');
+
 const HISTORICAL_LIVE_START =
   process.env.HISTORICAL_LIVE_START ||
   '';
@@ -336,6 +340,20 @@ function loadJsonFile(file, fallback) {
     console.error(`Failed to load ${file}:`, err.message);
     return fallback;
   }
+}
+
+function loadSignagePlaylist() {
+  return loadJsonFile(SIGNAGE_PLAYLIST_FILE, {
+    scheduleId: '709794',
+    slots: []
+  });
+}
+
+function normalizeSignageStationId(value) {
+  const text = String(value || '').trim().toLowerCase();
+  if (text === '2' || text === 'station2') return '2';
+  if (text === '3' || text === 'station3') return '3';
+  return '1';
 }
 
 function saveJsonFile(file, data) {
@@ -2558,16 +2576,28 @@ app.get('/mvix/station:station', (req, res) => {
   sendHtmlFileOrFallback(res, 'mvix-playback.html', 'MVIX Playback With Active911 Override', '/api/active911-takeover');
 });
 
+app.get('/signage', (req, res) => {
+  sendHtmlFileOrFallback(res, 'signage.html', 'Station Signage');
+});
+
+app.get('/station:station/signage', (req, res) => {
+  sendHtmlFileOrFallback(res, 'signage.html', 'Station Signage');
+});
+
+app.get('/signage-asset', (req, res) => {
+  sendHtmlFileOrFallback(res, 'signage-asset.html', 'Signage Asset');
+});
+
 app.get('/station1', (req, res) => {
-  sendHtmlFileOrFallback(res, 'analytics.html', 'Horn Lake Fire Analytics', '/api/analytics-dashboard');
+  res.redirect(302, '/station1/mvix?station=1');
 });
 
 app.get('/station2', (req, res) => {
-  sendHtmlFileOrFallback(res, 'analytics.html', 'Horn Lake Fire Analytics', '/api/analytics-dashboard');
+  res.redirect(302, '/station2/mvix?station=2');
 });
 
 app.get('/station3', (req, res) => {
-  sendHtmlFileOrFallback(res, 'analytics.html', 'Horn Lake Fire Analytics', '/api/analytics-dashboard');
+  res.redirect(302, '/station3/mvix?station=3');
 });
 
 app.get('/daily-roster', (req, res) => {
@@ -2612,6 +2642,46 @@ app.get('/events', (req, res) => {
 
 app.get('/weather', (req, res) => {
   sendHtmlFileOrFallback(res, 'weather.html', 'Horn Lake Weather', '/api/weather');
+});
+
+app.get('/traffic-cameras', (req, res) => {
+  sendHtmlFileOrFallback(res, 'traffic-cameras.html', 'Hwy 301 & Goodman Rd Cameras');
+});
+
+app.get('/traffic-cameras.html', (req, res) => {
+  sendHtmlFileOrFallback(res, 'traffic-cameras.html', 'Hwy 301 & Goodman Rd Cameras');
+});
+
+app.get('/goodman-horn-lake-cameras', (req, res) => {
+  sendHtmlFileOrFallback(res, 'goodman-horn-lake-cameras.html', 'Goodman Rd & Horn Lake Rd Cameras');
+});
+
+app.get('/goodman-horn-lake-cameras.html', (req, res) => {
+  sendHtmlFileOrFallback(res, 'goodman-horn-lake-cameras.html', 'Goodman Rd & Horn Lake Rd Cameras');
+});
+
+app.get('/goodman-tulane-cameras', (req, res) => {
+  sendHtmlFileOrFallback(res, 'goodman-tulane-cameras.html', 'Goodman Rd & Tulane Rd Cameras');
+});
+
+app.get('/goodman-tulane-cameras.html', (req, res) => {
+  sendHtmlFileOrFallback(res, 'goodman-tulane-cameras.html', 'Goodman Rd & Tulane Rd Cameras');
+});
+
+app.get('/goodman-hwy51-cameras', (req, res) => {
+  sendHtmlFileOrFallback(res, 'goodman-hwy51-cameras.html', 'Goodman Rd & Hwy 51 Cameras');
+});
+
+app.get('/goodman-hwy51-cameras.html', (req, res) => {
+  sendHtmlFileOrFallback(res, 'goodman-hwy51-cameras.html', 'Goodman Rd & Hwy 51 Cameras');
+});
+
+app.get('/goodman-interstate-cameras', (req, res) => {
+  sendHtmlFileOrFallback(res, 'goodman-interstate-cameras.html', 'Goodman Rd & Interstate Blvd Cameras');
+});
+
+app.get('/goodman-interstate-cameras.html', (req, res) => {
+  sendHtmlFileOrFallback(res, 'goodman-interstate-cameras.html', 'Goodman Rd & Interstate Blvd Cameras');
 });
 
 app.get('/active911', (req, res) => {
@@ -2750,6 +2820,32 @@ app.get('/api/latest', async (req, res) => {
 app.get('/api/active911-takeover', async (req, res) => {
   const dashboard = await getCachedActive911TakeoverPayload(5, String(req.query.force || '').toLowerCase() === 'true');
   res.json(dashboard);
+});
+
+app.get('/api/signage-playlist', (req, res) => {
+  const playlist = loadSignagePlaylist();
+  const station = normalizeSignageStationId(req.query.station);
+  const stationMeta = playlist.stations?.[station] || ACTIVE911_STATIONS[station] || ACTIVE911_STATIONS['1'];
+  const now = Date.now();
+
+  const slots = (Array.isArray(playlist.slots) ? playlist.slots : []).filter((slot) => {
+    if (!slot || slot.disabled) return false;
+    if (slot.expireOn) {
+      const expires = Date.parse(slot.expireOn);
+      if (Number.isFinite(expires) && expires <= now) return false;
+    }
+    return true;
+  });
+
+  res.json({
+    ok: true,
+    scheduleId: playlist.scheduleId || '709794',
+    title: playlist.title || 'Station Signage',
+    station,
+    stationMeta,
+    exportedAt: playlist.exportedAt || null,
+    slots
+  });
 });
 
 app.get('/api/analytics-refresh', async (req, res) => {
@@ -4523,6 +4619,8 @@ app.use('/api', (req, res) => {
       '/api/dashboard',
       '/api/analytics',
       '/api/latest',
+      '/api/active911-takeover',
+      '/api/signage-playlist',
       '/api/hydrants-status',
       '/api/daily-roster',
       '/api/live-document',

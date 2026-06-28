@@ -30,3 +30,7 @@ iframe {
   letter-spacing: 1px;
   text-transform: uppercase;
 }
+
+.status-badge[hidden] {
+  display: none;
+}

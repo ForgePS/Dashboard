@@ -1,0 +1,117 @@
+{
+  "scheduleId": 709794,
+  "title": "Horn Lake Fire Dashboard",
+  "scheduleType": "Timed",
+  "updatedAt": "2026-06-28T20:53:49.000000Z",
+  "deviceList": [
+    {
+      "id": 69850,
+      "name": "MP-13150-004",
+      "alias": "Station 3",
+      "deviceType": {
+        "id": 22,
+        "name": "Mvix Pro",
+        "alias": "Mvix Pro",
+        "logo": "https://cms.mvix.com/assets/deviceType/logos/22.png",
+        "color": "rgba(1, 24, 117, 1)"
+      },
+      "description": null,
+      "locationImage": {
+        "id": 1,
+        "title": "Lobby",
+        "deviceLocationImage": "https://cms.mvix.com/assets/device/locationImage/preset/Banks/1_1_lobby_banking.jpg",
+        "category": {
+          "id": 1,
+          "title": "Banks"
+        },
+        "isCustom": false
+      },
+      "updatedAt": "2026-06-28T11:48:50.000000Z",
+      "screenOrientation": "Landscape Clockwise",
+      "status": "Active",
+      "resource": "DeviceShortResource"
+    },
+    {
+      "id": 69848,
+      "name": "MP-13150-002",
+      "alias": "Station 1",
+      "deviceType": {
+        "id": 22,
+        "name": "Mvix Pro",
+        "alias": "Mvix Pro",
+        "logo": "https://cms.mvix.com/assets/deviceType/logos/22.png",
+        "color": "rgba(1, 24, 117, 1)"
+      },
+      "description": null,
+      "locationImage": {
+        "id": 1,
+        "title": "Lobby",
+        "deviceLocationImage": "https://cms.mvix.com/assets/device/locationImage/preset/Banks/1_1_lobby_banking.jpg",
+        "category": {
+          "id": 1,
+          "title": "Banks"
+        },
+        "isCustom": false
+      },
+      "updatedAt": "2026-06-28T11:39:35.000000Z",
+      "screenOrientation": "Landscape Clockwise",
+      "status": "Active",
+      "resource": "DeviceShortResource"
+    },
+    {
+      "id": 69851,
+      "name": "MP-13150-005",
+      "alias": "Admin",
+      "deviceType": {
+        "id": 22,
+        "name": "Mvix Pro",
+        "alias": "Mvix Pro",
+        "logo": "https://cms.mvix.com/assets/deviceType/logos/22.png",
+        "color": "rgba(1, 24, 117, 1)"
+      },
+      "description": null,
+      "locationImage": {
+        "id": 1,
+        "title": "Lobby",
+        "deviceLocationImage": "https://cms.mvix.com/assets/device/locationImage/preset/Banks/1_1_lobby_banking.jpg",
+        "category": {
+          "id": 1,
+          "title": "Banks"
+        },
+        "isCustom": false
+      },
+      "updatedAt": "2026-06-26T20:56:24.000000Z",
+      "screenOrientation": "Landscape Clockwise",
+      "status": "Active",
+      "resource": "DeviceShortResource"
+    },
+    {
+      "id": 69849,
+      "name": "MP-13150-003",
+      "alias": "Station 2",
+      "deviceType": {
+        "id": 22,
+        "name": "Mvix Pro",
+        "alias": "Mvix Pro",
+        "logo": "https://cms.mvix.com/assets/deviceType/logos/22.png",
+        "color": "rgba(1, 24, 117, 1)"
+      },
+      "description": null,
+      "locationImage": {
+        "id": 1,
+        "title": "Lobby",
+        "deviceLocationImage": "https://cms.mvix.com/assets/device/locationImage/preset/Banks/1_1_lobby_banking.jpg",
+        "category": {
+          "id": 1,
+          "title": "Banks"
+        },
+        "isCustom": false
+      },
+      "updatedAt": "2026-06-03T03:09:58.000000Z",
+      "screenOrientation": "Landscape Clockwise",
+      "status": "Inactive",
+      "resource": "DeviceShortResource"
+    }
+  ],
+  "slotCount": 25
+}
