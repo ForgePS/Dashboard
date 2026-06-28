@@ -146,9 +146,10 @@ const HISTORICAL_LIVE_START =
   '';
 
 const MAX_INCIDENT_HISTORY = Number(process.env.MAX_INCIDENT_HISTORY || 5000);
-const ACTIVE911_POLL_MS = Number(process.env.ACTIVE911_POLL_MS || 15000);
+const ACTIVE911_POLL_MS = Number(process.env.ACTIVE911_POLL_MS || 5000);
 const ACTIVE911_POLL_DETAIL_LIMIT = Number(process.env.ACTIVE911_POLL_DETAIL_LIMIT || 1000);
 const ANALYTICS_DASHBOARD_CACHE_MS = Number(process.env.ANALYTICS_DASHBOARD_CACHE_MS || 30000);
+const ACTIVE911_MONITOR_CACHE_MS = Number(process.env.ACTIVE911_MONITOR_CACHE_MS || 5000);
 const ACTIVE911_TAKEOVER_CACHE_MS = Number(process.env.ACTIVE911_TAKEOVER_CACHE_MS || 5000);
 
 const ACTIVE911_ACCESS_TOKEN = process.env.ACTIVE911_ACCESS_TOKEN || '';
@@ -2541,9 +2542,9 @@ async function buildActive911TakeoverPayload(recentLimit = 5) {
   }
 }
 
-async function getCachedActive911TakeoverPayload(recentLimit = 5, force = false) {
+async function getCachedActive911TakeoverPayload(recentLimit = 5, force = false, cacheMs = ACTIVE911_TAKEOVER_CACHE_MS) {
   const now = Date.now();
-  if (!force && active911TakeoverCache.data && now - active911TakeoverCache.loadedAt < ACTIVE911_TAKEOVER_CACHE_MS) {
+  if (!force && active911TakeoverCache.data && now - active911TakeoverCache.loadedAt < cacheMs) {
     return {
       ...active911TakeoverCache.data,
       cached: true
@@ -2889,7 +2890,10 @@ app.get('/api/latest', async (req, res) => {
 });
 
 app.get('/api/active911-takeover', async (req, res) => {
-  const dashboard = await getCachedActive911TakeoverPayload(5, String(req.query.force || '').toLowerCase() === 'true');
+  const force = String(req.query.force || '').toLowerCase() === 'true';
+  const monitor = String(req.query.monitor || '').toLowerCase() === '1';
+  const cacheMs = monitor ? ACTIVE911_MONITOR_CACHE_MS : ACTIVE911_TAKEOVER_CACHE_MS;
+  const dashboard = await getCachedActive911TakeoverPayload(5, force, cacheMs);
   res.json(dashboard);
 });
 
