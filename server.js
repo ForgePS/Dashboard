@@ -2608,13 +2608,27 @@ function normalizeMacAddress(value) {
   return raw.match(/.{1,2}/g).join(':');
 }
 
+function listMvixStationMacAddresses(profile) {
+  const values = [];
+
+  if (Array.isArray(profile.macAddresses)) {
+    values.push(...profile.macAddresses);
+  }
+
+  if (profile.macAddress || profile.mac) {
+    values.push(profile.macAddress || profile.mac);
+  }
+
+  return [...new Set(values.map((value) => normalizeMacAddress(value)).filter(Boolean))];
+}
+
 function findMvixStationIdByMac(macValue, config = loadMvixSignageConfig()) {
   const target = normalizeMacAddress(macValue);
   if (!target) return '';
 
   for (const [stationId, profile] of Object.entries(config.stations || {})) {
-    const profileMac = normalizeMacAddress(profile.macAddress || profile.mac || '');
-    if (profileMac && profileMac === target) return normalizeActive911StationId(stationId);
+    const macs = listMvixStationMacAddresses(profile);
+    if (macs.includes(target)) return normalizeActive911StationId(stationId);
   }
 
   return '';
@@ -2625,12 +2639,14 @@ function getMvixStationProfile(config, stationId) {
   const stations = config.stations || {};
   const profile = stations[id] || {};
   const fallback = ACTIVE911_STATIONS[id] || ACTIVE911_STATIONS['1'];
+  const macAddresses = listMvixStationMacAddresses(profile);
 
   return {
     id,
     label: profile.label || fallback.label,
     address: profile.address || fallback.address,
-    macAddress: normalizeMacAddress(profile.macAddress || profile.mac || ''),
+    macAddress: macAddresses[0] || '',
+    macAddresses,
     deviceName: safeString(profile.deviceName || profile.mvixDeviceName || ''),
     playbackUrl: profile.playbackUrl || config.mvixOrgPlaybackUrl || MVIX_PLAYBACK_URL,
     contentScheduleId: profile.contentScheduleId || config.contentScheduleId || config.scheduleLibraryId || MVIX_SCHEDULE_LIBRARY_ID,
@@ -2688,8 +2704,8 @@ function buildMvixStationSetup(config, baseUrl) {
       wrapperPath: `/station${stationId}/mvix?station=${stationId}`,
       contentUrls,
       mvixCmsSteps: [
-        profile.macAddress
-          ? `In MVIX Device Library, find the player with MAC ${profile.macAddress}${profile.deviceName ? ` (${profile.deviceName})` : ''}`
+        profile.macAddresses?.length
+          ? `In MVIX Device Library, match any of these MACs: ${profile.macAddresses.join(', ')}${profile.deviceName ? ` (${profile.deviceName})` : ''}`
           : `In MVIX Device Library, find the Station ${stationId} player and copy its MAC into mvix-signage-config.json`,
         `Create launcher schedule "${profile.launcherScheduleName}" in https://cms.mvix.com/org/schedule-library/list`,
         `Add one full-screen Web Content item: ${wrapperUrl}`,
