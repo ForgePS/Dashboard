@@ -2595,7 +2595,29 @@ function mvixStationIdFromRequest(req) {
   if (pathText.includes('station2')) return '2';
   if (pathText.includes('station3')) return '3';
   if (pathText.includes('station1')) return '1';
+
+  const macStation = findMvixStationIdByMac(req.query.mac || req.query.macAddress || '');
+  if (macStation) return macStation;
+
   return normalizeActive911StationId(req.query.station || req.params.station || '');
+}
+
+function normalizeMacAddress(value) {
+  const raw = safeString(value).toUpperCase().replace(/[^A-F0-9]/g, '');
+  if (raw.length !== 12) return '';
+  return raw.match(/.{1,2}/g).join(':');
+}
+
+function findMvixStationIdByMac(macValue, config = loadMvixSignageConfig()) {
+  const target = normalizeMacAddress(macValue);
+  if (!target) return '';
+
+  for (const [stationId, profile] of Object.entries(config.stations || {})) {
+    const profileMac = normalizeMacAddress(profile.macAddress || profile.mac || '');
+    if (profileMac && profileMac === target) return normalizeActive911StationId(stationId);
+  }
+
+  return '';
 }
 
 function getMvixStationProfile(config, stationId) {
@@ -2608,6 +2630,8 @@ function getMvixStationProfile(config, stationId) {
     id,
     label: profile.label || fallback.label,
     address: profile.address || fallback.address,
+    macAddress: normalizeMacAddress(profile.macAddress || profile.mac || ''),
+    deviceName: safeString(profile.deviceName || profile.mvixDeviceName || ''),
     playbackUrl: profile.playbackUrl || config.mvixOrgPlaybackUrl || MVIX_PLAYBACK_URL,
     contentScheduleId: profile.contentScheduleId || config.contentScheduleId || config.scheduleLibraryId || MVIX_SCHEDULE_LIBRARY_ID,
     contentScheduleEditUrl: profile.contentScheduleEditUrl || config.mvixCmsEditUrl || null,
@@ -2664,13 +2688,16 @@ function buildMvixStationSetup(config, baseUrl) {
       wrapperPath: `/station${stationId}/mvix?station=${stationId}`,
       contentUrls,
       mvixCmsSteps: [
+        profile.macAddress
+          ? `In MVIX Device Library, find the player with MAC ${profile.macAddress}${profile.deviceName ? ` (${profile.deviceName})` : ''}`
+          : `In MVIX Device Library, find the Station ${stationId} player and copy its MAC into mvix-signage-config.json`,
         `Create launcher schedule "${profile.launcherScheduleName}" in https://cms.mvix.com/org/schedule-library/list`,
         `Add one full-screen Web Content item: ${wrapperUrl}`,
-        `Assign "${profile.launcherScheduleName}" to the Station ${stationId} player in Device Library`,
+        `Assign "${profile.launcherScheduleName}" to this player in Device Library`,
         `Create or edit content schedule "${profile.contentScheduleName}" (ID ${profile.contentScheduleId})`,
         'Add Web Content items from contentUrls below (each includes ?station=N for route maps)',
-        `Assign "${profile.contentScheduleName}" as the playback/content schedule for the Station ${stationId} player`,
-        `Set playbackUrl in mvix-signage-config.json stations.${stationId}.playbackUrl to this player's MVIX Playback URL`
+        `Assign "${profile.contentScheduleName}" as the playback/content schedule for this player`,
+        `Set stations.${stationId}.playbackUrl in mvix-signage-config.json to this player's MVIX Playback URL`
       ]
     };
   });
@@ -2965,8 +2992,42 @@ app.get('/api/mvix-stations', (req, res) => {
   res.json({
     ok: true,
     scheduleLibraryUrl: config.mvixCmsSetup?.scheduleLibraryUrl || 'https://cms.mvix.com/org/schedule-library/list',
+    deviceLibraryUrl: 'https://cms.mvix.com/org/device-library/list',
     signageMode: config.signageMode || 'cms',
     stations: buildMvixStationSetup(config, baseUrl)
+  });
+});
+
+app.get('/api/mvix-station-by-mac', (req, res) => {
+  const config = loadMvixSignageConfig(String(req.query.force || '').toLowerCase() === 'true');
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  const mac = normalizeMacAddress(req.query.mac || req.query.macAddress || '');
+  const stationId = findMvixStationIdByMac(mac, config);
+
+  if (!mac) {
+    return res.status(400).json({
+      ok: false,
+      error: 'Provide ?mac=AA:BB:CC:DD:EE:FF'
+    });
+  }
+
+  if (!stationId) {
+    return res.status(404).json({
+      ok: false,
+      error: `No station mapped to MAC ${mac}`,
+      macAddress: mac
+    });
+  }
+
+  const profile = getMvixStationProfile(config, stationId);
+
+  res.json({
+    ok: true,
+    macAddress: mac,
+    station: stationId,
+    stationProfile: profile,
+    wrapperUrl: buildMvixWrapperUrl(baseUrl, stationId, config),
+    contentUrls: buildMvixCmsUrls(config, baseUrl, stationId)
   });
 });
 
@@ -4745,6 +4806,7 @@ app.use('/api', (req, res) => {
       '/api/mvix-config',
       '/api/mvix-signage',
       '/api/mvix-stations',
+      '/api/mvix-station-by-mac',
       '/api/hydrants-status',
       '/api/daily-roster',
       '/api/live-document',

@@ -12,7 +12,7 @@
   },
   "mvixCmsSetup": {
     "scheduleLibraryUrl": "https://cms.mvix.com/org/schedule-library/list",
-    "instructions": "Create schedules in MVIX Schedule Library (see stations below). Each physical player gets: (1) a launcher schedule with one Web Content item = wrapperUrl, (2) a content schedule with dashboard Web Content URLs including ?station=N. Copy each player's Playback URL from MVIX Device Library into mvix-signage-config.json stations.playbackUrl.",
+    "instructions": "Create schedules in MVIX Schedule Library. Match each player by MAC address in Device Library (https://cms.mvix.com/org/device-library/list). Paste each player's MAC and Playback URL into mvix-signage-config.json under stations.1, stations.2, stations.3.",
     "launcherSchedule": {
       "description": "Create or use a thin launcher schedule assigned to each player/device.",
       "items": [
@@ -51,6 +51,8 @@
     "1": {
       "label": "Station 1",
       "address": "6770 Tulane Horn Lake, MS 38637",
+      "macAddress": "",
+      "deviceName": "",
       "playbackUrl": "https://vp-iqewtzht.cms.mvix.com/playback",
       "contentScheduleId": "709794",
       "contentScheduleEditUrl": "https://cms.mvix.com/org/schedule-library/list/709794/edit",
@@ -60,6 +62,8 @@
     "2": {
       "label": "Station 2",
       "address": "5711 Hwy 51 Horn Lake, MS 38637",
+      "macAddress": "",
+      "deviceName": "",
       "playbackUrl": "https://vp-iqewtzht.cms.mvix.com/playback",
       "contentScheduleId": "709794",
       "contentScheduleEditUrl": "https://cms.mvix.com/org/schedule-library/list/709794/edit",
@@ -69,6 +73,8 @@
     "3": {
       "label": "Station 3",
       "address": "6363 Hwy 301 Walls, MS 38680",
+      "macAddress": "",
+      "deviceName": "",
       "playbackUrl": "https://vp-iqewtzht.cms.mvix.com/playback",
       "contentScheduleId": "709794",
       "contentScheduleEditUrl": "https://cms.mvix.com/org/schedule-library/list/709794/edit",
