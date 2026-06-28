@@ -559,46 +559,155 @@ h1 {
 /* RESPONSIVE FALLBACK */
 
 @media (max-width: 1200px) {
-  body {
+  body:not(.signage-mode) {
     overflow: auto;
   }
 
-  .analytics-page {
+  body:not(.signage-mode) .analytics-page {
     height: auto;
     grid-template-rows: auto;
   }
 
-  .topbar {
+  body:not(.signage-mode) .topbar {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .header-right {
+  body:not(.signage-mode) .header-right {
     align-items: flex-start;
     text-align: left;
   }
 
-  .kpi-grid {
+  body:not(.signage-mode) .kpi-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .main-grid {
+  body:not(.signage-mode) .main-grid {
     grid-template-columns: 1fr;
     grid-template-rows: auto;
     min-height: auto;
   }
 
-  .trend-panel,
-  .split-panel,
-  .type-panel,
-  .recent-panel,
-  .hotspot-panel {
+  body:not(.signage-mode) .trend-panel,
+  body:not(.signage-mode) .split-panel,
+  body:not(.signage-mode) .type-panel,
+  body:not(.signage-mode) .recent-panel,
+  body:not(.signage-mode) .hotspot-panel {
     grid-column: auto;
     grid-row: auto;
     min-height: 360px;
   }
 
-  .hotspot-list {
+  body:not(.signage-mode) .hotspot-list {
     grid-template-columns: 1fr;
   }
+}
+
+/* SIGNAGE / MVIX FULLSCREEN */
+
+html.signage-mode,
+body.signage-mode {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body.signage-mode .analytics-page {
+  width: 100%;
+  height: 100%;
+  padding: 4px 6px 6px;
+  grid-template-rows: 96px 84px minmax(0, 1fr);
+  gap: 8px;
+}
+
+body.signage-mode .topbar {
+  padding: 10px 16px;
+  border-radius: 14px;
+}
+
+body.signage-mode .brand-block img {
+  width: 62px;
+  height: 62px;
+}
+
+body.signage-mode .kicker {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+}
+
+body.signage-mode h1 {
+  font-size: clamp(28px, 2.8vw, 42px);
+}
+
+body.signage-mode .status-live,
+body.signage-mode .updated-time {
+  font-size: 13px;
+}
+
+body.signage-mode .kpi {
+  padding: 10px 14px;
+  border-radius: 14px;
+}
+
+body.signage-mode .kpi-label {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+
+body.signage-mode .kpi strong {
+  margin-top: 4px;
+  font-size: clamp(28px, 2.8vw, 44px);
+}
+
+body.signage-mode .kpi small {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+body.signage-mode .main-grid {
+  grid-template-columns: 1.35fr 0.8fr 0.8fr;
+  grid-template-rows: 48% minmax(0, 1fr);
+  gap: 8px;
+}
+
+body.signage-mode .panel-head {
+  height: 46px;
+  min-height: 46px;
+  padding: 0 14px;
+}
+
+body.signage-mode .panel-head h2 {
+  font-size: 16px;
+}
+
+body.signage-mode .panel-head p,
+body.signage-mode .panel-head span {
+  margin-top: 2px;
+  font-size: 11px;
+}
+
+body.signage-mode .chart-wrap,
+body.signage-mode .split-display,
+body.signage-mode .type-breakdown,
+body.signage-mode .recent-list,
+body.signage-mode .hotspot-list {
+  height: calc(100% - 46px);
+}
+
+body.signage-mode .recent-list {
+  grid-template-columns: 1fr;
+  align-content: start;
+  overflow: hidden;
+}
+
+body.signage-mode .recent-item strong {
+  font-size: 14px;
+}
+
+body.signage-mode .recent-item span {
+  font-size: 12px;
+}
+
+body.signage-mode .recent-item small {
+  font-size: 11px;
 }
