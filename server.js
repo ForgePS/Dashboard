@@ -997,7 +997,8 @@ async function fetchDailyRoster(force = false) {
     const response = await fetch(DAILY_ROSTER_URL, {
       headers: {
         Accept: 'text/html,application/xhtml+xml'
-      }
+      },
+      signal: AbortSignal.timeout(15000)
     });
 
     if (!response.ok) {
@@ -1006,6 +1007,11 @@ async function fetchDailyRoster(force = false) {
 
     const html = await response.text();
     const parsed = parseSlateRosterHtml(html);
+
+    if (!parsed.dateLabel || !Object.keys(parsed.resources || {}).length) {
+      throw new Error('Slate roster response did not include expected roster data');
+    }
+
     const shaped = shapeDailyRoster(parsed);
 
     dailyRosterCache = {
@@ -1017,7 +1023,10 @@ async function fetchDailyRoster(force = false) {
     saveJsonFile(DAILY_ROSTER_FILE, shaped);
     return shaped;
   } catch (err) {
-    const fallback = dailyRosterCache.data || loadJsonFile(DAILY_ROSTER_FILE, null);
+    const fallback =
+      dailyRosterCache.data ||
+      loadJsonFile(DAILY_ROSTER_FILE, null) ||
+      loadJsonFile(path.join(__dirname, 'data', 'daily-roster.json'), null);
 
     dailyRosterCache.error = err.message;
 
@@ -1032,6 +1041,57 @@ async function fetchDailyRoster(force = false) {
 
     throw err;
   }
+}
+
+function warmDailyRosterCache() {
+  const saved =
+    loadJsonFile(DAILY_ROSTER_FILE, null) ||
+    loadJsonFile(path.join(__dirname, 'data', 'daily-roster.json'), null);
+
+  if (!saved || dailyRosterCache.data) return;
+
+  dailyRosterCache = {
+    loadedAt: saved.updated || nowIso(),
+    error: null,
+    data: saved
+  };
+}
+
+async function prefetchDailyRoster() {
+  try {
+    await fetchDailyRoster(true);
+  } catch (err) {
+    console.error('Daily roster prefetch failed:', err.message);
+  }
+}
+
+async function sendDailyRosterPage(res) {
+  const htmlPath = path.join(__dirname, 'daily-roster.html');
+
+  if (!fs.existsSync(htmlPath)) {
+    return sendHtmlFileOrFallback(res, 'daily-roster.html', 'Horn Lake Daily Roster', '/api/daily-roster');
+  }
+
+  let roster = null;
+
+  try {
+    roster = await fetchDailyRoster(false);
+  } catch (err) {
+    roster =
+      loadJsonFile(DAILY_ROSTER_FILE, null) ||
+      loadJsonFile(path.join(__dirname, 'data', 'daily-roster.json'), null);
+  }
+
+  let html = fs.readFileSync(htmlPath, 'utf8');
+  const bootstrap = roster?.ok
+    ? `<script>window.__ROSTER_BOOTSTRAP__=${JSON.stringify(roster).replace(/</g, '\\u003c')};</script>`
+    : '';
+
+  html = html.includes('<!-- ROSTER_BOOTSTRAP -->')
+    ? html.replace('<!-- ROSTER_BOOTSTRAP -->', bootstrap)
+    : html.replace('</body>', `${bootstrap}</body>`);
+
+  res.type('html').send(html);
 }
 
 async function pollActive911() {
@@ -2603,12 +2663,16 @@ app.get('/station3', (req, res) => {
   res.redirect(302, '/station3/mvix?station=3');
 });
 
-app.get('/daily-roster', (req, res) => {
-  sendHtmlFileOrFallback(res, 'daily-roster.html', 'Horn Lake Daily Roster', '/api/daily-roster');
+app.get('/daily-roster', async (req, res) => {
+  await sendDailyRosterPage(res);
 });
 
-app.get('/roster', (req, res) => {
-  sendHtmlFileOrFallback(res, 'daily-roster.html', 'Horn Lake Daily Roster', '/api/daily-roster');
+app.get('/station:station/daily-roster', async (req, res) => {
+  await sendDailyRosterPage(res);
+});
+
+app.get('/roster', async (req, res) => {
+  await sendDailyRosterPage(res);
 });
 
 app.get('/live-document', (req, res) => {
@@ -4791,6 +4855,10 @@ let backgroundWorkStarted = false;
 function startBackgroundWork() {
   if (backgroundWorkStarted) return;
   backgroundWorkStarted = true;
+
+  warmDailyRosterCache();
+  prefetchDailyRoster();
+  setInterval(prefetchDailyRoster, DAILY_ROSTER_REFRESH_MS);
 
   if (ACTIVE911_POLLING_ENABLED && (active911AccessToken || active911RefreshToken || firestoreDb)) {
     pollActive911();
