@@ -1,0 +1,46 @@
+.active911-status-badge {
+  position: fixed;
+  top: 18px;
+  left: 18px;
+  z-index: 2147483647;
+  display: block;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(5, 8, 13, 0.9);
+  border: 2px solid rgba(148, 163, 184, 0.35);
+  color: #f8fafc;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+.active911-status-badge.is-connecting {
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.45);
+}
+
+.active911-status-badge.is-armed {
+  color: #052e16;
+  background: #86efac;
+  border-color: #4ade80;
+}
+
+.active911-status-badge.is-warning {
+  color: #422006;
+  background: #fcd34d;
+  border-color: #fbbf24;
+}
+
+.active911-status-badge.is-alert {
+  color: #450a0a;
+  background: #fca5a5;
+  border-color: #f87171;
+}
+
+.active911-status-badge[hidden] {
+  display: block !important;
+}
