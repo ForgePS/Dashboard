@@ -8,15 +8,18 @@ body {
 }
 
 img,
-video {
+video,
+iframe {
   display: block;
   width: 100vw;
   height: 100vh;
+  border: 0;
   object-fit: contain;
   background: #05080d;
 }
 
 img[hidden],
-video[hidden] {
+video[hidden],
+iframe[hidden] {
   display: none;
 }

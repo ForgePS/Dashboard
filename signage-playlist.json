@@ -53,7 +53,8 @@
       "expireOn": null,
       "disabled": false,
       "type": "image",
-      "path": "/signage/media/4097765.webp",
+      "assetType": "pdf",
+      "path": "/signage/media/4097765.pdf",
       "canvaDesignId": "DAHJpeabYjI"
     },
     {
