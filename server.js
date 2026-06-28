@@ -997,7 +997,8 @@ async function fetchDailyRoster(force = false) {
     const response = await fetch(DAILY_ROSTER_URL, {
       headers: {
         Accept: 'text/html,application/xhtml+xml'
-      }
+      },
+      signal: AbortSignal.timeout(15000)
     });
 
     if (!response.ok) {
@@ -1006,6 +1007,11 @@ async function fetchDailyRoster(force = false) {
 
     const html = await response.text();
     const parsed = parseSlateRosterHtml(html);
+
+    if (!parsed.dateLabel || !Object.keys(parsed.resources || {}).length) {
+      throw new Error('Slate roster response did not include expected roster data');
+    }
+
     const shaped = shapeDailyRoster(parsed);
 
     dailyRosterCache = {
@@ -1031,6 +1037,25 @@ async function fetchDailyRoster(force = false) {
     }
 
     throw err;
+  }
+}
+
+function warmDailyRosterCache() {
+  const saved = loadJsonFile(DAILY_ROSTER_FILE, null);
+  if (!saved || dailyRosterCache.data) return;
+
+  dailyRosterCache = {
+    loadedAt: saved.updated || nowIso(),
+    error: null,
+    data: saved
+  };
+}
+
+async function prefetchDailyRoster() {
+  try {
+    await fetchDailyRoster(true);
+  } catch (err) {
+    console.error('Daily roster prefetch failed:', err.message);
   }
 }
 
@@ -2604,6 +2629,10 @@ app.get('/station3', (req, res) => {
 });
 
 app.get('/daily-roster', (req, res) => {
+  sendHtmlFileOrFallback(res, 'daily-roster.html', 'Horn Lake Daily Roster', '/api/daily-roster');
+});
+
+app.get('/station:station/daily-roster', (req, res) => {
   sendHtmlFileOrFallback(res, 'daily-roster.html', 'Horn Lake Daily Roster', '/api/daily-roster');
 });
 
@@ -4791,6 +4820,10 @@ let backgroundWorkStarted = false;
 function startBackgroundWork() {
   if (backgroundWorkStarted) return;
   backgroundWorkStarted = true;
+
+  warmDailyRosterCache();
+  prefetchDailyRoster();
+  setInterval(prefetchDailyRoster, DAILY_ROSTER_REFRESH_MS);
 
   if (ACTIVE911_POLLING_ENABLED && (active911AccessToken || active911RefreshToken || firestoreDb)) {
     pollActive911();

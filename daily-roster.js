@@ -84,6 +84,10 @@ function renderRoster(data) {
   grid.innerHTML = (data.rows || []).map(stationMarkup).join('');
 }
 
+function isSignageMode() {
+  return new URLSearchParams(window.location.search).get('signage') === '1';
+}
+
 async function refreshRoster(force = false) {
   try {
     const response = await fetch(`/api/daily-roster${force ? '?force=true' : ''}`, { cache: 'no-store' });
@@ -93,14 +97,23 @@ async function refreshRoster(force = false) {
     if (!data.ok) throw new Error(data.error || 'Roster response failed');
 
     renderRoster(data);
+    return data;
   } catch (err) {
     const grid = document.getElementById('rosterGrid');
     setText('statusText', 'Roster update failed');
-    if (grid) {
+    if (grid && !grid.querySelector('.station-row')) {
       grid.innerHTML = `<div class="error">${err.message}</div>`;
     }
+    return null;
   }
 }
 
-refreshRoster(true);
-setInterval(refreshRoster, 30000);
+async function initRoster() {
+  const cached = await refreshRoster(false);
+  if (!cached?.stale) return;
+
+  await refreshRoster(true);
+}
+
+initRoster();
+setInterval(() => refreshRoster(isSignageMode() ? false : true), 30000);
