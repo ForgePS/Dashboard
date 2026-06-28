@@ -3,10 +3,10 @@
     return;
   }
 
-  const config = global.ACTIVE911_CONFIG || { takeoverMinutes: 5, takeoverMs: 5 * 60 * 1000, pollMs: 5000 };
+  const config = global.ACTIVE911_CONFIG || { takeoverMinutes: 5, takeoverMs: 5 * 60 * 1000 };
   const TAKEOVER_MINUTES = config.takeoverMinutes;
   const TAKEOVER_MS = config.takeoverMs;
-  const POLL_MS = config.pollMs || 5000;
+  const POLL_MS = 5000;
   let takeoverInProgress = false;
   let badge = null;
 
@@ -80,7 +80,7 @@
     const station = resolveStation();
 
     try {
-      const response = await fetch(`/api/active911-takeover?monitor=1&ts=${Date.now()}`, { cache: 'no-store' });
+      const response = await fetch(`/api/active911-takeover?ts=${Date.now()}`, { cache: 'no-store' });
       const data = await response.json();
 
       if (!response.ok || !data.ok) {
