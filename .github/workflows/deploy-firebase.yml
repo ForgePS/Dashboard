@@ -6,21 +6,34 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Check deploy secret
+      - name: Check deploy credentials
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
         run: |
-          if [ -z "$FIREBASE_TOKEN" ] && [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
-            echo "::error::Missing Firebase deploy secret."
-            echo "Add FIREBASE_TOKEN (from: firebase login:ci) or FIREBASE_SERVICE_ACCOUNT (service account JSON)"
-            echo "at https://github.com/ForgePS/Dashboard/settings/secrets/actions"
-            exit 1
+          if [ -n "$GCP_WORKLOAD_IDENTITY_PROVIDER" ] && [ -n "$GCP_SERVICE_ACCOUNT" ]; then
+            echo "Using Workload Identity Federation (keyless)"
+            exit 0
           fi
+          if [ -n "$FIREBASE_TOKEN" ] || [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "Using Firebase token or service account secret"
+            exit 0
+          fi
+          echo "::error::No deploy credentials configured."
+          echo "Option A (org blocks keys): run scripts/setup-github-wif.sh in Cloud Shell, add GitHub Variables"
+          echo "Option B (one-time): run scripts/deploy-from-cloud-shell.sh in Cloud Shell"
+          echo "Option C: add FIREBASE_TOKEN or FIREBASE_SERVICE_ACCOUNT secret"
+          exit 1
 
       - uses: actions/checkout@v4
 
@@ -31,8 +44,15 @@ jobs:
 
       - run: npm ci
 
-      - name: Authenticate with service account
-        if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+      - name: Authenticate with Workload Identity
+        if: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' }}
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Authenticate with service account JSON
+        if: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER == '' && secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
