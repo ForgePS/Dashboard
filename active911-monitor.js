@@ -23,8 +23,23 @@
     return match ? match[1] : '1';
   }
 
+  function applyBadgeLayout(el) {
+    el.style.setProperty('top', 'auto', 'important');
+    el.style.setProperty('left', 'auto', 'important');
+    el.style.setProperty('right', '18px', 'important');
+    el.style.setProperty('bottom', '18px', 'important');
+    el.style.setProperty('padding', '6px 12px', 'important');
+    el.style.setProperty('font-size', '12px', 'important');
+    el.style.setProperty('border-width', '1px', 'important');
+    el.style.setProperty('letter-spacing', '0.5px', 'important');
+    el.style.setProperty('box-shadow', '0 6px 18px rgba(0, 0, 0, 0.4)', 'important');
+  }
+
   function ensureBadge() {
-    if (badge) return badge;
+    if (badge) {
+      applyBadgeLayout(badge);
+      return badge;
+    }
 
     badge = global.document.getElementById('active911StatusBadge');
     if (!badge) {
@@ -35,6 +50,7 @@
       global.document.body.appendChild(badge);
     }
 
+    applyBadgeLayout(badge);
     return badge;
   }
 
