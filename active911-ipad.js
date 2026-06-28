@@ -18,6 +18,7 @@ const routeImage = document.getElementById('routeImage');
 const routeCard = document.getElementById('routeCard');
 const routeButton = document.getElementById('routeButton');
 const ACTIVE911_TAKEOVER_DURATION_MS =
+  (window.ACTIVE911_CONFIG?.takeoverMs) ||
   Number(new URLSearchParams(window.location.search).get('durationMinutes') || 5) * 60 * 1000;
 const ALERT_SOUND_ENABLED = new URLSearchParams(window.location.search).get('sound') !== '0';
 let activeIncidentSent = '';

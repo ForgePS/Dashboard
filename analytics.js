@@ -30,6 +30,7 @@ const CATEGORY_LABELS = {
 
 const numberFormat = new Intl.NumberFormat('en-US');
 const ACTIVE911_TAKEOVER_DURATION_MS =
+  (window.ACTIVE911_CONFIG?.takeoverMs) ||
   Number(new URLSearchParams(window.location.search).get('takeoverMinutes') || 5) * 60 * 1000;
 const ANALYTICS_TAKEOVER_ENABLED =
   new URLSearchParams(window.location.search).get('takeover') === '1';
