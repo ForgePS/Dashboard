@@ -1,0 +1,418 @@
+{
+  "ok": true,
+  "title": "HL Fire Daily Rooster",
+  "dateLabel": "June 28th, 2026",
+  "updated": "2026-06-28T22:01:12.658Z",
+  "updatedLabel": "06/28/2026, 05:01:12 PM",
+  "source": "https://www.imagetrendslate.com/api/s/hlfdems/a/hornlakefi/public-roster-views/82m",
+  "refreshMs": 30000,
+  "rows": [
+    {
+      "station": "Battalion",
+      "left": [
+        {
+          "name": "Battalion 1",
+          "source": "105",
+          "shift": "C Shift",
+          "required": 1,
+          "personnel": [
+            {
+              "position": "Battalion Chief",
+              "required": "Yes",
+              "name": "Greg Scruggs",
+              "hours": "24",
+              "startTime": "06/28/26 07:00",
+              "endTime": "06/29/26 07:00",
+              "isPartial": false,
+              "isTradeOrExtra": false
+            }
+          ],
+          "supportRows": [
+            {
+              "name": "",
+              "position": "1/2 Shift / Trade",
+              "hours": "",
+              "isPlaceholder": true
+            }
+          ],
+          "totalAssigned": 1
+        }
+      ],
+      "right": null
+    },
+    {
+      "station": "Station 1",
+      "left": [
+        {
+          "name": "Rescue 1",
+          "source": "Rescue 1",
+          "shift": "C Shift",
+          "required": 4,
+          "personnel": [
+            {
+              "position": "Lieutenant",
+              "required": "Yes",
+              "name": "James Casey",
+              "hours": "24",
+              "startTime": "06/28/26 07:00",
+              "endTime": "06/29/26 07:00",
+              "isPartial": false,
+              "isTradeOrExtra": false
+            },
+            {
+              "position": "Driver Operator",
+              "required": "Yes",
+              "name": "Matthew Bratton",
+              "hours": "24",
+              "startTime": "06/28/26 07:00",
+              "endTime": "06/29/26 07:00",
+              "isPartial": false,
+              "isTradeOrExtra": false
+            },
+            {
+              "position": "Firefighter",
+              "required": "Yes",
+              "name": "Noah Andrews",
+              "hours": "24",
+              "startTime": "06/28/26 07:00",
+              "endTime": "06/29/26 07:00",
+              "isPartial": false,
+              "isTradeOrExtra": false
+            },
+            {
+              "name": "",
+              "position": "Open Seat",
+              "hours": "",
+              "isVacant": true
+            }
+          ],
+          "supportRows": [
+            {
+              "name": "",
+              "position": "1/2 Shift / Trade",
+              "hours": "",
+              "isPlaceholder": true
+            },
+            {
+              "name": "",
+              "position": "1/2 Shift / Trade",
+              "hours": "",
+              "isPlaceholder": true
+            }
+          ],
+          "totalAssigned": 3
+        }
+      ],
+      "right": {
+        "name": "Unit 1",
+        "source": "Unit 1",
+        "shift": "C Shift",
+        "required": 2,
+        "personnel": [
+          {
+            "position": "Paramedic",
+            "required": "Yes",
+            "name": "Gary Laing",
+            "hours": "24",
+            "startTime": "06/28/26 07:00",
+            "endTime": "06/29/26 07:00",
+            "isPartial": false,
+            "isTradeOrExtra": false
+          },
+          {
+            "position": "EMT Driver",
+            "required": "Yes",
+            "name": "Sarah Pelcharsky",
+            "hours": "24",
+            "startTime": "06/28/26 07:00",
+            "endTime": "06/29/26 07:00",
+            "isPartial": false,
+            "isTradeOrExtra": false
+          }
+        ],
+        "supportRows": [
+          {
+            "name": "",
+            "position": "1/2 Shift / Trade",
+            "hours": "",
+            "isPlaceholder": true
+          },
+          {
+            "name": "",
+            "position": "1/2 Shift / Trade",
+            "hours": "",
+            "isPlaceholder": true
+          }
+        ],
+        "totalAssigned": 2
+      }
+    },
+    {
+      "station": "Station 2",
+      "left": [
+        {
+          "name": "Engine 2",
+          "source": "Engine 2",
+          "shift": "C Shift",
+          "required": 4,
+          "personnel": [
+            {
+              "position": "Lieutenant",
+              "required": "Yes",
+              "name": "Billy White",
+              "hours": "24",
+              "startTime": "06/28/26 07:00",
+              "endTime": "06/29/26 07:00",
+              "isPartial": false,
+              "isTradeOrExtra": false
+            },
+            {
+              "position": "Driver Operator",
+              "required": "Yes",
+              "name": "Joseph Gardner",
+              "hours": "24",
+              "startTime": "06/28/26 07:00",
+              "endTime": "06/29/26 07:00",
+              "isPartial": false,
+              "isTradeOrExtra": false
+            },
+            {
+              "position": "Firefighter",
+              "required": "No",
+              "name": "Jacob Quinn",
+              "hours": "24",
+              "startTime": "06/28/26 07:00",
+              "endTime": "06/29/26 07:00",
+              "isPartial": false,
+              "isTradeOrExtra": true
+            },
+            {
+              "name": "",
+              "position": "Open Seat",
+              "hours": "",
+              "isVacant": true
+            }
+          ],
+          "supportRows": [
+            {
+              "name": "",
+              "position": "1/2 Shift / Trade",
+              "hours": "",
+              "isPlaceholder": true
+            },
+            {
+              "name": "",
+              "position": "1/2 Shift / Trade",
+              "hours": "",
+              "isPlaceholder": true
+            }
+          ],
+          "totalAssigned": 3
+        }
+      ],
+      "right": {
+        "name": "Unit 2",
+        "source": "Unit 2",
+        "shift": "C Shift",
+        "required": 2,
+        "personnel": [
+          {
+            "position": "Paramedic",
+            "required": "Yes",
+            "name": "Amanda Alberson",
+            "hours": "24",
+            "startTime": "06/28/26 07:00",
+            "endTime": "06/29/26 07:00",
+            "isPartial": false,
+            "isTradeOrExtra": false
+          },
+          {
+            "position": "EMT Driver",
+            "required": "Yes",
+            "name": "Hunter Avent",
+            "hours": "24",
+            "startTime": "06/28/26 07:00",
+            "endTime": "06/29/26 07:00",
+            "isPartial": false,
+            "isTradeOrExtra": false
+          }
+        ],
+        "supportRows": [
+          {
+            "name": "",
+            "position": "1/2 Shift / Trade",
+            "hours": "",
+            "isPlaceholder": true
+          },
+          {
+            "name": "",
+            "position": "1/2 Shift / Trade",
+            "hours": "",
+            "isPlaceholder": true
+          }
+        ],
+        "totalAssigned": 2
+      }
+    },
+    {
+      "station": "Station 3",
+      "left": [
+        {
+          "name": "Engine 3",
+          "source": "Engine 3",
+          "shift": "C Shift",
+          "required": 4,
+          "personnel": [
+            {
+              "position": "Lieutenant",
+              "required": "Yes",
+              "name": "Michael Mallett",
+              "hours": "24",
+              "startTime": "06/28/26 07:00",
+              "endTime": "06/29/26 07:00",
+              "isPartial": false,
+              "isTradeOrExtra": false
+            },
+            {
+              "position": "Driver Operator",
+              "required": "Yes",
+              "name": "Jerra Wade",
+              "hours": "24",
+              "startTime": "06/28/26 07:00",
+              "endTime": "06/29/26 07:00",
+              "isPartial": false,
+              "isTradeOrExtra": false
+            },
+            {
+              "position": "Firefighter",
+              "required": "Yes",
+              "name": "Reuben Grissom",
+              "hours": "24",
+              "startTime": "06/28/26 07:00",
+              "endTime": "06/29/26 07:00",
+              "isPartial": false,
+              "isTradeOrExtra": false
+            },
+            {
+              "name": "",
+              "position": "Open Seat",
+              "hours": "",
+              "isVacant": true
+            }
+          ],
+          "supportRows": [
+            {
+              "name": "",
+              "position": "1/2 Shift / Trade",
+              "hours": "",
+              "isPlaceholder": true
+            },
+            {
+              "name": "",
+              "position": "1/2 Shift / Trade",
+              "hours": "",
+              "isPlaceholder": true
+            }
+          ],
+          "totalAssigned": 3
+        },
+        {
+          "name": "Truck 3",
+          "source": "Truck 3",
+          "shift": "C Shift",
+          "required": 3,
+          "personnel": [
+            {
+              "position": "Lieutenant",
+              "required": "No",
+              "name": "Jeremy Powell",
+              "hours": "24",
+              "startTime": "06/28/26 07:00",
+              "endTime": "06/29/26 07:00",
+              "isPartial": false,
+              "isTradeOrExtra": true
+            },
+            {
+              "position": "Driver Operator",
+              "required": "No",
+              "name": "John-Paul Lavender",
+              "hours": "24",
+              "startTime": "06/28/26 07:00",
+              "endTime": "06/29/26 07:00",
+              "isPartial": false,
+              "isTradeOrExtra": true
+            },
+            {
+              "position": "Firefighter",
+              "required": "No",
+              "name": "Brandon Strong",
+              "hours": "24",
+              "startTime": "06/28/26 07:00",
+              "endTime": "06/29/26 07:00",
+              "isPartial": false,
+              "isTradeOrExtra": true
+            }
+          ],
+          "supportRows": [
+            {
+              "name": "",
+              "position": "1/2 Shift / Trade",
+              "hours": "",
+              "isPlaceholder": true
+            },
+            {
+              "name": "",
+              "position": "1/2 Shift / Trade",
+              "hours": "",
+              "isPlaceholder": true
+            }
+          ],
+          "totalAssigned": 3
+        }
+      ],
+      "right": {
+        "name": "Unit 3",
+        "source": "Unit 3",
+        "shift": "C Shift",
+        "required": 2,
+        "personnel": [
+          {
+            "position": "Paramedic",
+            "required": "Yes",
+            "name": "Pete Valsamis",
+            "hours": "24",
+            "startTime": "06/28/26 07:00",
+            "endTime": "06/29/26 07:00",
+            "isPartial": false,
+            "isTradeOrExtra": false
+          },
+          {
+            "position": "EMT Driver",
+            "required": "Yes",
+            "name": "Misty Boyle",
+            "hours": "24",
+            "startTime": "06/28/26 07:00",
+            "endTime": "06/29/26 07:00",
+            "isPartial": false,
+            "isTradeOrExtra": false
+          }
+        ],
+        "supportRows": [
+          {
+            "name": "",
+            "position": "1/2 Shift / Trade",
+            "hours": "",
+            "isPlaceholder": true
+          },
+          {
+            "name": "",
+            "position": "1/2 Shift / Trade",
+            "hours": "",
+            "isPlaceholder": true
+          }
+        ],
+        "totalAssigned": 2
+      }
+    }
+  ]
+}

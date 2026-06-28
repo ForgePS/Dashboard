@@ -285,6 +285,20 @@ h1 {
   font-weight: 800;
 }
 
+body.signage-mode .roster-header {
+  min-height: 56px;
+  padding: 12px 14px;
+}
+
+body.signage-mode .roster-header .subline,
+body.signage-mode .roster-header .status {
+  font-size: 14px;
+}
+
+body.signage-mode .roster-grid {
+  height: calc(100vh - 72px);
+}
+
 @media (max-width: 1050px) {
   .roster-header,
   .brand {

@@ -13,6 +13,10 @@ function setText(id, value) {
   if (el) el.textContent = value;
 }
 
+function isSignageMode() {
+  return new URLSearchParams(window.location.search).get('signage') === '1';
+}
+
 function seatMarkup(person, className = '') {
   const isPlaceholder = person?.isPlaceholder;
   const isVacant = person?.isVacant;
@@ -93,14 +97,31 @@ async function refreshRoster(force = false) {
     if (!data.ok) throw new Error(data.error || 'Roster response failed');
 
     renderRoster(data);
+    return data;
   } catch (err) {
     const grid = document.getElementById('rosterGrid');
     setText('statusText', 'Roster update failed');
-    if (grid) {
+    if (grid && !grid.querySelector('.station-row')) {
       grid.innerHTML = `<div class="error">${err.message}</div>`;
     }
+    return null;
   }
 }
 
-refreshRoster(true);
-setInterval(refreshRoster, 30000);
+async function initRoster() {
+  if (isSignageMode()) {
+    document.body.classList.add('signage-mode');
+  }
+
+  if (window.__ROSTER_BOOTSTRAP__?.ok) {
+    renderRoster(window.__ROSTER_BOOTSTRAP__);
+  }
+
+  const cached = await refreshRoster(false);
+  if (!cached?.stale) return;
+
+  await refreshRoster(true);
+}
+
+initRoster();
+setInterval(() => refreshRoster(false), 30000);
