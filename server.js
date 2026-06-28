@@ -4179,6 +4179,136 @@ function weatherConditionLabel(code) {
   return codeMap[code] || 'Current Weather';
 }
 
+function reconcileOpenMeteoCondition(code, cloudCover, precipitationIn, precipitation12In) {
+  const label = weatherConditionLabel(code);
+  const isStorm = [95, 96, 99].includes(Number(code));
+  const precip = Number(precipitationIn || 0) + Number(precipitation12In || 0);
+  const clouds = Number(cloudCover);
+
+  if (!isStorm) return label;
+  if (precip > 0.01) return label;
+  if (Number.isFinite(clouds) && clouds <= 20) return 'Clear';
+  if (Number.isFinite(clouds) && clouds <= 50) return 'Partly Cloudy';
+  return 'Mostly Cloudy';
+}
+
+const NWS_USER_AGENT = 'HornLakeFireDashboard/1.0 (firehouse-dashboards.web.app)';
+const NWS_HEADERS = {
+  Accept: 'application/geo+json',
+  'User-Agent': NWS_USER_AGENT
+};
+
+function nwsQuantityValue(quantity) {
+  const value = Number(quantity?.value);
+  return Number.isFinite(value) ? value : null;
+}
+
+function celsiusToFahrenheit(c) {
+  return (c * 9 / 5) + 32;
+}
+
+function kphToMph(kph) {
+  return kph * 0.621371;
+}
+
+function pascalToInHg(pa) {
+  return Number((pa * 0.0002953).toFixed(2));
+}
+
+function parseWindMph(value) {
+  const match = String(value || '').match(/(\d+(?:\.\d+)?)/);
+  return match ? Math.round(Number(match[1])) : null;
+}
+
+async function fetchNwsJson(url) {
+  const response = await fetch(url, { headers: NWS_HEADERS });
+  if (!response.ok) {
+    throw new Error(`NWS ${response.status} ${url}`);
+  }
+  return response.json();
+}
+
+async function fetchNwsWeather(lat, lon) {
+  const points = await fetchNwsJson(`https://api.weather.gov/points/${lat},${lon}`);
+  const props = points?.properties || {};
+  const [forecastPayload, stationsPayload] = await Promise.all([
+    props.forecast ? fetchNwsJson(props.forecast) : null,
+    props.observationStations ? fetchNwsJson(props.observationStations) : null
+  ]);
+
+  const periods = forecastPayload?.properties?.periods || [];
+  const currentPeriod = periods[0] || null;
+  const stationId = stationsPayload?.features?.[0]?.properties?.stationIdentifier;
+  let observation = null;
+
+  if (stationId) {
+    try {
+      const obsPayload = await fetchNwsJson(`https://api.weather.gov/stations/${stationId}/observations/latest`);
+      observation = obsPayload?.properties || null;
+    } catch (err) {
+      console.error('NWS observation failed:', err.message);
+    }
+  }
+
+  const forecast = [];
+  for (let i = 0; i < periods.length && forecast.length < 3; i += 1) {
+    const dayPeriod = periods[i];
+    if (!dayPeriod?.isDaytime) continue;
+    const nightPeriod = periods[i + 1];
+    forecast.push({
+      date: String(dayPeriod.startTime || '').slice(0, 10),
+      condition: dayPeriod.shortForecast || 'Forecast',
+      high: dayPeriod.temperature ?? null,
+      low: nightPeriod?.isDaytime === false ? nightPeriod.temperature ?? null : null,
+      precipitationIn: null,
+      precipitationProbability: roundedWeatherNumber(nwsQuantityValue(dayPeriod.probabilityOfPrecipitation)),
+      windMph: parseWindMph(dayPeriod.windSpeed),
+      gustMph: null,
+      uvIndex: null
+    });
+  }
+
+  const obsTempC = nwsQuantityValue(observation?.temperature);
+  const obsTempF = obsTempC === null ? null : Math.round(celsiusToFahrenheit(obsTempC));
+  const heatIndexC = nwsQuantityValue(observation?.heatIndex);
+  const feelsLikeF = heatIndexC === null
+    ? obsTempF
+    : Math.round(celsiusToFahrenheit(heatIndexC));
+  const obsWindKph = nwsQuantityValue(observation?.windSpeed);
+  const obsGustKph = nwsQuantityValue(observation?.windGust);
+
+  return {
+    source: 'nws',
+    condition: currentPeriod?.shortForecast || observation?.textDescription || null,
+    forecast,
+    temp: obsTempF ?? currentPeriod?.temperature ?? null,
+    feelsLike: feelsLikeF ?? currentPeriod?.temperature ?? null,
+    humidity: (() => {
+      const value = nwsQuantityValue(observation?.relativeHumidity);
+      return value === null ? null : Math.round(value);
+    })(),
+    dewPoint: (() => {
+      const value = nwsQuantityValue(observation?.dewpoint);
+      return value === null ? null : Math.round(celsiusToFahrenheit(value));
+    })(),
+    pressureInHg: (() => {
+      const value = nwsQuantityValue(observation?.barometricPressure);
+      return value === null ? null : pascalToInHg(value);
+    })(),
+    windMph: obsWindKph === null ? parseWindMph(currentPeriod?.windSpeed) : Math.round(kphToMph(obsWindKph)),
+    windGustMph: obsGustKph === null ? null : Math.round(kphToMph(obsGustKph)),
+    windDir: windDirectionLabel(nwsQuantityValue(observation?.windDirection))
+      || currentPeriod?.windDirection
+      || null,
+    high: currentPeriod?.isDaytime ? currentPeriod.temperature ?? null : periods.find((p) => p.isDaytime)?.temperature ?? null,
+    low: (() => {
+      const night = periods.find((p) => !p.isDaytime);
+      return night?.temperature ?? null;
+    })(),
+    updated: observation?.timestamp || currentPeriod?.startTime || null
+  };
+}
+
 function weatherNumber(value, fallback = null) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
@@ -4273,9 +4403,13 @@ app.get('/api/weather', async (req, res) => {
       timezone: 'America/Chicago'
     });
     const airUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?${airParams.toString()}`;
-    const [response, airResponse] = await Promise.all([
+    const [response, airResponse, nwsWeather] = await Promise.all([
       fetch(url, { headers: { Accept: 'application/json' } }),
-      fetch(airUrl, { headers: { Accept: 'application/json' } }).catch(() => null)
+      fetch(airUrl, { headers: { Accept: 'application/json' } }).catch(() => null),
+      fetchNwsWeather(lat, lon).catch((err) => {
+        console.error('NWS weather failed:', err.message);
+        return null;
+      })
     ]);
     const payload = await response.json();
     const airPayload = airResponse?.ok ? await airResponse.json() : {};
@@ -4288,44 +4422,59 @@ app.get('/api/weather', async (req, res) => {
     const daily = payload.daily || {};
     const hourly = payload.hourly || {};
     const airQuality = airPayload.current?.us_aqi;
-    const forecast = (daily.time || []).slice(1, 4).map((date, index) => ({
-      date,
-      condition: weatherConditionLabel(daily.weather_code?.[index + 1]),
-      high: roundedWeatherNumber(daily.temperature_2m_max?.[index + 1]),
-      low: roundedWeatherNumber(daily.temperature_2m_min?.[index + 1]),
-      precipitationIn: weatherNumber(daily.precipitation_sum?.[index + 1], 0),
-      precipitationProbability: roundedWeatherNumber(daily.precipitation_probability_max?.[index + 1]),
-      windMph: roundedWeatherNumber(daily.wind_speed_10m_max?.[index + 1]),
-      gustMph: roundedWeatherNumber(daily.wind_gusts_10m_max?.[index + 1]),
-      uvIndex: weatherNumber(daily.uv_index_max?.[index + 1])
-    }));
+    const openMeteoCondition = reconcileOpenMeteoCondition(
+      current.weather_code,
+      current.cloud_cover,
+      current.precipitation,
+      sumRecentHourlyPrecip(hourly, 12)
+    );
+    const condition = nwsWeather?.condition || openMeteoCondition;
+    const forecast = (nwsWeather?.forecast?.length
+      ? nwsWeather.forecast
+      : (daily.time || []).slice(1, 4).map((date, index) => ({
+        date,
+        condition: reconcileOpenMeteoCondition(
+          daily.weather_code?.[index + 1],
+          null,
+          daily.precipitation_sum?.[index + 1],
+          daily.precipitation_sum?.[index + 1]
+        ),
+        high: roundedWeatherNumber(daily.temperature_2m_max?.[index + 1]),
+        low: roundedWeatherNumber(daily.temperature_2m_min?.[index + 1]),
+        precipitationIn: weatherNumber(daily.precipitation_sum?.[index + 1], 0),
+        precipitationProbability: roundedWeatherNumber(daily.precipitation_probability_max?.[index + 1]),
+        windMph: roundedWeatherNumber(daily.wind_speed_10m_max?.[index + 1]),
+        gustMph: roundedWeatherNumber(daily.wind_gusts_10m_max?.[index + 1]),
+        uvIndex: weatherNumber(daily.uv_index_max?.[index + 1])
+      })));
 
     res.json({
       ok: true,
       updated: nowIso(),
       updatedLabel: formatCentralDateTime(new Date()),
-      temp: roundedWeatherNumber(current.temperature_2m),
-      condition: weatherConditionLabel(current.weather_code),
-      windMph: roundedWeatherNumber(current.wind_speed_10m),
-      windDir: windDirectionLabel(current.wind_direction_10m),
-      time: current.time || null,
+      source: nwsWeather ? 'nws+open-meteo' : 'open-meteo',
+      temp: nwsWeather?.temp ?? roundedWeatherNumber(current.temperature_2m),
+      condition,
+      windMph: nwsWeather?.windMph ?? roundedWeatherNumber(current.wind_speed_10m),
+      windDir: nwsWeather?.windDir || windDirectionLabel(current.wind_direction_10m),
+      time: nwsWeather?.updated || current.time || null,
       current: {
-        temp: roundedWeatherNumber(current.temperature_2m),
-        condition: weatherConditionLabel(current.weather_code),
-        feelsLike: roundedWeatherNumber(current.apparent_temperature),
-        humidity: roundedWeatherNumber(current.relative_humidity_2m),
-        dewPoint: roundedWeatherNumber(current.dew_point_2m),
+        temp: nwsWeather?.temp ?? roundedWeatherNumber(current.temperature_2m),
+        condition,
+        feelsLike: nwsWeather?.feelsLike ?? roundedWeatherNumber(current.apparent_temperature),
+        humidity: nwsWeather?.humidity ?? roundedWeatherNumber(current.relative_humidity_2m),
+        dewPoint: nwsWeather?.dewPoint ?? roundedWeatherNumber(current.dew_point_2m),
         pressure: weatherNumber(current.pressure_msl),
-        pressureInHg: weatherPressureInHg(current.pressure_msl),
+        pressureInHg: nwsWeather?.pressureInHg ?? weatherPressureInHg(current.pressure_msl),
         cloudCover: roundedWeatherNumber(current.cloud_cover),
-        windMph: roundedWeatherNumber(current.wind_speed_10m),
-        windGustMph: roundedWeatherNumber(current.wind_gusts_10m),
-        windDir: windDirectionLabel(current.wind_direction_10m),
+        windMph: nwsWeather?.windMph ?? roundedWeatherNumber(current.wind_speed_10m),
+        windGustMph: nwsWeather?.windGustMph ?? roundedWeatherNumber(current.wind_gusts_10m),
+        windDir: nwsWeather?.windDir || windDirectionLabel(current.wind_direction_10m),
         precipitationIn: weatherNumber(current.precipitation, 0),
         precipitation12In: sumRecentHourlyPrecip(hourly, 12),
         precipitation24In: sumRecentHourlyPrecip(hourly, 24),
-        high: roundedWeatherNumber(daily.temperature_2m_max?.[0]),
-        low: roundedWeatherNumber(daily.temperature_2m_min?.[0]),
+        high: nwsWeather?.high ?? roundedWeatherNumber(daily.temperature_2m_max?.[0]),
+        low: nwsWeather?.low ?? roundedWeatherNumber(daily.temperature_2m_min?.[0]),
         sunrise: daily.sunrise?.[0] || null,
         sunset: daily.sunset?.[0] || null,
         uvIndex: weatherNumber(current.uv_index, weatherNumber(daily.uv_index_max?.[0])),
