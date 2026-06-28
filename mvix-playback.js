@@ -41,6 +41,18 @@ function stationAlertPath() {
   return `/station${station}/alert${suffix}`;
 }
 
+function setBadgeState(badge, state, text) {
+  if (!badge) return;
+  badge.hidden = false;
+  badge.textContent = text;
+  badge.classList.remove('is-armed', 'is-warning', 'is-alert');
+  if (state) badge.classList.add(state);
+}
+
+function armedBadgeText(station) {
+  return `Active911 enabled · Station ${station}`;
+}
+
 async function checkForActiveCall() {
   if (takeoverInProgress) return;
   const badge = document.getElementById('statusBadge');
@@ -49,29 +61,35 @@ async function checkForActiveCall() {
   try {
     const response = await fetch(`/api/active911-takeover?ts=${Date.now()}`, { cache: 'no-store' });
     const data = await response.json();
+
+    if (!response.ok || !data.ok) {
+      setBadgeState(badge, 'is-warning', 'Active911 monitor warning');
+      return;
+    }
+
     const latest = Array.isArray(data.recent) ? data.recent[0] : null;
 
     if (!latest?.sent) {
-      if (badge) badge.textContent = `Active911 monitor armed (Station ${station})`;
+      setBadgeState(badge, 'is-armed', armedBadgeText(station));
       return;
     }
 
     const sentAt = new Date(latest.sent).getTime();
     if (!Number.isFinite(sentAt)) {
-      if (badge) badge.textContent = `Active911 monitor armed (Station ${station})`;
+      setBadgeState(badge, 'is-armed', armedBadgeText(station));
       return;
     }
 
     if (Date.now() - sentAt <= ACTIVE911_TAKEOVER_DURATION_MS) {
       takeoverInProgress = true;
-      if (badge) badge.textContent = 'Active911 alert received - taking over';
+      setBadgeState(badge, 'is-alert', 'Active911 alert — taking over');
       window.location.replace(stationAlertPath());
       return;
     }
 
-    if (badge) badge.textContent = `Active911 monitor armed (Station ${station})`;
+    setBadgeState(badge, 'is-armed', armedBadgeText(station));
   } catch (err) {
-    if (badge) badge.textContent = 'Active911 monitor warning';
+    setBadgeState(badge, 'is-warning', 'Active911 monitor warning');
   }
 }
 
