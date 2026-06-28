@@ -305,6 +305,12 @@ async function checkActive911Takeover() {
 
 refreshAnalytics();
 setInterval(refreshAnalytics, 15000);
+
+if (new URLSearchParams(window.location.search).get('signage') === '1') {
+  document.documentElement.classList.add('signage-mode');
+  document.body.classList.add('signage-mode');
+}
+
 if (ANALYTICS_TAKEOVER_ENABLED) {
   checkActive911Takeover();
   setInterval(checkActive911Takeover, 15000);
