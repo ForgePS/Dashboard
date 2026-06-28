@@ -59,11 +59,32 @@ def api_get(path: str) -> dict:
         return json.loads(response.read().decode())
 
 
-def download(url: str, dest: Path) -> None:
+def sniff_extension(data: bytes, fallback: str = '.bin') -> str:
+    if data.startswith(b'%PDF'):
+        return '.pdf'
+    if data.startswith(b'\x89PNG'):
+        return '.png'
+    if data.startswith(b'\xff\xd8\xff'):
+        return '.jpg'
+    if data[:4] == b'RIFF' and data[8:12] == b'WEBP':
+        return '.webp'
+    if data[4:8] == b'ftyp':
+        return '.mp4'
+    return fallback
+
+
+def download(url: str, dest: Path) -> Path:
     dest.parent.mkdir(parents=True, exist_ok=True)
     req = urllib.request.Request(url, headers={'User-Agent': 'ForgePS-Dashboard/1.0'})
     with urllib.request.urlopen(req) as response:
-        dest.write_bytes(response.read())
+        data = response.read()
+
+    ext = sniff_extension(data, dest.suffix or '.bin')
+    if dest.suffix.lower() != ext:
+        dest = dest.with_suffix(ext)
+
+    dest.write_bytes(data)
+    return dest
 
 
 def slugify(text: str) -> str:
@@ -181,20 +202,22 @@ def main() -> None:
             else:
                 slot.update({'type': 'url', 'url': web_url})
         elif feature == 'Video':
-            ext = '.mp4'
-            repo_path = f'/signage/media/{media_id}{ext}'
-            download(media['mediaUrl'], MEDIA_DIR / f'{media_id}{ext}')
-            slot.update({'type': 'video', 'path': repo_path})
+            dest = download(media['mediaUrl'], MEDIA_DIR / f'{media_id}.mp4')
+            slot.update({'type': 'video', 'path': f'/signage/media/{dest.name}'})
         elif feature == 'Image':
             original = media.get('originalName') or ''
             ext = '.' + original.rsplit('.', 1)[-1].lower() if '.' in original else '.webp'
-            repo_path = f'/signage/media/{media_id}{ext}'
-            download(media['mediaUrl'], MEDIA_DIR / f'{media_id}{ext}')
+            dest = download(media['mediaUrl'], MEDIA_DIR / f'{media_id}{ext}')
+            repo_path = f'/signage/media/{dest.name}'
             slot.update({'type': 'image', 'path': repo_path})
+            if dest.suffix.lower() == '.pdf':
+                slot['assetType'] = 'pdf'
         elif feature == 'Canva':
-            repo_path = f'/signage/media/{media_id}.webp'
-            download(media['mediaUrl'], MEDIA_DIR / f'{media_id}.webp')
+            dest = download(media['mediaUrl'], MEDIA_DIR / f'{media_id}.webp')
+            repo_path = f'/signage/media/{dest.name}'
             slot.update({'type': 'image', 'path': repo_path, 'canvaDesignId': attrs.get('canvaDesignId')})
+            if dest.suffix.lower() == '.pdf':
+                slot['assetType'] = 'pdf'
         elif feature == 'Weather Radar':
             slot.update({'type': 'page', 'path': '/weather', 'notes': 'MVIX weather radar slot'})
         elif feature == 'HTML5 Scripts':

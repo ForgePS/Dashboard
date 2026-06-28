@@ -2651,6 +2651,10 @@ app.get('/signage-asset', (req, res) => {
   sendHtmlFileOrFallback(res, 'signage-asset.html', 'Signage Asset');
 });
 
+app.get('/signage/media/4097765.webp', (req, res) => {
+  res.redirect(302, '/signage/media/4097765.pdf');
+});
+
 app.get('/station1', (req, res) => {
   res.redirect(302, '/station1/mvix?station=1');
 });

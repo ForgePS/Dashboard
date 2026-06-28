@@ -28,7 +28,8 @@ function buildSlotUrl(slot, station) {
     const src = slot.path || slot.url;
     if (!src) return `/signage-asset.html?type=image&src=`;
     const asset = new URL('/signage-asset.html', window.location.origin);
-    asset.searchParams.set('type', 'image');
+    const isPdf = slot.assetType === 'pdf' || /\.pdf(?:$|\?)/i.test(src);
+    asset.searchParams.set('type', isPdf ? 'pdf' : 'image');
     asset.searchParams.set('src', src);
     return asset.toString();
   }
