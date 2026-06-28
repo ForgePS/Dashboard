@@ -65,7 +65,7 @@
   }
 
   function armedText(station) {
-    return `Active911 enabled · ${TAKEOVER_MINUTES} min · Station ${station}`;
+    return `Active911 enabled · Station ${station}`;
   }
 
   function alertPath(station) {
