@@ -2565,6 +2565,9 @@ app.get('/mvix-playback', (req, res) => {
 });
 
 app.get('/mvix', (req, res) => {
+  if (!req.query.station && !req.query.signageUrl && !req.query.playbackUrl) {
+    return res.redirect(302, '/station1/mvix?station=1');
+  }
   sendHtmlFileOrFallback(res, 'mvix-playback.html', 'MVIX Playback With Active911 Override', '/api/active911-takeover');
 });
 
