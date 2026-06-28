@@ -26,7 +26,7 @@ function resolveStation() {
 
   const path = window.location.pathname.toLowerCase();
   const match = path.match(/station([123])/);
-  return match ? match[1] : '';
+  return match ? match[1] : '1';
 }
 
 function shouldShowBadge() {
@@ -38,7 +38,7 @@ function shouldShowBadge() {
 
 function hostedSignageUrl(station) {
   const url = new URL('/mvix/signage', window.location.origin);
-  if (station) url.searchParams.set('station', station);
+  url.searchParams.set('station', station);
   return url.toString();
 }
 
@@ -54,15 +54,42 @@ function resolvePlaybackUrl() {
   ).toLowerCase();
 
   if (signageMode === 'cms') {
-    return mvixConfig?.mvixOrgPlaybackUrl || DEFAULT_MVIX_PLAYBACK_URL;
+    return mvixConfig?.playbackUrl ||
+      mvixConfig?.stationProfile?.playbackUrl ||
+      mvixConfig?.mvixOrgPlaybackUrl ||
+      DEFAULT_MVIX_PLAYBACK_URL;
   }
 
   return hostedSignageUrl(resolveStation());
 }
 
+function ensureStationInUrl() {
+  const station = resolveStation();
+  const params = pageParams();
+  const path = window.location.pathname.toLowerCase();
+
+  if (!path.includes(`/station${station}/mvix`)) return;
+  if (params.get('station') === station && params.get('playbackUrl')) return;
+
+  const next = new URL(window.location.href);
+  next.searchParams.set('station', station);
+
+  if (!next.searchParams.get('playbackUrl') && mvixConfig?.playbackUrl) {
+    next.searchParams.set('playbackUrl', mvixConfig.playbackUrl);
+  }
+
+  if (next.toString() !== window.location.href) {
+    window.history.replaceState(null, '', next.toString());
+  }
+}
+
 async function loadMvixConfig() {
+  const station = resolveStation();
+
   try {
-    const response = await fetch(`/api/mvix-config?ts=${Date.now()}`, { cache: 'no-store' });
+    const response = await fetch(`/api/mvix-config?station=${encodeURIComponent(station)}&ts=${Date.now()}`, {
+      cache: 'no-store'
+    });
     const data = await response.json();
     if (data.ok) mvixConfig = data;
   } catch (err) {
@@ -85,17 +112,15 @@ function stationAlertPath() {
   const station = resolveStation();
   const returnTo = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
   const duration = encodeURIComponent(String(takeoverDurationMs() / 60000));
-  const suffix = `?returnTo=${returnTo}&durationMinutes=${duration}`;
+  const suffix = `?returnTo=${returnTo}&durationMinutes=${duration}&station=${station}`;
 
-  if (station === '2') return `/station2/alert${suffix}`;
-  if (station === '3') return `/station3/alert${suffix}`;
-  if (station === '1') return `/station1/alert${suffix}`;
-  return `/alert${suffix}`;
+  return `/station${station}/alert${suffix}`;
 }
 
 async function checkForActiveCall() {
   if (takeoverInProgress) return;
   const badge = document.getElementById('statusBadge');
+  const station = resolveStation();
 
   try {
     const response = await fetch(`/api/active911-takeover?ts=${Date.now()}`, { cache: 'no-store' });
@@ -103,13 +128,13 @@ async function checkForActiveCall() {
     const latest = Array.isArray(data.recent) ? data.recent[0] : null;
 
     if (!latest?.sent) {
-      if (badge) badge.textContent = 'Active911 monitor armed';
+      if (badge) badge.textContent = `Active911 monitor armed (Station ${station})`;
       return;
     }
 
     const sentAt = new Date(latest.sent).getTime();
     if (!Number.isFinite(sentAt)) {
-      if (badge) badge.textContent = 'Active911 monitor armed';
+      if (badge) badge.textContent = `Active911 monitor armed (Station ${station})`;
       return;
     }
 
@@ -120,7 +145,7 @@ async function checkForActiveCall() {
       return;
     }
 
-    if (badge) badge.textContent = 'Active911 monitor armed';
+    if (badge) badge.textContent = `Active911 monitor armed (Station ${station})`;
   } catch (err) {
     if (badge) badge.textContent = 'Active911 monitor warning';
   }
@@ -128,6 +153,7 @@ async function checkForActiveCall() {
 
 async function init() {
   await loadMvixConfig();
+  ensureStationInUrl();
   updateBadgeVisibility();
   loadPlaylist();
   checkForActiveCall();

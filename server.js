@@ -2590,19 +2590,88 @@ function loadMvixSignageConfig(force = false) {
   return config;
 }
 
-function buildMvixCmsUrls(config, baseUrl) {
+function mvixStationIdFromRequest(req) {
+  const pathText = safeString(req.path).toLowerCase();
+  if (pathText.includes('station2')) return '2';
+  if (pathText.includes('station3')) return '3';
+  if (pathText.includes('station1')) return '1';
+  return normalizeActive911StationId(req.query.station || req.params.station || '');
+}
+
+function getMvixStationProfile(config, stationId) {
+  const id = normalizeActive911StationId(stationId);
+  const stations = config.stations || {};
+  const profile = stations[id] || {};
+  const fallback = ACTIVE911_STATIONS[id] || ACTIVE911_STATIONS['1'];
+
+  return {
+    id,
+    label: profile.label || fallback.label,
+    address: profile.address || fallback.address,
+    playbackUrl: profile.playbackUrl || config.mvixOrgPlaybackUrl || MVIX_PLAYBACK_URL,
+    contentScheduleId: profile.contentScheduleId || config.contentScheduleId || config.scheduleLibraryId || MVIX_SCHEDULE_LIBRARY_ID,
+    contentScheduleEditUrl: profile.contentScheduleEditUrl || config.mvixCmsEditUrl || null,
+    launcherScheduleName: profile.launcherScheduleName || `Station ${id} - Active911 Launcher`,
+    contentScheduleName: profile.contentScheduleName || `Station ${id} - Signage Content`
+  };
+}
+
+function buildMvixWrapperUrl(baseUrl, stationId, config) {
+  const origin = String(baseUrl || config.deployedBaseUrl || '').replace(/\/$/, '');
+  const profile = getMvixStationProfile(config, stationId);
+  const url = new URL(`/station${profile.id}/mvix`, origin);
+  url.searchParams.set('station', profile.id);
+  url.searchParams.set('playbackUrl', profile.playbackUrl);
+  return url.toString();
+}
+
+function buildMvixCmsUrls(config, baseUrl, stationId) {
   const origin = String(baseUrl || config.deployedBaseUrl || '').replace(/\/$/, '');
   const slots = Array.isArray(config.slots) ? config.slots : [];
   const presetUrls = config.mvixCmsSetup?.contentUrls || {};
+  const station = normalizeActive911StationId(stationId);
 
-  return slots.map((slot) => {
-    const preset = presetUrls[slot.id] || presetUrls[slot.cmsKey || ''] || '';
-    const url = preset || `${origin}${slot.path}?mvix=1`;
+  return slots
+    .filter((slot) => {
+      if (!slot || slot.disabled === true) return false;
+      if (!Array.isArray(slot.stations) || !slot.stations.length) return true;
+      return slot.stations.includes(station);
+    })
+    .map((slot) => {
+      const preset = presetUrls[slot.id] || presetUrls[slot.cmsKey || ''] || '';
+      const url = new URL(preset || `${origin}${slot.path}`, origin);
+      url.searchParams.set('mvix', '1');
+      url.searchParams.set('station', station);
+
+      return {
+        ...slot,
+        station,
+        mvixCmsUrl: url.toString(),
+        fullUrl: url.toString()
+      };
+    });
+}
+
+function buildMvixStationSetup(config, baseUrl) {
+  return ['1', '2', '3'].map((stationId) => {
+    const profile = getMvixStationProfile(config, stationId);
+    const wrapperUrl = buildMvixWrapperUrl(baseUrl, stationId, config);
+    const contentUrls = buildMvixCmsUrls(config, baseUrl, stationId);
 
     return {
-      ...slot,
-      mvixCmsUrl: url,
-      fullUrl: url
+      ...profile,
+      wrapperUrl,
+      wrapperPath: `/station${stationId}/mvix?station=${stationId}`,
+      contentUrls,
+      mvixCmsSteps: [
+        `Create launcher schedule "${profile.launcherScheduleName}" in https://cms.mvix.com/org/schedule-library/list`,
+        `Add one full-screen Web Content item: ${wrapperUrl}`,
+        `Assign "${profile.launcherScheduleName}" to the Station ${stationId} player in Device Library`,
+        `Create or edit content schedule "${profile.contentScheduleName}" (ID ${profile.contentScheduleId})`,
+        'Add Web Content items from contentUrls below (each includes ?station=N for route maps)',
+        `Assign "${profile.contentScheduleName}" as the playback/content schedule for the Station ${stationId} player`,
+        `Set playbackUrl in mvix-signage-config.json stations.${stationId}.playbackUrl to this player's MVIX Playback URL`
+      ]
     };
   });
 }
@@ -2852,31 +2921,52 @@ app.get('/api/active911-takeover', async (req, res) => {
 app.get('/api/mvix-config', (req, res) => {
   const config = loadMvixSignageConfig(String(req.query.force || '').toLowerCase() === 'true');
   const baseUrl = `${req.protocol}://${req.get('host')}`;
+  const stationId = mvixStationIdFromRequest(req);
+  const stationProfile = getMvixStationProfile(config, stationId);
 
   res.json({
     ok: true,
+    station: stationId,
+    stationProfile,
     signageMode: config.signageMode || 'cms',
-    scheduleLibraryId: config.scheduleLibraryId || MVIX_SCHEDULE_LIBRARY_ID,
+    scheduleLibraryId: stationProfile.contentScheduleId,
+    playbackUrl: stationProfile.playbackUrl,
     mvixOrgPlaybackUrl: config.mvixOrgPlaybackUrl || MVIX_PLAYBACK_URL,
-    mvixCmsEditUrl: config.mvixCmsEditUrl || null,
+    mvixCmsEditUrl: stationProfile.contentScheduleEditUrl || config.mvixCmsEditUrl || config.mvixCmsSetup?.contentSchedule?.editUrl || null,
     deployedBaseUrl: config.deployedBaseUrl || baseUrl,
     wrapper: config.wrapper || {},
     mvixCmsSetup: config.mvixCmsSetup || null,
+    wrapperUrl: buildMvixWrapperUrl(baseUrl, stationId, config),
     hostedSignagePath: '/mvix/signage',
-    wrapperPath: '/mvix'
+    wrapperPath: `/station${stationId}/mvix`
   });
 });
 
 app.get('/api/mvix-signage', (req, res) => {
   const config = loadMvixSignageConfig(String(req.query.force || '').toLowerCase() === 'true');
   const baseUrl = `${req.protocol}://${req.get('host')}`;
+  const stationId = mvixStationIdFromRequest(req);
+  const stationProfile = getMvixStationProfile(config, stationId);
 
   res.json({
     ok: true,
-    scheduleLibraryId: config.scheduleLibraryId || MVIX_SCHEDULE_LIBRARY_ID,
+    station: stationId,
+    scheduleLibraryId: stationProfile.contentScheduleId,
     signageMode: config.signageMode || 'cms',
     slots: Array.isArray(config.slots) ? config.slots : [],
-    mvixCmsUrls: buildMvixCmsUrls(config, baseUrl)
+    mvixCmsUrls: buildMvixCmsUrls(config, baseUrl, stationId)
+  });
+});
+
+app.get('/api/mvix-stations', (req, res) => {
+  const config = loadMvixSignageConfig(String(req.query.force || '').toLowerCase() === 'true');
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+  res.json({
+    ok: true,
+    scheduleLibraryUrl: config.mvixCmsSetup?.scheduleLibraryUrl || 'https://cms.mvix.com/org/schedule-library/list',
+    signageMode: config.signageMode || 'cms',
+    stations: buildMvixStationSetup(config, baseUrl)
   });
 });
 
@@ -4654,6 +4744,7 @@ app.use('/api', (req, res) => {
       '/api/active911-takeover',
       '/api/mvix-config',
       '/api/mvix-signage',
+      '/api/mvix-stations',
       '/api/hydrants-status',
       '/api/daily-roster',
       '/api/live-document',
