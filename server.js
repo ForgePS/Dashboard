@@ -2860,14 +2860,24 @@ app.get('/api/events', async (req, res) => {
   }
 });
 
-app.get('/api/health', (req, res) => {
-  res.json({
+app.get('/api/health', async (req, res) => {
+  const includeMaps = ['1', 'true', 'yes'].includes(String(req.query.maps || '').toLowerCase());
+  const payload = {
     ok: true,
     serverTime: nowIso(),
     serverTimeCentral: formatCentralDateTime(new Date()),
     service: 'Horn Lake Fire Analytics + Hydrants + Active911',
-    active911: active911Debug
-  });
+    active911: active911Debug,
+    maps: includeMaps
+      ? await getGoogleMapsHealth()
+      : {
+        apiKeyConfigured: Boolean(GOOGLE_MAPS_API_KEY),
+        healthPath: '/api/map/health',
+        hint: 'Add ?maps=1 for a full Google Maps API check.'
+      }
+  };
+
+  res.json(payload);
 });
 
 app.get('/health', (req, res) => res.redirect('/api/health'));
@@ -4175,6 +4185,44 @@ function svgPlaceholder(title, message) {
 </svg>`;
 }
 
+function googleMapErrorMessage(body, fallback) {
+  const text = safeString(body).replace(/\s+/g, ' ').trim();
+  if (!text) return fallback;
+  if (/billing/i.test(text)) {
+    return 'Enable Google Maps billing on the GCP project.';
+  }
+  if (/api key/i.test(text)) {
+    return 'Google Maps API key is invalid or restricted.';
+  }
+  return text.slice(0, 140);
+}
+
+async function proxyGoogleMapImage(googleUrl, res, title, fallbackMessage) {
+  try {
+    const response = await fetch(googleUrl);
+    const contentType = safeString(response.headers.get('content-type')).toLowerCase();
+
+    if (!response.ok || contentType.includes('text') || contentType.includes('json') || contentType.includes('html')) {
+      const body = await response.text().catch(() => '');
+      console.error(`Map proxy failed (${title}): HTTP ${response.status}`, body.slice(0, 180));
+      return res.type('svg').send(svgPlaceholder(
+        title,
+        googleMapErrorMessage(body, fallbackMessage || 'Google Maps request failed.')
+      ));
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (!buffer.length) {
+      return res.type('svg').send(svgPlaceholder(title, fallbackMessage || 'Google Maps returned an empty image.'));
+    }
+
+    res.type(contentType || 'image/png').send(buffer);
+  } catch (err) {
+    console.error(`Map proxy failed (${title}):`, err.message);
+    res.type('svg').send(svgPlaceholder(title, err.message || fallbackMessage || 'Google Maps request failed.'));
+  }
+}
+
 function loadTakeoverHydrants() {
   try {
     if (!fs.existsSync(HYDRANT_CSV_FILE)) return [];
@@ -4556,6 +4604,99 @@ app.get('/api/weather', async (req, res) => {
   }
 });
 
+async function getGoogleMapsHealth() {
+  const result = {
+    ok: false,
+    apiKeyConfigured: Boolean(GOOGLE_MAPS_API_KEY),
+    services: {
+      streetViewMetadata: { ok: false },
+      staticMap: { ok: false },
+      directions: { ok: false }
+    }
+  };
+
+  if (!GOOGLE_MAPS_API_KEY) {
+    return {
+      ...result,
+      error: 'GOOGLE_MAPS_API_KEY is not configured.'
+    };
+  }
+
+  const sampleLat = '34.96';
+  const sampleLon = '-90.06';
+
+  try {
+    const metadataParams = new URLSearchParams({
+      location: `${sampleLat},${sampleLon}`,
+      radius: '500',
+      source: 'outdoor',
+      key: GOOGLE_MAPS_API_KEY
+    });
+    const metadataResponse = await fetch(`https://maps.googleapis.com/maps/api/streetview/metadata?${metadataParams.toString()}`);
+    const metadataPayload = await metadataResponse.json().catch(() => ({}));
+    result.services.streetViewMetadata = {
+      ok: metadataResponse.ok && metadataPayload.status === 'OK',
+      status: metadataPayload.status || metadataResponse.statusText,
+      error: metadataPayload.error_message || null
+    };
+  } catch (err) {
+    result.services.streetViewMetadata = { ok: false, error: err.message };
+  }
+
+  try {
+    const staticParams = new URLSearchParams({
+      center: `${sampleLat},${sampleLon}`,
+      zoom: '15',
+      size: '64x64',
+      maptype: 'roadmap',
+      key: GOOGLE_MAPS_API_KEY
+    });
+    const staticResponse = await fetch(`https://maps.googleapis.com/maps/api/staticmap?${staticParams.toString()}`);
+    const staticType = safeString(staticResponse.headers.get('content-type')).toLowerCase();
+    const staticBody = staticResponse.ok && staticType.startsWith('image/')
+      ? ''
+      : await staticResponse.text().catch(() => '');
+    result.services.staticMap = {
+      ok: staticResponse.ok && staticType.startsWith('image/'),
+      status: staticResponse.status,
+      error: staticBody ? googleMapErrorMessage(staticBody, staticResponse.statusText) : null
+    };
+  } catch (err) {
+    result.services.staticMap = { ok: false, error: err.message };
+  }
+
+  try {
+    const station = ACTIVE911_STATIONS['1'];
+    const directionsParams = new URLSearchParams({
+      origin: station.address,
+      destination: `${sampleLat},${sampleLon}`,
+      mode: 'driving',
+      key: GOOGLE_MAPS_API_KEY
+    });
+    const directionsResponse = await fetch(`https://maps.googleapis.com/maps/api/directions/json?${directionsParams.toString()}`);
+    const directionsPayload = await directionsResponse.json().catch(() => ({}));
+    result.services.directions = {
+      ok: directionsResponse.ok && directionsPayload.status === 'OK',
+      status: directionsPayload.status || directionsResponse.statusText,
+      error: directionsPayload.error_message || null
+    };
+  } catch (err) {
+    result.services.directions = { ok: false, error: err.message };
+  }
+
+  result.ok = Object.values(result.services).every((service) => service.ok);
+  if (!result.ok && !result.error) {
+    const firstError = Object.values(result.services).find((service) => service.error)?.error;
+    result.error = firstError || 'One or more Google Maps services are unavailable.';
+  }
+
+  return result;
+}
+
+app.get('/api/map/health', async (req, res) => {
+  res.json(await getGoogleMapsHealth());
+});
+
 app.get('/api/map/streetview', async (req, res) => {
   const mapPoint = await resolveMapPoint(req).catch((err) => {
     console.error('Street View geocode failed:', err.message);
@@ -4595,7 +4736,12 @@ app.get('/api/map/streetview', async (req, res) => {
     params.set('radius', safeString(req.query.radius || '1000'));
   }
 
-  res.redirect(`https://maps.googleapis.com/maps/api/streetview?${params.toString()}`);
+  await proxyGoogleMapImage(
+    `https://maps.googleapis.com/maps/api/streetview?${params.toString()}`,
+    res,
+    'STREET VIEW UNAVAILABLE',
+    'Street View image could not be loaded.'
+  );
 });
 
 app.get('/api/map/satellite', async (req, res) => {
@@ -4629,7 +4775,12 @@ app.get('/api/map/satellite', async (req, res) => {
     params.append('markers', `icon:${baseUrl}/hydrant-icon.png|${hydrants.map((h) => `${h.lat},${h.lon}`).join('|')}`);
   }
 
-  res.redirect(`https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`);
+  await proxyGoogleMapImage(
+    `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`,
+    res,
+    'SATELLITE VIEW UNAVAILABLE',
+    'Satellite map could not be loaded.'
+  );
 });
 
 async function getDirectionsPolyline(origin, destination) {
@@ -4685,7 +4836,12 @@ app.get('/api/map/route', async (req, res) => {
     console.error(`Route map failed for station ${station.id}:`, err.message);
   }
 
-  res.redirect(`https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`);
+  await proxyGoogleMapImage(
+    `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`,
+    res,
+    'ROUTE UNAVAILABLE',
+    'Route map could not be loaded.'
+  );
 });
 
 app.get('/api/stations', (req, res) => {
@@ -4845,7 +5001,13 @@ app.use('/api', (req, res) => {
       '/api/daily-roster',
       '/api/live-document',
       '/api/events',
-      '/api/health'
+      '/api/health',
+      '/api/health?maps=1',
+      '/api/map/health',
+      '/api/map/streetview',
+      '/api/map/satellite',
+      '/api/map/route',
+      '/api/weather'
     ]
   });
 });
