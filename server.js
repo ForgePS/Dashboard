@@ -2860,14 +2860,24 @@ app.get('/api/events', async (req, res) => {
   }
 });
 
-app.get('/api/health', (req, res) => {
-  res.json({
+app.get('/api/health', async (req, res) => {
+  const includeMaps = ['1', 'true', 'yes'].includes(String(req.query.maps || '').toLowerCase());
+  const payload = {
     ok: true,
     serverTime: nowIso(),
     serverTimeCentral: formatCentralDateTime(new Date()),
     service: 'Horn Lake Fire Analytics + Hydrants + Active911',
-    active911: active911Debug
-  });
+    active911: active911Debug,
+    maps: includeMaps
+      ? await getGoogleMapsHealth()
+      : {
+        apiKeyConfigured: Boolean(GOOGLE_MAPS_API_KEY),
+        healthPath: '/api/map/health',
+        hint: 'Add ?maps=1 for a full Google Maps API check.'
+      }
+  };
+
+  res.json(payload);
 });
 
 app.get('/health', (req, res) => res.redirect('/api/health'));
@@ -4594,7 +4604,7 @@ app.get('/api/weather', async (req, res) => {
   }
 });
 
-app.get('/api/map/health', async (req, res) => {
+async function getGoogleMapsHealth() {
   const result = {
     ok: false,
     apiKeyConfigured: Boolean(GOOGLE_MAPS_API_KEY),
@@ -4606,10 +4616,10 @@ app.get('/api/map/health', async (req, res) => {
   };
 
   if (!GOOGLE_MAPS_API_KEY) {
-    return res.json({
+    return {
       ...result,
       error: 'GOOGLE_MAPS_API_KEY is not configured.'
-    });
+    };
   }
 
   const sampleLat = '34.96';
@@ -4680,7 +4690,11 @@ app.get('/api/map/health', async (req, res) => {
     result.error = firstError || 'One or more Google Maps services are unavailable.';
   }
 
-  res.json(result);
+  return result;
+}
+
+app.get('/api/map/health', async (req, res) => {
+  res.json(await getGoogleMapsHealth());
 });
 
 app.get('/api/map/streetview', async (req, res) => {
@@ -4987,7 +5001,13 @@ app.use('/api', (req, res) => {
       '/api/daily-roster',
       '/api/live-document',
       '/api/events',
-      '/api/health'
+      '/api/health',
+      '/api/health?maps=1',
+      '/api/map/health',
+      '/api/map/streetview',
+      '/api/map/satellite',
+      '/api/map/route',
+      '/api/weather'
     ]
   });
 });
