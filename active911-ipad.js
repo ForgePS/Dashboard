@@ -414,6 +414,28 @@ async function loadWeather(incident) {
   }
 }
 
+function showMapFallback(img) {
+  img.style.display = 'none';
+  const fallback = img.nextElementSibling;
+  if (fallback?.classList.contains('map-fallback')) {
+    fallback.style.display = 'grid';
+  }
+}
+
+function resetMapImage(img) {
+  img.style.display = 'block';
+  const fallback = img.nextElementSibling;
+  if (fallback?.classList.contains('map-fallback')) {
+    fallback.style.display = 'none';
+  }
+}
+
+function bindMapImageFallbacks() {
+  [streetViewImage, satelliteImage, routeImage].forEach((img) => {
+    img.addEventListener('error', () => showMapFallback(img));
+  });
+}
+
 function setMapImages(incident) {
   const query = mapQuery(incident);
   currentIncidentDestination = mapsDestination(incident);
@@ -422,9 +444,10 @@ function setMapImages(incident) {
   setRouteButtonState(currentDirectionsUrl ? 'Start Route' : 'Route Waiting', !currentDirectionsUrl);
 
   if (!query) {
-    streetViewImage.removeAttribute('src');
-    satelliteImage.removeAttribute('src');
-    routeImage.removeAttribute('src');
+    [streetViewImage, satelliteImage, routeImage].forEach((img) => {
+      img.removeAttribute('src');
+      resetMapImage(img);
+    });
     return;
   }
 
@@ -433,6 +456,10 @@ function setMapImages(incident) {
   const streetSize = encodeURIComponent(imageSize(streetViewImage));
   const satelliteSize = encodeURIComponent(imageSize(satelliteImage));
   const routeSize = encodeURIComponent(imageSize(routeImage));
+
+  resetMapImage(streetViewImage);
+  resetMapImage(satelliteImage);
+  resetMapImage(routeImage);
 
   streetViewImage.src = `/api/map/streetview?${query}&size=${streetSize}&fov=120&pitch=-2&radius=1000&ts=${stamp}`;
   satelliteImage.src = `/api/map/satellite?${query}&size=${satelliteSize}&hydrants=18&ts=${stamp}`;
@@ -523,6 +550,7 @@ async function loadLatestAlert() {
 keepIpadAwake();
 setupDirectionsTapTargets();
 setupPreFirePlanButton();
+bindMapImageFallbacks();
 loadLatestAlert();
 loadWeather();
 setInterval(loadLatestAlert, 15000);
