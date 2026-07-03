@@ -1,6 +1,12 @@
 #!/bin/bash
 # One-time deploy from Google Cloud Shell (no service account keys required).
 # Open https://shell.cloud.google.com while signed in as jeremy@havoccalls.com
+#
+# From any Cloud Shell directory (no clone required):
+#   curl -fsSL https://raw.githubusercontent.com/ForgePS/Dashboard/main/scripts/deploy-from-cloud-shell.sh | bash
+#
+# Or from a local clone:
+#   bash scripts/deploy-from-cloud-shell.sh
 set -euo pipefail
 
 PROJECT_ID="firehouse-dashboards"
