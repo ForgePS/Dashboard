@@ -4608,6 +4608,8 @@ async function getGoogleMapsHealth() {
   const result = {
     ok: false,
     apiKeyConfigured: Boolean(GOOGLE_MAPS_API_KEY),
+    apiKeySuffix: GOOGLE_MAPS_API_KEY ? GOOGLE_MAPS_API_KEY.slice(-6) : null,
+    expectedProject: 'firehouse-dashboards',
     services: {
       streetViewMetadata: { ok: false },
       staticMap: { ok: false },
@@ -4618,7 +4620,11 @@ async function getGoogleMapsHealth() {
   if (!GOOGLE_MAPS_API_KEY) {
     return {
       ...result,
-      error: 'GOOGLE_MAPS_API_KEY is not configured.'
+      error: 'GOOGLE_MAPS_API_KEY is not configured.',
+      troubleshooting: [
+        'Set the secret: firebase functions:secrets:set GOOGLE_MAPS_API_KEY --project firehouse-dashboards',
+        'Redeploy functions after updating the secret.'
+      ]
     };
   }
 
@@ -4688,6 +4694,15 @@ async function getGoogleMapsHealth() {
   if (!result.ok && !result.error) {
     const firstError = Object.values(result.services).find((service) => service.error)?.error;
     result.error = firstError || 'One or more Google Maps services are unavailable.';
+  }
+
+  if (!result.ok && /billing/i.test(String(result.error || ''))) {
+    result.troubleshooting = [
+      'Billing must be enabled on the same GCP project that owns the API key ending in ...' + result.apiKeySuffix + '.',
+      'Open https://console.cloud.google.com/apis/credentials?project=firehouse-dashboards and confirm that key suffix matches.',
+      'If you created a new key after enabling billing, update Firebase: firebase functions:secrets:set GOOGLE_MAPS_API_KEY --project firehouse-dashboards',
+      'Redeploy functions after changing the secret: npx firebase-tools deploy --only functions --project firehouse-dashboards'
+    ];
   }
 
   return result;
