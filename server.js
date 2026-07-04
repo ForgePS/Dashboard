@@ -757,8 +757,8 @@ function normalizeAlertPayload(raw, source) {
     state: alert.state || payload.state || '',
     cadCode: alert.cad_code || payload.cadCode || '',
     units: alert.units || payload.units || '',
-    latitude: alert.latitude || payload.latitude || '',
-    longitude: alert.longitude || payload.longitude || '',
+    latitude: alert.latitude || alert.lat || alert.location?.lat || payload.latitude || payload.lat || '',
+    longitude: alert.longitude || alert.lng || alert.lon || alert.location?.lng || alert.location?.lon || payload.longitude || payload.lng || payload.lon || '',
     sent,
     timeLabel: formatCentralDateTime(sent),
     source,
@@ -4041,12 +4041,23 @@ async function rebuildAnalyticsFromHistory() {
 async function resolveMapPoint(req) {
   const lat = safeString(req.query.lat);
   const lon = safeString(req.query.lon || req.query.lng);
+  const address = safeString(req.query.address);
+
+  if (address) {
+    const geocoded = await geocodeAddressForMaps(address).catch((err) => {
+      console.error('Map geocode failed:', err.message);
+      return null;
+    });
+    if (geocoded?.lat && geocoded?.lon) {
+      return geocoded;
+    }
+  }
 
   if (lat && lon) {
     return { lat, lon };
   }
 
-  return geocodeAddressForMaps(req.query.address);
+  return null;
 }
 
 function bearingDegrees(fromLat, fromLon, toLat, toLon) {
@@ -4099,61 +4110,69 @@ function feetBetween(lat1, lon1, lat2, lon2) {
   return 2 * radiusFeet * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+const streetViewCameraCache = new Map();
+
 async function streetViewCameraForPoint(lat, lon, radius = 1000) {
+  const cacheKey = `${Number(lat).toFixed(5)},${Number(lon).toFixed(5)}`;
+  if (streetViewCameraCache.has(cacheKey)) {
+    return streetViewCameraCache.get(cacheKey);
+  }
+
   const baseLat = Number(lat);
   const baseLon = Number(lon);
+
+  const buildCandidate = (metadata) => {
+    const panoLat = Number(metadata.location.lat);
+    const panoLon = Number(metadata.location.lng);
+    return {
+      metadata,
+      distance: feetBetween(baseLat, baseLon, panoLat, panoLon),
+      location: `${panoLat},${panoLon}`,
+      heading: String(Math.round(bearingDegrees(panoLat, panoLon, baseLat, baseLon)))
+    };
+  };
+
+  const primary = await getStreetViewMetadata(baseLat, baseLon, radius).catch(() => null);
+  if (primary) {
+    const result = {
+      location: `${primary.location.lat},${primary.location.lng}`,
+      pano: primary.pano_id || '',
+      heading: String(Math.round(bearingDegrees(Number(primary.location.lat), Number(primary.location.lng), baseLat, baseLon)))
+    };
+    streetViewCameraCache.set(cacheKey, result);
+    return result;
+  }
+
   const offsets = [
-    [0, 0],
     [0, 90],
     [0, -90],
     [90, 0],
-    [-90, 0],
-    [70, 70],
-    [70, -70],
-    [-70, 70],
-    [-70, -70],
-    [0, 180],
-    [0, -180],
-    [180, 0],
-    [-180, 0]
+    [-90, 0]
   ];
 
-  const candidates = [];
-
-  for (const [north, east] of offsets) {
+  const candidates = (await Promise.all(offsets.map(async ([north, east]) => {
     const point = offsetLatLon(baseLat, baseLon, north, east);
     const metadata = await getStreetViewMetadata(point.lat, point.lon, 260).catch(() => null);
-    if (!metadata) continue;
-
-    const panoLat = Number(metadata.location.lat);
-    const panoLon = Number(metadata.location.lng);
-    const distance = feetBetween(baseLat, baseLon, panoLat, panoLon);
-
-    candidates.push({
-      metadata,
-      distance,
-      location: `${panoLat},${panoLon}`,
-      heading: String(Math.round(bearingDegrees(panoLat, panoLon, baseLat, baseLon)))
-    });
-  }
+    if (!metadata) return null;
+    return buildCandidate(metadata);
+  }))).filter(Boolean);
 
   const chosen = candidates
     .filter((candidate) => candidate.distance >= 25)
     .sort((a, b) => a.distance - b.distance)[0] ||
     candidates.sort((a, b) => a.distance - b.distance)[0];
 
-  if (!chosen) {
-    return {
-      location: `${lat},${lon}`,
-      heading: safeString('')
-    };
-  }
-
-  return {
+  const result = chosen ? {
     location: chosen.location,
     pano: chosen.metadata.pano_id || '',
     heading: chosen.heading
+  } : {
+    location: `${lat},${lon}`,
+    heading: safeString('')
   };
+
+  streetViewCameraCache.set(cacheKey, result);
+  return result;
 }
 
 function normalizeActive911StationId(value) {
@@ -4313,6 +4332,22 @@ const NWS_HEADERS = {
   Accept: 'application/geo+json',
   'User-Agent': NWS_USER_AGENT
 };
+const WEATHER_FETCH_TIMEOUT_MS = Number(process.env.WEATHER_FETCH_TIMEOUT_MS || 8000);
+
+async function fetchJsonWithTimeout(url, options = {}, timeoutMs = WEATHER_FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`${response.status} ${response.statusText}`);
+    }
+    return await response.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function nwsQuantityValue(quantity) {
   const value = Number(quantity?.value);
@@ -4337,11 +4372,7 @@ function parseWindMph(value) {
 }
 
 async function fetchNwsJson(url) {
-  const response = await fetch(url, { headers: NWS_HEADERS });
-  if (!response.ok) {
-    throw new Error(`NWS ${response.status} ${url}`);
-  }
-  return response.json();
+  return fetchJsonWithTimeout(url, { headers: NWS_HEADERS }, WEATHER_FETCH_TIMEOUT_MS);
 }
 
 async function fetchNwsWeather(lat, lon) {
@@ -4520,19 +4551,23 @@ app.get('/api/weather', async (req, res) => {
     });
     const airUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?${airParams.toString()}`;
     const [response, airResponse, nwsWeather] = await Promise.all([
-      fetch(url, { headers: { Accept: 'application/json' } }),
-      fetch(airUrl, { headers: { Accept: 'application/json' } }).catch(() => null),
+      fetchJsonWithTimeout(url, { headers: { Accept: 'application/json' } }).catch((err) => {
+        console.error('Open-Meteo weather failed:', err.message);
+        return null;
+      }),
+      fetchJsonWithTimeout(airUrl, { headers: { Accept: 'application/json' } }).catch(() => null),
       fetchNwsWeather(lat, lon).catch((err) => {
         console.error('NWS weather failed:', err.message);
         return null;
       })
     ]);
-    const payload = await response.json();
-    const airPayload = airResponse?.ok ? await airResponse.json() : {};
 
-    if (!response.ok) {
-      throw new Error(payload.reason || response.statusText);
+    if (!response && !nwsWeather) {
+      throw new Error('Weather services unavailable');
     }
+
+    const payload = response || {};
+    const airPayload = airResponse || {};
 
     const current = payload.current || {};
     const daily = payload.daily || {};
@@ -4568,7 +4603,7 @@ app.get('/api/weather', async (req, res) => {
       ok: true,
       updated: nowIso(),
       updatedLabel: formatCentralDateTime(new Date()),
-      source: nwsWeather ? 'nws+open-meteo' : 'open-meteo',
+      source: nwsWeather ? (response ? 'nws+open-meteo' : 'nws') : 'open-meteo',
       temp: nwsWeather?.temp ?? roundedWeatherNumber(current.temperature_2m),
       condition,
       windMph: nwsWeather?.windMph ?? roundedWeatherNumber(current.wind_speed_10m),
@@ -4600,7 +4635,18 @@ app.get('/api/weather', async (req, res) => {
       forecast
     });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    console.error('Weather endpoint failed:', err.message);
+    res.json({
+      ok: true,
+      updated: nowIso(),
+      updatedLabel: formatCentralDateTime(new Date()),
+      source: 'fallback',
+      temp: '--',
+      condition: 'Weather unavailable',
+      windMph: '--',
+      windDir: '',
+      error: err.message
+    });
   }
 });
 
