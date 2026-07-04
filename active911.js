@@ -20,6 +20,7 @@ const ACTIVE911_TAKEOVER_DURATION_MS =
 const ALERT_SOUND_ENABLED = new URLSearchParams(window.location.search).get('sound') !== '0';
 let activeIncidentSent = '';
 let lastRenderedAlertKey = '';
+let lastMapLocationKey = '';
 let alertAudioContext = null;
 let currentWeatherIncident = null;
 
@@ -209,16 +210,25 @@ function hasCoordinates(incident) {
 function mapQuery(incident) {
   const params = new URLSearchParams();
 
+  if (incident?.address) {
+    params.set('address', incident.address);
+  }
+
   if (incident?.latitude && incident?.longitude) {
     params.set('lat', incident.latitude);
     params.set('lon', incident.longitude);
   }
 
-  if (incident?.address) {
-    params.set('address', incident.address);
-  }
-
   return params.toString();
+}
+
+function locationKey(incident) {
+  if (!incident) return '';
+  return [
+    incident.address || '',
+    incident.latitude || '',
+    incident.longitude || ''
+  ].join('|').toUpperCase();
 }
 
 function imageSize(element) {
@@ -308,9 +318,9 @@ function setMapImages(incident) {
   resetMapImage(satelliteImage);
   resetMapImage(routeImage);
 
-  streetViewImage.src = `/api/map/streetview?${query}&size=${streetSize}&fov=120&pitch=-2&radius=1000&ts=${stamp}`;
   satelliteImage.src = `/api/map/satellite?${query}&size=${satelliteSize}&hydrants=18&ts=${stamp}`;
   routeImage.src = `/api/map/route?station=${station}&${query}&size=${routeSize}&ts=${stamp}`;
+  streetViewImage.src = `/api/map/streetview?${query}&size=${streetSize}&fov=120&pitch=-2&radius=1000&ts=${stamp}`;
 }
 
 function setWaiting(message = 'Waiting for Active911 alert') {
@@ -326,6 +336,7 @@ function setWaiting(message = 'Waiting for Active911 alert') {
   specialNotes.textContent = '';
   specialNotes.classList.remove('visible');
   setMapImages(null);
+  lastMapLocationKey = '';
 }
 
 async function loadLatestAlert() {
@@ -345,6 +356,7 @@ async function loadLatestAlert() {
     }
 
     const alertKey = `${latest.id || ''}|${latest.sent || ''}|${latest.address || ''}`;
+    const mapLocKey = locationKey(latest);
     const isNewRenderedAlert = alertKey !== lastRenderedAlertKey;
     lastRenderedAlertKey = alertKey;
 
@@ -379,9 +391,14 @@ async function loadLatestAlert() {
     specialNotes.classList.toggle('visible', Boolean(latest.specialNotes));
 
     currentWeatherIncident = latest;
-    await loadWeather(latest);
+    void loadWeather(latest);
+
     if (isNewRenderedAlert) {
       playAlertSound(alertKey);
+    }
+
+    if (isNewRenderedAlert || mapLocKey !== lastMapLocationKey) {
+      lastMapLocationKey = mapLocKey;
       setMapImages(latest);
     }
   } catch (err) {
