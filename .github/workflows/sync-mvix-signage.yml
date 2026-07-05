@@ -1,0 +1,57 @@
+name: Sync MVIX Signage
+
+on:
+  schedule:
+    # ~6 AM US Central (11:00 UTC)
+    - cron: '0 11 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check MVIX credentials
+        env:
+          MVIX_ACCESS_TOKEN: ${{ secrets.MVIX_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$MVIX_ACCESS_TOKEN" ]; then
+            echo "::error::Repository secret MVIX_ACCESS_TOKEN is not configured."
+            echo "Add a Bearer token from https://cms.mvix.com under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - name: Export MVIX schedule
+        env:
+          MVIX_ACCESS_TOKEN: ${{ secrets.MVIX_ACCESS_TOKEN }}
+        run: python3 scripts/export-mvix-schedule.py
+
+      - name: Commit and push playlist changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add signage-playlist.json
+          git add data/mvix-schedule-*.snapshot.json
+          git add public/signage/media/
+          git add goodman-*-cameras.html signage-camera-*.html 2>/dev/null || true
+
+          if git diff --staged --quiet; then
+            echo "No MVIX signage changes detected."
+            exit 0
+          fi
+
+          git commit -m "Auto-sync MVIX signage playlist"
+          git push
+
+      - name: Summary
+        if: success()
+        run: |
+          EXPORTED_AT="$(python3 -c "import json; print(json.load(open('signage-playlist.json')).get('exportedAt',''))")"
+          SLOT_COUNT="$(python3 -c "import json; print(len(json.load(open('signage-playlist.json')).get('slots',[])))")"
+          echo "MVIX signage synced: ${SLOT_COUNT} slots, exportedAt=${EXPORTED_AT}"
+          echo "A push to main triggers Deploy Firebase when deploy credentials are configured."
