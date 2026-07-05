@@ -1,3 +1,5 @@
+const DEFAULT_MVIX_PLAYBACK_URL = 'https://vp-iqewtzht.cms.mvix.com/playback';
+
 function pageParams() {
   return new URLSearchParams(window.location.search);
 }
@@ -12,21 +14,33 @@ function resolveStation() {
   return match ? match[1] : '1';
 }
 
-function signageUrl() {
+function internalSignageUrl() {
   const station = resolveStation();
-  const params = pageParams();
-  const explicit = params.get('signageUrl');
-  if (explicit) return explicit;
-
   const url = new URL(`/station${station}/signage`, window.location.origin);
   url.searchParams.set('station', station);
   url.searchParams.set('monitor', '0');
   return url.toString();
 }
 
-function loadPlaylist() {
-  const frame = document.getElementById('mvixFrame');
-  if (frame) frame.src = signageUrl();
+function playbackUrl() {
+  const params = pageParams();
+  const explicitPlayback = params.get('playbackUrl');
+  if (explicitPlayback) return explicitPlayback;
+
+  const explicitSignage = params.get('signageUrl');
+  if (explicitSignage) return explicitSignage;
+
+  const playlist = String(params.get('playlist') || params.get('source') || '').toLowerCase();
+  if (playlist === 'signage' || playlist === 'dashboard') {
+    return internalSignageUrl();
+  }
+
+  return DEFAULT_MVIX_PLAYBACK_URL;
 }
 
-loadPlaylist();
+function loadPlayback() {
+  const frame = document.getElementById('mvixFrame');
+  if (frame) frame.src = playbackUrl();
+}
+
+loadPlayback();
