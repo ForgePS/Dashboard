@@ -25,6 +25,7 @@ WEB_URL_MAP = {
     'https://firehouse-dashboards.web.app/roster': '/daily-roster',
     'https://firehouse-dashboards.web.app/daily-roster': '/daily-roster',
     'https://firehouse-dashboards.web.app/weather': '/weather',
+    'https://firehouse-dashboards.web.app/weather-radar': '/weather-radar',
     'https://firehouse-dashboards.web.app/analytics': '/analytics',
     'https://firehouse-dashboards.web.app/events': '/events',
     'https://firehouse-dashboards.web.app/live-document': '/live-document',
@@ -219,7 +220,7 @@ def main() -> None:
             if dest.suffix.lower() == '.pdf':
                 slot['assetType'] = 'pdf'
         elif feature == 'Weather Radar':
-            slot.update({'type': 'page', 'path': '/weather', 'notes': 'MVIX weather radar slot'})
+            slot.update({'type': 'page', 'path': '/weather-radar'})
         elif feature == 'HTML5 Scripts':
             camera_path = CAMERA_PAGE_MAP.get(title.lower())
             if camera_path:

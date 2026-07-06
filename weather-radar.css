@@ -1,0 +1,48 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #05070b;
+  color: #fff;
+  font-family: Arial, sans-serif;
+}
+
+.radar-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  width: 100%;
+  height: 100vh;
+  padding: 16px;
+}
+
+.radar-header {
+  text-align: center;
+}
+
+.radar-header h1 {
+  font-size: clamp(28px, 4vw, 48px);
+  letter-spacing: 1px;
+}
+
+.radar-header p {
+  margin-top: 6px;
+  color: #b8c4d6;
+  font-size: clamp(14px, 2vw, 20px);
+}
+
+.radar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #0b1018;
+  border: 1px solid #243041;
+  border-radius: 12px;
+}

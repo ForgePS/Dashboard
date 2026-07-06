@@ -82,11 +82,29 @@ function buildSlotUrl(slot, station) {
 }
 
 function filterSlots(slots) {
+  const now = Date.now();
+  const seen = new Set();
+
   return (Array.isArray(slots) ? slots : []).filter((slot) => {
     if (!slot || slot.disabled) return false;
-    if (slot.type === 'video' || slot.type === 'image') return Boolean(slot.path || slot.url);
-    if (slot.type === 'url') return Boolean(slot.url);
-    return Boolean(slot.path);
+
+    if (slot.expireOn) {
+      const expires = Date.parse(slot.expireOn);
+      if (Number.isFinite(expires) && expires <= now) return false;
+    }
+
+    if (slot.type === 'video' || slot.type === 'image') {
+      if (!Boolean(slot.path || slot.url)) return false;
+    } else if (slot.type === 'url') {
+      if (!Boolean(slot.url)) return false;
+    } else if (!Boolean(slot.path)) {
+      return false;
+    }
+
+    const key = String(slot.id || `${slot.type}|${slot.path || slot.url || ''}`);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
 }
 

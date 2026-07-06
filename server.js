@@ -2715,6 +2715,10 @@ app.get('/weather', (req, res) => {
   sendHtmlFileOrFallback(res, 'weather.html', 'Horn Lake Weather', '/api/weather');
 });
 
+app.get('/weather-radar', (req, res) => {
+  sendHtmlFileOrFallback(res, 'weather-radar.html', 'Horn Lake Radar');
+});
+
 app.get('/traffic-cameras', (req, res) => {
   sendHtmlFileOrFallback(res, 'traffic-cameras.html', 'Hwy 301 & Goodman Rd Cameras');
 });
