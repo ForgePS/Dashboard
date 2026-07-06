@@ -25,10 +25,11 @@ function playlistMode() {
   if (explicitPlayback) return 'mvix-only';
   if (explicitSignage) return 'signage-only';
 
-  const mode = String(params.get('playlist') || params.get('source') || 'all').toLowerCase();
+  const mode = String(params.get('playlist') || params.get('source') || 'mvix').toLowerCase();
   if (mode === 'mvix' || mode === 'live') return 'mvix-only';
   if (mode === 'signage' || mode === 'dashboard') return 'signage-only';
-  return 'all';
+  if (mode === 'all' || mode === 'hybrid') return 'all';
+  return 'mvix-only';
 }
 
 function mvixLiveSlot() {
@@ -111,7 +112,7 @@ function filterSlots(slots) {
 let slots = [];
 let slotIndex = 0;
 let rotationTimer = null;
-let currentMode = 'all';
+let currentMode = 'mvix-only';
 
 function showSlot(slot) {
   const station = resolveStation();
@@ -173,6 +174,12 @@ async function init() {
 
     if (!slots.length) {
       if (frame) frame.src = withCacheBust(`/weather?signage=1&station=${encodeURIComponent(station)}`);
+      return;
+    }
+
+    if (currentMode === 'mvix-only') {
+      // Keep MVIX running continuously; Active911 monitor handles temporary takeovers.
+      if (frame) frame.src = pageParams().get('playbackUrl') || DEFAULT_MVIX_PLAYBACK_URL;
       return;
     }
 
