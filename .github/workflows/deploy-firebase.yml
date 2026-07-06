@@ -6,6 +6,10 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: firebase-deploy-main
+  cancel-in-progress: true
+
 permissions:
   contents: read
   id-token: write
@@ -15,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check deploy credentials
+        id: creds
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -22,17 +27,24 @@ jobs:
           GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
         run: |
           if [ -n "$GCP_WORKLOAD_IDENTITY_PROVIDER" ] && [ -n "$GCP_SERVICE_ACCOUNT" ]; then
+            echo "method=wif" >> "$GITHUB_OUTPUT"
             echo "Using Workload Identity Federation (keyless)"
             exit 0
           fi
-          if [ -n "$FIREBASE_TOKEN" ] || [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
-            echo "Using Firebase token or service account secret"
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "method=sa-json" >> "$GITHUB_OUTPUT"
+            echo "Using Firebase service account JSON secret"
+            exit 0
+          fi
+          if [ -n "$FIREBASE_TOKEN" ]; then
+            echo "method=token" >> "$GITHUB_OUTPUT"
+            echo "Using FIREBASE_TOKEN secret"
             exit 0
           fi
           echo "::error::No deploy credentials configured."
-          echo "Option A (org blocks keys): run scripts/setup-github-wif.sh in Cloud Shell, add GitHub Variables"
-          echo "Option B (one-time): run scripts/deploy-from-cloud-shell.sh in Cloud Shell"
-          echo "Option C: add FIREBASE_TOKEN or FIREBASE_SERVICE_ACCOUNT secret"
+          echo "Run in Cloud Shell:"
+          echo "  curl -fsSL https://raw.githubusercontent.com/ForgePS/Dashboard/main/scripts/setup-auto-deploy.sh | bash"
+          echo "Then add the two GitHub repository variables it prints."
           exit 1
 
       - uses: actions/checkout@v4
@@ -45,19 +57,57 @@ jobs:
       - run: npm ci
 
       - name: Authenticate with Workload Identity
-        if: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' }}
+        if: steps.creds.outputs.method == 'wif'
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
       - name: Authenticate with service account JSON
-        if: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER == '' && secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+        if: steps.creds.outputs.method == 'sa-json'
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        if: steps.creds.outputs.method == 'wif' || steps.creds.outputs.method == 'sa-json'
+        uses: google-github-actions/setup-gcloud@v2
 
       - name: Deploy to Firebase
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: npx firebase-tools deploy --only functions,hosting --non-interactive --project firehouse-dashboards
+
+      - name: Verify production health
+        run: |
+          set -euo pipefail
+          BASE_URL="https://firehouse-dashboards.web.app"
+
+          for attempt in 1 2 3 4 5; do
+            echo "Verification attempt ${attempt}/5..."
+            if curl -fsS "${BASE_URL}/api/map/health" >/tmp/map-health.json \
+              && curl -fsS "${BASE_URL}/api/weather" >/tmp/weather.json \
+              && curl -fsS "${BASE_URL}/weather-radar.js" >/tmp/weather-radar.js; then
+              python3 - <<'PY'
+          import json
+          with open("/tmp/map-health.json") as fh:
+              map_data = json.load(fh)
+          assert map_data.get("ok"), map_data
+          with open("/tmp/weather.json") as fh:
+              weather = json.load(fh)
+          assert weather.get("ok"), weather
+          temp = weather.get("temp")
+          humidity = (weather.get("current") or {}).get("humidity")
+          if temp == 32 and humidity == 0:
+              raise SystemExit("Weather still reports 32F / 0% humidity")
+          with open("/tmp/weather-radar.js") as fh:
+              radar_js = fh.read()
+          assert "KNQA_loop.gif" in radar_js, "Radar JS still points at broken KMEG URL"
+          print(f"Production verification passed (temp={temp}, humidity={humidity})")
+          PY
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "::error::Production verification failed after deploy"
+          exit 1
