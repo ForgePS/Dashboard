@@ -4,16 +4,23 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Horn Lake Radar</title>
-  <link rel="stylesheet" href="/weather-radar.css?v=2" />
+  <link rel="stylesheet" href="/weather-radar.css?v=3" />
 </head>
 <body>
   <div class="radar-shell">
     <header class="radar-header">
       <h1>Horn Lake Radar</h1>
-      <p id="updatedText">Memphis (KNQA) area loop</p>
+      <p id="updatedText">Windy live radar (MVIX)</p>
     </header>
-    <img id="radarImage" class="radar-image" alt="Local weather radar loop" />
+    <iframe
+      id="radarFrame"
+      class="radar-visual"
+      title="Horn Lake Windy Radar"
+      loading="lazy"
+      referrerpolicy="no-referrer"
+    ></iframe>
+    <img id="radarFallback" class="radar-visual radar-fallback-hidden" alt="Local weather radar loop fallback" />
   </div>
-  <script src="/weather-radar.js?v=2"></script>
+  <script src="/weather-radar.js?v=3"></script>
 </body>
 </html>
