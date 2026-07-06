@@ -1,10 +1,19 @@
 const radarFrame = document.getElementById('radarFrame');
 const radarFallback = document.getElementById('radarFallback');
 const updatedText = document.getElementById('updatedText');
+const radarShell = document.getElementById('radarShell');
 const FALLBACK_RADAR_URL = 'https://radar.weather.gov/ridge/standard/KNQA_loop.gif';
 const REFRESH_MS = 300000;
+const params = new URLSearchParams(window.location.search);
+
+function isSignageMode() {
+  const signage = params.get('signage');
+  const mode = params.get('mode');
+  return signage === '1' || mode === 'signage' || params.has('mvix');
+}
 
 function windyRadarUrl() {
+  const signageMode = isSignageMode();
   const params = new URLSearchParams({
     lat: '34.9554',
     lon: '-90.0348',
@@ -16,7 +25,7 @@ function windyRadarUrl() {
     level: 'surface',
     overlay: 'radar',
     product: 'radar',
-    menu: '',
+    menu: signageMode ? '' : 'true',
     message: '',
     marker: '',
     calendar: 'now',
@@ -57,4 +66,8 @@ setInterval(refreshRadar, REFRESH_MS);
 
 if (radarFrame) {
   radarFrame.addEventListener('error', showFallback);
+}
+
+if (radarShell && isSignageMode()) {
+  radarShell.classList.add('signage-mode');
 }
