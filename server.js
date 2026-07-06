@@ -4354,7 +4354,10 @@ async function fetchJsonWithTimeout(url, options = {}, timeoutMs = WEATHER_FETCH
 }
 
 function nwsQuantityValue(quantity) {
-  const value = Number(quantity?.value);
+  if (!quantity || quantity.value === null || quantity.value === undefined) {
+    return null;
+  }
+  const value = Number(quantity.value);
   return Number.isFinite(value) ? value : null;
 }
 
@@ -4389,15 +4392,24 @@ async function fetchNwsWeather(lat, lon) {
 
   const periods = forecastPayload?.properties?.periods || [];
   const currentPeriod = periods[0] || null;
-  const stationId = stationsPayload?.features?.[0]?.properties?.stationIdentifier;
+  const stationIds = (stationsPayload?.features || [])
+    .map((feature) => feature?.properties?.stationIdentifier)
+    .filter(Boolean);
   let observation = null;
 
-  if (stationId) {
+  for (const stationId of stationIds.slice(0, 5)) {
     try {
       const obsPayload = await fetchNwsJson(`https://api.weather.gov/stations/${stationId}/observations/latest`);
-      observation = obsPayload?.properties || null;
+      const candidate = obsPayload?.properties || null;
+      if (nwsQuantityValue(candidate?.temperature) !== null) {
+        observation = candidate;
+        break;
+      }
+      if (!observation) {
+        observation = candidate;
+      }
     } catch (err) {
-      console.error('NWS observation failed:', err.message);
+      console.error(`NWS observation failed for ${stationId}:`, err.message);
     }
   }
 
@@ -4432,8 +4444,8 @@ async function fetchNwsWeather(lat, lon) {
     source: 'nws',
     condition: currentPeriod?.shortForecast || observation?.textDescription || null,
     forecast,
-    temp: obsTempF ?? currentPeriod?.temperature ?? null,
-    feelsLike: feelsLikeF ?? currentPeriod?.temperature ?? null,
+    temp: obsTempF,
+    feelsLike: feelsLikeF ?? obsTempF,
     humidity: (() => {
       const value = nwsQuantityValue(observation?.relativeHumidity);
       return value === null ? null : Math.round(value);

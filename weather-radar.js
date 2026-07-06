@@ -1,6 +1,6 @@
 const radarImage = document.getElementById('radarImage');
 const updatedText = document.getElementById('updatedText');
-const RADAR_URL = 'https://radar.weather.gov/ridge/standard/KMEG_loop.gif';
+const RADAR_URL = 'https://radar.weather.gov/ridge/standard/KNQA_loop.gif';
 const REFRESH_MS = 120000;
 
 function refreshRadar() {
