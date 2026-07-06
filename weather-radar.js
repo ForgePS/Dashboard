@@ -25,16 +25,17 @@ function windyRadarUrl() {
     level: 'surface',
     overlay: 'radar',
     product: 'radar',
-    menu: signageMode ? '' : 'true',
-    message: '',
-    marker: '',
+    menu: signageMode ? 'false' : 'true',
+    message: signageMode ? 'false' : 'true',
+    marker: signageMode ? 'false' : 'true',
     calendar: 'now',
-    pressure: '',
+    pressure: signageMode ? 'false' : 'true',
     type: 'map',
     location: 'coordinates',
-    detail: 'false',
+    detail: 'true',
     metricWind: 'mph',
-    metricTemp: 'F'
+    metricTemp: 'F',
+    radarRange: '-1'
   });
   return `https://embed.windy.com/embed2.html?${params.toString()}`;
 }
