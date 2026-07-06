@@ -1,5 +1,6 @@
 const DEFAULT_MVIX_PLAYBACK_URL = 'https://vp-iqewtzht.cms.mvix.com/playback';
-const DEFAULT_MVIX_SLOT_SECONDS = 90;
+const DEFAULT_MVIX_SLOT_SECONDS = 45;
+const PLAYLIST_REFRESH_MS = 30 * 60 * 1000;
 
 const frame = document.getElementById('mvixFrame');
 
@@ -44,34 +45,40 @@ function mvixLiveSlot() {
   };
 }
 
+function withCacheBust(url) {
+  const next = new URL(url, window.location.origin);
+  next.searchParams.set('ts', String(Date.now()));
+  return next.toString();
+}
+
 function buildSlotUrl(slot, station) {
   if (slot.type === 'video') {
     const src = slot.path || slot.url;
-    if (!src) return '/signage-asset.html?type=video&src=';
+    if (!src) return withCacheBust('/signage-asset.html?type=video&src=');
     const asset = new URL('/signage-asset.html', window.location.origin);
     asset.searchParams.set('type', 'video');
     asset.searchParams.set('src', src);
-    return asset.toString();
+    return withCacheBust(asset.toString());
   }
 
   if (slot.type === 'image') {
     const src = slot.path || slot.url;
-    if (!src) return '/signage-asset.html?type=image&src=';
+    if (!src) return withCacheBust('/signage-asset.html?type=image&src=');
     const asset = new URL('/signage-asset.html', window.location.origin);
     const isPdf = slot.assetType === 'pdf' || /\.pdf(?:$|\?)/i.test(src);
     asset.searchParams.set('type', isPdf ? 'pdf' : 'image');
     asset.searchParams.set('src', src);
-    return asset.toString();
+    return withCacheBust(asset.toString());
   }
 
   if (slot.type === 'url' && slot.url) {
-    return slot.url;
+    return withCacheBust(slot.url);
   }
 
   const url = new URL(slot.path, window.location.origin);
   url.searchParams.set('signage', '1');
   url.searchParams.set('station', station);
-  return url.toString();
+  return withCacheBust(url.toString());
 }
 
 function filterSlots(slots) {
@@ -86,10 +93,11 @@ function filterSlots(slots) {
 let slots = [];
 let slotIndex = 0;
 let rotationTimer = null;
+let currentMode = 'all';
 
 function showSlot(slot) {
   const station = resolveStation();
-  if (!frame) return;
+  if (!frame || !slot) return;
   frame.src = buildSlotUrl(slot, station);
 }
 
@@ -117,33 +125,54 @@ async function loadSignageSlots(station) {
 function buildRotation(mode, signageSlots) {
   if (mode === 'mvix-only') return [mvixLiveSlot()];
   if (mode === 'signage-only') return signageSlots;
-  return [mvixLiveSlot(), ...signageSlots];
+  if (!signageSlots.length) return [mvixLiveSlot()];
+  // Play every dashboard slide first, then one MVIX live catch-up before repeating.
+  return [...signageSlots, mvixLiveSlot()];
+}
+
+async function refreshPlaylist({ preservePosition = true } = {}) {
+  const station = resolveStation();
+  const previousId = slots[slotIndex % slots.length]?.id || '';
+  const signageSlots = currentMode === 'mvix-only' ? [] : await loadSignageSlots(station);
+  const nextSlots = buildRotation(currentMode, signageSlots);
+
+  if (!nextSlots.length) return;
+  slots = nextSlots;
+
+  if (preservePosition && previousId) {
+    const found = slots.findIndex((slot) => slot.id === previousId);
+    if (found >= 0) slotIndex = found;
+  }
 }
 
 async function init() {
   const station = resolveStation();
-  const mode = playlistMode();
+  currentMode = playlistMode();
 
   try {
-    const signageSlots = mode === 'mvix-only' ? [] : await loadSignageSlots(station);
-    slots = buildRotation(mode, signageSlots);
+    const signageSlots = currentMode === 'mvix-only' ? [] : await loadSignageSlots(station);
+    slots = buildRotation(currentMode, signageSlots);
 
     if (!slots.length) {
-      if (frame) frame.src = `/weather?signage=1&station=${encodeURIComponent(station)}`;
+      if (frame) frame.src = withCacheBust(`/weather?signage=1&station=${encodeURIComponent(station)}`);
       return;
     }
 
-    if (slots.length === 1) {
-      showSlot(slots[0]);
-      return;
-    }
-
+    slotIndex = 0;
     scheduleNext();
+
+    if (currentMode !== 'mvix-only') {
+      setInterval(() => {
+        refreshPlaylist({ preservePosition: true }).catch((err) => {
+          console.error('Playlist refresh failed:', err.message);
+        });
+      }, PLAYLIST_REFRESH_MS);
+    }
   } catch (err) {
     console.error('MVIX playback init failed:', err.message);
     if (frame) {
-      frame.src = mode === 'signage-only'
-        ? `/weather?signage=1&station=${encodeURIComponent(station)}`
+      frame.src = currentMode === 'signage-only'
+        ? withCacheBust(`/weather?signage=1&station=${encodeURIComponent(station)}`)
         : (pageParams().get('playbackUrl') || DEFAULT_MVIX_PLAYBACK_URL);
     }
   }
