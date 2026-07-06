@@ -77,6 +77,10 @@ async function init() {
 
     slots = (Array.isArray(data.slots) ? data.slots : []).filter((slot) => {
       if (!slot || slot.disabled) return false;
+      if (slot.expireOn) {
+        const expires = Date.parse(slot.expireOn);
+        if (Number.isFinite(expires) && expires <= Date.now()) return false;
+      }
       if (slot.type === 'video' || slot.type === 'image') return Boolean(slot.path || slot.url);
       if (slot.type === 'url') return Boolean(slot.url);
       return Boolean(slot.path);
