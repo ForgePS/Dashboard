@@ -8,9 +8,25 @@ POOL_ID="github-deploy"
 PROVIDER_ID="github"
 REPO="ForgePS/Dashboard"
 SA_EMAIL="firebase-adminsdk-fbsvc@${PROJECT_ID}.iam.gserviceaccount.com"
+GITHUB_VARS_URL="https://github.com/${REPO}/settings/variables/actions"
+GITHUB_ACTIONS_URL="https://github.com/${REPO}/actions/workflows/deploy-firebase.yml"
+
+echo "==> Configuring Workload Identity Federation for ${REPO}"
 
 gcloud config set project "$PROJECT_ID"
 PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
+
+echo "==> Enabling required APIs"
+gcloud services enable \
+  iam.googleapis.com \
+  iamcredentials.googleapis.com \
+  cloudresourcemanager.googleapis.com \
+  firebase.googleapis.com \
+  cloudfunctions.googleapis.com \
+  run.googleapis.com \
+  cloudbuild.googleapis.com \
+  artifactregistry.googleapis.com \
+  --project="$PROJECT_ID"
 
 if ! gcloud iam workload-identity-pools describe "$POOL_ID" --location=global --project="$PROJECT_ID" >/dev/null 2>&1; then
   gcloud iam workload-identity-pools create "$POOL_ID" \
@@ -31,17 +47,46 @@ if ! gcloud iam workload-identity-pools providers describe "$PROVIDER_ID" \
     --attribute-condition="assertion.repository_owner == 'ForgePS'"
 fi
 
+echo "==> Granting deploy roles to ${SA_EMAIL}"
+for ROLE in \
+  roles/firebase.admin \
+  roles/cloudfunctions.developer \
+  roles/run.admin \
+  roles/iam.serviceAccountUser \
+  roles/storage.admin; do
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:${SA_EMAIL}" \
+    --role="$ROLE" \
+    --condition=None \
+    --quiet >/dev/null 2>&1 || true
+done
+
 gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL" \
   --project="$PROJECT_ID" \
   --role="roles/iam.workloadIdentityUser" \
-  --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${POOL_ID}/attribute.repository/${REPO}"
+  --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${POOL_ID}/attribute.repository/${REPO}" \
+  --quiet
 
 PROVIDER="projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${POOL_ID}/providers/${PROVIDER_ID}"
 
 echo ""
-echo "Setup complete. Add these GitHub repository VARIABLES (Settings -> Secrets and variables -> Actions -> Variables):"
+echo "================================================================"
+echo "GitHub Actions auto-deploy is configured in GCP."
 echo ""
-echo "GCP_WORKLOAD_IDENTITY_PROVIDER=${PROVIDER}"
-echo "GCP_SERVICE_ACCOUNT=${SA_EMAIL}"
+echo "Add these repository VARIABLES (not secrets):"
+echo "  ${GITHUB_VARS_URL}"
 echo ""
-echo "Then run Actions -> Deploy Firebase -> Run workflow"
+echo "  Name: GCP_WORKLOAD_IDENTITY_PROVIDER"
+echo "  Value:"
+echo "  ${PROVIDER}"
+echo ""
+echo "  Name: GCP_SERVICE_ACCOUNT"
+echo "  Value:"
+echo "  ${SA_EMAIL}"
+echo ""
+echo "Then trigger a deploy:"
+echo "  ${GITHUB_ACTIONS_URL}"
+echo "  -> Run workflow -> Run workflow"
+echo ""
+echo "After that, every push to main deploys automatically."
+echo "================================================================"

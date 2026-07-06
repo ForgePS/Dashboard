@@ -1,5 +1,7 @@
 #!/bin/bash
-# One-time deploy from Google Cloud Shell (no service account keys required).
+# Manual deploy from Google Cloud Shell when GitHub Actions credentials are not set up yet.
+# Preferred: set up auto-deploy once with:
+#   curl -fsSL https://raw.githubusercontent.com/ForgePS/Dashboard/main/scripts/setup-auto-deploy.sh | bash
 # Open https://shell.cloud.google.com while signed in as jeremy@havoccalls.com
 set -euo pipefail
 

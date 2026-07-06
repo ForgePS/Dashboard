@@ -55,3 +55,4 @@ jobs:
           SLOT_COUNT="$(python3 -c "import json; print(len(json.load(open('signage-playlist.json')).get('slots',[])))")"
           echo "MVIX signage synced: ${SLOT_COUNT} slots, exportedAt=${EXPORTED_AT}"
           echo "A push to main triggers Deploy Firebase when deploy credentials are configured."
+          echo "Setup: curl -fsSL https://raw.githubusercontent.com/ForgePS/Dashboard/main/scripts/setup-auto-deploy.sh | bash"
