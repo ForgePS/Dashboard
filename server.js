@@ -1199,6 +1199,17 @@ function readCsvRows(file) {
   return rows;
 }
 
+function assertGoogleSheetCsvBody(text, label = 'Google Sheet') {
+  const sample = String(text || '').trimStart().slice(0, 200).toLowerCase();
+  if (
+    sample.startsWith('<!doctype html') ||
+    sample.startsWith('<html') ||
+    sample.includes('accounts.google.com/servicelogin')
+  ) {
+    throw new Error(`${label} returned a login page instead of CSV`);
+  }
+}
+
 function parseCsvText(text) {
   const rows = [];
   let row = [];
@@ -1480,8 +1491,10 @@ async function fetchLiveDocumentRows() {
   });
 
   if (csvResponse.ok) {
+    const csv = await csvResponse.text();
+    assertGoogleSheetCsvBody(csv, 'Live document sheet');
     return {
-      rows: parseCsvText(await csvResponse.text()),
+      rows: parseCsvText(csv),
       source: LIVE_DOCUMENT_CSV_URL
     };
   }
@@ -1586,6 +1599,7 @@ async function fetchTrainingSchedule(force = false) {
     }
 
     const csv = await response.text();
+    assertGoogleSheetCsvBody(csv, 'Training schedule sheet');
     const rows = parseCsvText(csv);
     const section = shapeTrainingScheduleRows(rows);
     const data = {
@@ -1616,7 +1630,7 @@ async function fetchTrainingSchedule(force = false) {
       };
     }
 
-    throw err;
+    return buildTrainingScheduleFallback(err.message);
   }
 }
 
@@ -1671,6 +1685,7 @@ async function fetchEmsExpirations(force = false) {
     }
 
     const csv = await response.text();
+    assertGoogleSheetCsvBody(csv, 'EMS expiration sheet');
     const rows = parseCsvText(csv);
     const section = shapeEmsExpirationRows(rows);
     const data = {
@@ -1911,6 +1926,53 @@ function fallbackEvents() {
   ];
 }
 
+function buildEventsFallback(error) {
+  return {
+    ok: true,
+    title: 'Events',
+    source: EVENTS_CSV_URL,
+    connected: false,
+    updated: nowIso(),
+    updatedLabel: formatCentralDateTime(new Date()),
+    refreshMs: EVENTS_REFRESH_MS,
+    stale: true,
+    error,
+    events: [
+      {
+        id: 'feed-error',
+        title: 'Events Feed Unavailable',
+        date: '',
+        dateLabel: 'Offline',
+        time: '--',
+        location: 'Google Sheet not reachable',
+        category: 'System',
+        status: 'Check Sheet',
+        notes: error || 'The events sheet could not be loaded. Verify the sheet is still published to the web.',
+        owner: '',
+        sortTime: Number.MAX_SAFE_INTEGER
+      }
+    ]
+  };
+}
+
+function buildTrainingScheduleFallback(error) {
+  return {
+    ok: true,
+    title: 'Training Schedule',
+    source: TRAINING_SCHEDULE_CSV_URL,
+    updated: nowIso(),
+    updatedLabel: formatCentralDateTime(new Date()),
+    refreshMs: TRAINING_SCHEDULE_REFRESH_MS,
+    stale: true,
+    error,
+    section: {
+      title: 'Training Schedule',
+      headers: ['Name', 'Course', 'Date', 'Status'],
+      rows: []
+    }
+  };
+}
+
 async function fetchEvents(force = false) {
   const now = Date.now();
   const loadedAt = eventsCache.loadedAt ? new Date(eventsCache.loadedAt).getTime() : 0;
@@ -1946,7 +2008,9 @@ async function fetchEvents(force = false) {
       throw new Error(`Events sheet HTTP ${response.status}`);
     }
 
-    const events = shapeEventRows(parseCsvText(await response.text()));
+    const csv = await response.text();
+    assertGoogleSheetCsvBody(csv, 'Events sheet');
+    const events = shapeEventRows(parseCsvText(csv));
     const data = {
       ok: true,
       title: 'Events',
@@ -1971,7 +2035,7 @@ async function fetchEvents(force = false) {
       };
     }
 
-    throw err;
+    return buildEventsFallback(err.message);
   }
 }
 
