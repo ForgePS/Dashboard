@@ -121,6 +121,14 @@ const EVENTS_CSV_URL =
   'https://docs.google.com/spreadsheets/d/e/2PACX-1vTpXEJN7gWX7uSWqfCpxqsPb1M0hcAIWH_RZlZyeuTuhOYFvDxDqg_6wS6gd7XXsQswn9bcQmFJorUR/pub?gid=223056177&single=true&output=csv';
 const EVENTS_REFRESH_MS = Number(process.env.EVENTS_REFRESH_MS || 30000);
 
+const CONGRATULATIONS_CSV_URL =
+  process.env.CONGRATULATIONS_CSV_URL ||
+  'https://docs.google.com/spreadsheets/d/e/2PACX-1vTpXEJN7gWX7uSWqfCpxqsPb1M0hcAIWH_RZlZyeuTuhOYFvDxDqg_6wS6gd7XXsQswn9bcQmFJorUR/pub?gid=1744059139&single=true&output=csv';
+const CONGRATULATIONS_REFRESH_MS = Number(process.env.CONGRATULATIONS_REFRESH_MS || 30000);
+const CONGRATULATIONS_WALLPAPER =
+  process.env.CONGRATULATIONS_WALLPAPER ||
+  '/signage/media/congratulations-wallpaper.png';
+
 const HISTORICAL_INCIDENTS_CSV_FILE =
   process.env.HISTORICAL_INCIDENTS_CSV_FILE ||
   path.join(__dirname, 'historical-incidents-start.csv');
@@ -1975,6 +1983,147 @@ async function fetchEvents(force = false) {
   }
 }
 
+function normalizeCongratulationsHeader(value) {
+  return String(value || '')
+    .trim()
+    .replace(/:+\s*$/, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_');
+}
+
+function findCongratulationsColumn(headers, aliases, fallbackIndex) {
+  for (const alias of aliases) {
+    const index = headers.findIndex((header) => header === alias);
+    if (index >= 0) return index;
+  }
+  return fallbackIndex;
+}
+
+function isCongratulationsActive(startDate, finishedDate, todayStartMs) {
+  const start = parseEventDate(startDate);
+  // Require a start date so undated draft rows stay off the displays.
+  if (!start) return false;
+
+  const startDay = new Date(start);
+  startDay.setHours(0, 0, 0, 0);
+  if (startDay.getTime() > todayStartMs) return false;
+
+  if (!String(finishedDate || '').trim()) return true;
+
+  const finished = parseEventEndDate(finishedDate) || parseEventDate(finishedDate);
+  if (!finished) return true;
+  return finished.getTime() >= todayStartMs;
+}
+
+function shapeCongratulationsRows(rows) {
+  const cleanRows = compactCsvRows(rows);
+  if (!cleanRows.length) return [];
+
+  const headers = cleanRows[0].map(normalizeCongratulationsHeader);
+  const nameIndex = findCongratulationsColumn(headers, ['name', 'names', 'person', 'recipient'], 0);
+  const infoIndex = findCongratulationsColumn(headers, ['info', 'details', 'description', 'message', 'note', 'notes'], 3);
+  const startIndex = findCongratulationsColumn(headers, ['start_date', 'start', 'begins', 'begin_date'], 8);
+  const finishedIndex = findCongratulationsColumn(
+    headers,
+    ['finished_date', 'finish_date', 'end_date', 'end', 'finished', 'expires', 'expire'],
+    10
+  );
+
+  const todayStart = parseCentralDateTime(getCurrentCentralDateStart());
+  const todayStartMs = Number.isNaN(todayStart.getTime()) ? Date.now() : todayStart.getTime();
+
+  return cleanRows
+    .slice(1)
+    .map((values, index) => {
+      const name = String(values[nameIndex] || '').trim();
+      const info = String(values[infoIndex] || '').trim();
+      const startDate = String(values[startIndex] || '').trim();
+      const finishedDate = String(values[finishedIndex] || '').trim();
+
+      return {
+        id: `congrats-${index + 1}`,
+        name,
+        info,
+        startDate,
+        finishedDate,
+        startDateLabel: formatEventDate(startDate),
+        finishedDateLabel: formatEventDate(finishedDate),
+        active: isCongratulationsActive(startDate, finishedDate, todayStartMs)
+      };
+    })
+    .filter((item) => item.name || item.info)
+    .filter((item) => item.active);
+}
+
+function buildCongratulationsFallback(error) {
+  return {
+    ok: true,
+    title: 'Congratulations',
+    source: CONGRATULATIONS_CSV_URL,
+    wallpaper: CONGRATULATIONS_WALLPAPER,
+    updated: nowIso(),
+    updatedLabel: formatCentralDateTime(new Date()),
+    refreshMs: CONGRATULATIONS_REFRESH_MS,
+    stale: true,
+    error,
+    items: []
+  };
+}
+
+async function fetchCongratulations(force = false) {
+  const now = Date.now();
+  const loadedAt = congratulationsCache.loadedAt ? new Date(congratulationsCache.loadedAt).getTime() : 0;
+
+  if (!force && congratulationsCache.data && now - loadedAt < CONGRATULATIONS_REFRESH_MS) {
+    return congratulationsCache.data;
+  }
+
+  try {
+    const response = await fetch(CONGRATULATIONS_CSV_URL, {
+      headers: {
+        Accept: 'text/csv,text/plain'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Congratulations sheet HTTP ${response.status}`);
+    }
+
+    const csv = await response.text();
+    const items = shapeCongratulationsRows(parseCsvText(csv));
+    const data = {
+      ok: true,
+      title: 'Congratulations',
+      source: CONGRATULATIONS_CSV_URL,
+      wallpaper: CONGRATULATIONS_WALLPAPER,
+      updated: nowIso(),
+      updatedLabel: formatCentralDateTime(new Date()),
+      refreshMs: CONGRATULATIONS_REFRESH_MS,
+      items
+    };
+
+    congratulationsCache = {
+      loadedAt: nowIso(),
+      error: null,
+      data
+    };
+
+    return data;
+  } catch (err) {
+    congratulationsCache.error = err.message;
+
+    if (congratulationsCache.data) {
+      return {
+        ...congratulationsCache.data,
+        stale: true,
+        error: err.message
+      };
+    }
+
+    return buildCongratulationsFallback(err.message);
+  }
+}
+
 function parseCount(value) {
   const parsed = Number(String(value || '').replace(/,/g, '').trim());
   return Number.isFinite(parsed) ? parsed : 0;
@@ -2607,6 +2756,11 @@ let eventsCache = {
   data: null,
   error: null
 };
+let congratulationsCache = {
+  loadedAt: null,
+  data: null,
+  error: null
+};
 
 // ======================================================
 // ANALYTICS ROUTES
@@ -2709,6 +2863,14 @@ app.get('/ems-expiration-dates.html', (req, res) => {
 
 app.get('/events', (req, res) => {
   sendHtmlFileOrFallback(res, 'events.html', 'Events', '/api/events');
+});
+
+app.get('/congratulations', (req, res) => {
+  sendHtmlFileOrFallback(res, 'congratulations.html', 'Congratulations', '/api/congratulations');
+});
+
+app.get('/congratulations.html', (req, res) => {
+  sendHtmlFileOrFallback(res, 'congratulations.html', 'Congratulations', '/api/congratulations');
 });
 
 app.get('/weather', (req, res) => {
@@ -2864,6 +3026,19 @@ app.get('/api/events', async (req, res) => {
   }
 });
 
+app.get('/api/congratulations', async (req, res) => {
+  try {
+    const congratulations = await fetchCongratulations(String(req.query.force || '').toLowerCase() === 'true');
+    res.json(congratulations);
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      error: err.message,
+      source: CONGRATULATIONS_CSV_URL
+    });
+  }
+});
+
 app.get('/api/health', async (req, res) => {
   const includeMaps = ['1', 'true', 'yes'].includes(String(req.query.maps || '').toLowerCase());
   const payload = {
@@ -2907,30 +3082,51 @@ app.get('/api/active911-takeover', async (req, res) => {
   res.json(dashboard);
 });
 
-app.get('/api/signage-playlist', (req, res) => {
-  const playlist = loadSignagePlaylist();
-  const station = normalizeSignageStationId(req.query.station);
-  const stationMeta = playlist.stations?.[station] || ACTIVE911_STATIONS[station] || ACTIVE911_STATIONS['1'];
-  const now = Date.now();
+app.get('/api/signage-playlist', async (req, res) => {
+  try {
+    const playlist = loadSignagePlaylist();
+    const station = normalizeSignageStationId(req.query.station);
+    const stationMeta = playlist.stations?.[station] || ACTIVE911_STATIONS[station] || ACTIVE911_STATIONS['1'];
+    const now = Date.now();
 
-  const slots = (Array.isArray(playlist.slots) ? playlist.slots : []).filter((slot) => {
-    if (!slot || slot.disabled) return false;
-    if (slot.expireOn) {
-      const expires = Date.parse(slot.expireOn);
-      if (Number.isFinite(expires) && expires <= now) return false;
+    const baseSlots = (Array.isArray(playlist.slots) ? playlist.slots : []).filter((slot) => {
+      if (!slot || slot.disabled) return false;
+      if (slot.expireOn) {
+        const expires = Date.parse(slot.expireOn);
+        if (Number.isFinite(expires) && expires <= now) return false;
+      }
+      return true;
+    });
+
+    let congratulationsActive = null;
+    const slots = [];
+
+    for (const slot of baseSlots) {
+      if (slot.activeFeed === 'congratulations') {
+        if (congratulationsActive === null) {
+          const congratulations = await fetchCongratulations(false);
+          congratulationsActive = Array.isArray(congratulations.items) && congratulations.items.length > 0;
+        }
+        if (!congratulationsActive) continue;
+      }
+      slots.push(slot);
     }
-    return true;
-  });
 
-  res.json({
-    ok: true,
-    scheduleId: playlist.scheduleId || '709794',
-    title: playlist.title || 'Station Signage',
-    station,
-    stationMeta,
-    exportedAt: playlist.exportedAt || null,
-    slots
-  });
+    res.json({
+      ok: true,
+      scheduleId: playlist.scheduleId || '709794',
+      title: playlist.title || 'Station Signage',
+      station,
+      stationMeta,
+      exportedAt: playlist.exportedAt || null,
+      slots
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      error: err.message
+    });
+  }
 });
 
 app.get('/api/analytics-refresh', async (req, res) => {
@@ -5063,6 +5259,7 @@ app.use('/api', (req, res) => {
       '/api/daily-roster',
       '/api/live-document',
       '/api/events',
+      '/api/congratulations',
       '/api/health',
       '/api/health?maps=1',
       '/api/map/health',
