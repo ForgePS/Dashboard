@@ -93,6 +93,18 @@
       "sourceUrl": "https://firehouse-dashboards.web.app/events"
     },
     {
+      "id": "congratulations",
+      "title": "Congratulations",
+      "feature": "Web URL",
+      "durationSeconds": 30,
+      "expireOn": null,
+      "disabled": false,
+      "type": "page",
+      "path": "/congratulations",
+      "activeFeed": "congratulations",
+      "sourceUrl": "https://firehouse-dashboards.web.app/congratulations"
+    },
+    {
       "id": "building-construction",
       "title": "Building Construction",
       "mvixMediaId": 4136571,
