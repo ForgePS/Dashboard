@@ -53,12 +53,28 @@ for ROLE in \
   roles/cloudfunctions.developer \
   roles/run.admin \
   roles/iam.serviceAccountUser \
-  roles/storage.admin; do
+  roles/storage.admin \
+  roles/cloudbuild.builds.editor \
+  roles/artifactregistry.writer; do
   gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:${SA_EMAIL}" \
     --role="$ROLE" \
     --condition=None \
-    --quiet >/dev/null 2>&1 || true
+    --quiet
+done
+
+# Cloud Functions deploy requires ActAs on the runtime service accounts.
+APPENGINE_SA="${PROJECT_ID}@appspot.gserviceaccount.com"
+COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+for RUNTIME_SA in "$APPENGINE_SA" "$COMPUTE_SA" "$SA_EMAIL"; do
+  if gcloud iam service-accounts describe "$RUNTIME_SA" --project="$PROJECT_ID" >/dev/null 2>&1; then
+    echo "==> Granting Service Account User on ${RUNTIME_SA}"
+    gcloud iam service-accounts add-iam-policy-binding "$RUNTIME_SA" \
+      --project="$PROJECT_ID" \
+      --member="serviceAccount:${SA_EMAIL}" \
+      --role="roles/iam.serviceAccountUser" \
+      --quiet
+  fi
 done
 
 gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL" \
