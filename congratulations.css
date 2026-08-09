@@ -66,6 +66,10 @@ body {
   gap: clamp(10px, 1.4vh, 18px);
 }
 
+.item-list.packed-max {
+  gap: clamp(6px, 1vh, 12px);
+}
+
 .congrats-item {
   width: 100%;
   animation: riseIn 700ms ease both;
@@ -140,6 +144,15 @@ body {
 .item-list.packed .congrats-info {
   margin-top: 0.35em;
   font-size: clamp(0.88rem, 1.25vw, 1.2rem);
+}
+
+.item-list.packed-max .congrats-name {
+  font-size: clamp(1.15rem, 2.2vw, 2rem);
+}
+
+.item-list.packed-max .congrats-info {
+  margin-top: 0.25em;
+  font-size: clamp(0.8rem, 1.1vw, 1.05rem);
 }
 
 .empty-state {
