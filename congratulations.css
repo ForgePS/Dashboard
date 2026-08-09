@@ -53,10 +53,17 @@ body {
 
 .item-list {
   width: min(100%, 920px);
+  max-height: 100%;
+  overflow: hidden;
   display: grid;
-  gap: clamp(18px, 2.4vh, 34px);
+  gap: clamp(14px, 2.2vh, 34px);
   justify-items: center;
+  align-content: center;
   text-align: center;
+}
+
+.item-list.packed {
+  gap: clamp(10px, 1.4vh, 18px);
 }
 
 .congrats-item {
@@ -74,6 +81,14 @@ body {
 
 .congrats-item:nth-child(4) {
   animation-delay: 320ms;
+}
+
+.congrats-item:nth-child(5) {
+  animation-delay: 420ms;
+}
+
+.congrats-item:nth-child(n + 6) {
+  animation-delay: 500ms;
 }
 
 .congrats-name {
@@ -116,6 +131,15 @@ body {
 
 .item-list.dense .congrats-info {
   font-size: clamp(0.95rem, 1.45vw, 1.35rem);
+}
+
+.item-list.packed .congrats-name {
+  font-size: clamp(1.35rem, 2.7vw, 2.45rem);
+}
+
+.item-list.packed .congrats-info {
+  margin-top: 0.35em;
+  font-size: clamp(0.88rem, 1.25vw, 1.2rem);
 }
 
 .empty-state {

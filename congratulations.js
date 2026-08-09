@@ -12,10 +12,11 @@ function renderItems(items) {
   const empty = document.getElementById('emptyState');
   if (!list || !empty) return;
 
-  const active = Array.isArray(items) ? items.slice(0, 4) : [];
+  const active = Array.isArray(items) ? items : [];
 
   list.classList.toggle('single', active.length === 1);
   list.classList.toggle('dense', active.length >= 3);
+  list.classList.toggle('packed', active.length >= 5);
 
   if (!active.length) {
     list.innerHTML = '';
