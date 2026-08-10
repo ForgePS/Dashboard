@@ -406,10 +406,10 @@ h1 {
 
 .type-breakdown {
   height: calc(100% - 62px);
-  padding: 14px;
+  padding: 10px;
   display: grid;
-  gap: 9px;
-  align-content: start;
+  gap: 4px;
+  align-content: stretch;
   overflow: hidden;
 }
 
@@ -447,10 +447,10 @@ h1 {
   height: calc(100% - 62px);
   min-height: 0;
   overflow: hidden;
-  padding: 10px;
+  padding: 8px;
   display: grid;
   grid-template-rows: repeat(5, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
 }
 
 .recent-item {
@@ -462,21 +462,26 @@ h1 {
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02));
 
-  border-radius: 14px;
-  padding: 8px 12px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  border-radius: 12px;
+  padding: 6px 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
 
   box-shadow:
     0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.recent-item > div {
+  min-width: 0;
 }
 
 .recent-item strong {
   display: block;
   font-weight: 900;
   color: #ffffff;
-  font-size: 16px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   overflow: hidden;
@@ -487,8 +492,8 @@ h1 {
 .recent-item span {
   display: block;
   color: #d7e3f2;
-  margin-top: 3px;
-  font-size: 14px;
+  margin-top: 2px;
+  font-size: 13px;
   font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -498,9 +503,10 @@ h1 {
 .recent-item small {
   display: block;
   color: var(--muted);
-  margin-top: 3px;
   font-size: 12px;
   font-weight: 700;
+  white-space: nowrap;
+  text-align: right;
   flex-shrink: 0;
 }
 
