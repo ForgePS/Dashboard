@@ -131,7 +131,7 @@ const CONGRATULATIONS_WALLPAPER =
 
 const HISTORICAL_INCIDENTS_CSV_FILE =
   process.env.HISTORICAL_INCIDENTS_CSV_FILE ||
-  path.join(__dirname, 'historical-incidents-start.csv');
+  path.join(__dirname, 'historical-incidents.csv');
 
 const HISTORICAL_MONTHLY_CSV_FILE =
   process.env.HISTORICAL_MONTHLY_CSV_FILE ||
@@ -156,7 +156,7 @@ const HISTORICAL_LIVE_START =
 const MAX_INCIDENT_HISTORY = Number(process.env.MAX_INCIDENT_HISTORY || 5000);
 const ACTIVE911_POLL_MS = Number(process.env.ACTIVE911_POLL_MS || 15000);
 const ACTIVE911_POLL_DETAIL_LIMIT = Number(process.env.ACTIVE911_POLL_DETAIL_LIMIT || 1000);
-const ANALYTICS_DASHBOARD_CACHE_MS = Number(process.env.ANALYTICS_DASHBOARD_CACHE_MS || 30000);
+const ANALYTICS_DASHBOARD_CACHE_MS = Number(process.env.ANALYTICS_DASHBOARD_CACHE_MS || 60000);
 const ACTIVE911_TAKEOVER_CACHE_MS = Number(process.env.ACTIVE911_TAKEOVER_CACHE_MS || 5000);
 
 const ACTIVE911_ACCESS_TOKEN = process.env.ACTIVE911_ACCESS_TOKEN || '';
@@ -2177,8 +2177,28 @@ function parseMonthKeyFromCsv(row) {
   return '';
 }
 
+let historicalIncidentRowsCache = {
+  file: '',
+  mtimeMs: 0,
+  size: 0,
+  rows: null
+};
+
 function loadHistoricalIncidentRows() {
-  return readCsvRows(HISTORICAL_INCIDENTS_CSV_FILE)
+  const file = HISTORICAL_INCIDENTS_CSV_FILE;
+  if (!fs.existsSync(file)) return [];
+
+  const stat = fs.statSync(file);
+  if (
+    historicalIncidentRowsCache.rows &&
+    historicalIncidentRowsCache.file === file &&
+    historicalIncidentRowsCache.mtimeMs === stat.mtimeMs &&
+    historicalIncidentRowsCache.size === stat.size
+  ) {
+    return historicalIncidentRowsCache.rows;
+  }
+
+  const rows = readCsvRows(file)
     .map((row, index) => {
       const sentCandidate = getCsvValue(row, [
         'sent',
@@ -2196,8 +2216,15 @@ function loadHistoricalIncidentRows() {
       const nature = getCsvValue(row, ['type', 'call_type', 'nature', 'description', 'cad_code']);
       const address = getCsvValue(row, ['address', 'location', 'incident_address']);
       const businessName = getCsvValue(row, ['business_name', 'business', 'place', 'location_name']);
+      const city = getCsvValue(row, ['city']);
+      const cadCode = getCsvValue(row, ['cad_code', 'cad']);
+      const units = getCsvValue(row, ['units', 'unit']);
       const id = getCsvValue(row, ['id', 'incident_id', 'alert_id', 'cad_id']) ||
         `historical-csv-${sentDate.toISOString()}-${address}-${index}`;
+      const detailSnippet = String(getCsvValue(row, ['details', 'description']) || '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 160);
 
       return {
         id: String(id),
@@ -2205,14 +2232,28 @@ function loadHistoricalIncidentRows() {
         rawType: String(nature || ''),
         address: String(address || '').toUpperCase(),
         businessName: String(businessName || ''),
+        city: String(city || '').toUpperCase(),
+        cadCode: String(cadCode || ''),
+        units: String(units || ''),
+        latitude: String(getCsvValue(row, ['lat', 'latitude']) || ''),
+        longitude: String(getCsvValue(row, ['lon', 'lng', 'longitude']) || ''),
         sent: sentDate.toISOString(),
         timeLabel: formatCentralDateTime(sentDate),
         source: 'historical-csv',
         receivedAt: sentDate.toISOString(),
-        raw: row
+        detailSnippet
       };
     })
     .filter(Boolean);
+
+  historicalIncidentRowsCache = {
+    file,
+    mtimeMs: stat.mtimeMs,
+    size: stat.size,
+    rows
+  };
+
+  return rows;
 }
 
 function loadHistoricalMonthlyRows() {
@@ -2300,6 +2341,7 @@ async function getAnalyticsHistory(options = {}) {
   const liveStartMs = liveStart && !Number.isNaN(liveStart.getTime()) ? liveStart.getTime() : null;
 
   const memoryActive911Rows = incidentHistory.filter((incident) => isActive911Source(incident.source));
+  // Prefer live/persisted rows over historical CSV for the same alert id.
   const combined = [...historicalIncidentRows, ...persistedIncidentRows, ...memoryActive911Rows];
   const unique = new Map();
 
@@ -2310,9 +2352,23 @@ async function getAnalyticsHistory(options = {}) {
       if (Number.isNaN(sent.getTime()) || sent.getTime() < liveStartMs) continue;
     }
 
-    if (!unique.has(incident.id)) {
+    const existing = unique.get(incident.id);
+    if (!existing) {
       unique.set(incident.id, incident);
+      continue;
     }
+
+    const existingHistorical = existing.source === 'historical-csv';
+    const nextHistorical = incident.source === 'historical-csv';
+    if (existingHistorical && !nextHistorical) {
+      unique.set(incident.id, incident);
+      continue;
+    }
+    if (!existingHistorical && nextHistorical) continue;
+
+    const existingTime = new Date(existing.sent || 0).getTime();
+    const nextTime = new Date(incident.sent || 0).getTime();
+    if (nextTime >= existingTime) unique.set(incident.id, incident);
   }
 
   return [...unique.values()]
@@ -2413,16 +2469,33 @@ function generateTypeCounts(history, monthlyRows = [], callTypeRows = []) {
   return counts;
 }
 
-function generateBusiestAddresses(history) {
+function generateBusiestAddresses(history, addressRows = []) {
   const counts = {};
   const cities = {};
 
-  for (const incident of history) {
-    const address = (incident.address || '').trim();
-    if (!address) continue;
+  if (Array.isArray(addressRows) && addressRows.length) {
+    for (const row of addressRows) {
+      const address = String(row.address || '').trim();
+      if (!address) continue;
+      counts[address] = Number(row.calls || 0);
+      if (row.city) cities[address] = row.city;
+    }
 
-    counts[address] = (counts[address] || 0) + 1;
-    if (incident.city) cities[address] = incident.city;
+    // Fold in live/non-historical incidents so current activity still moves rankings.
+    for (const incident of history) {
+      if (incident.source === 'historical-csv') continue;
+      const address = String(incident.address || '').trim();
+      if (!address) continue;
+      counts[address] = (counts[address] || 0) + 1;
+      if (incident.city) cities[address] = incident.city;
+    }
+  } else {
+    for (const incident of history) {
+      const address = String(incident.address || '').trim();
+      if (!address) continue;
+      counts[address] = (counts[address] || 0) + 1;
+      if (incident.city) cities[address] = incident.city;
+    }
   }
 
   return Object.entries(counts)
@@ -2499,13 +2572,31 @@ function generateDailyStats(history, monthlyRows = []) {
     item.ems += row.ems;
   }
 
-  return months;
+  // Drop empty leading months so the chart starts where data actually begins.
+  let firstActive = 0;
+  while (firstActive < months.length && months[firstActive].total <= 0) {
+    firstActive++;
+  }
+
+  const currentMonthKey = getCentralMonthParts(new Date()).key;
+  let lastActive = months.length - 1;
+  while (
+    lastActive > firstActive &&
+    months[lastActive].total <= 0 &&
+    months[lastActive].monthKey !== currentMonthKey
+  ) {
+    lastActive--;
+  }
+
+  return months.slice(firstActive, lastActive + 1);
 }
 
 async function buildAnalyticsDashboard(recentLimit = 5) {
   const historicalIncidentRows = loadHistoricalIncidentRows();
-  const monthlyRows = getHistoricalMonthlyAnalyticsRows();
+  const monthlyFileRows = getHistoricalMonthlyAnalyticsRows();
   const callTypeFileRows = loadHistoricalCallTypeRows();
+  // When incident-level history exists, do not also layer aggregate CSVs into totals.
+  const monthlyRows = historicalIncidentRows.length ? [] : monthlyFileRows;
   const callTypeRows = historicalIncidentRows.length ? [] : callTypeFileRows;
   const addressRows = loadHistoricalAddressRows();
   const persistedIncidentRows = await loadPersistedIncidents();
@@ -2515,6 +2606,7 @@ async function buildAnalyticsDashboard(recentLimit = 5) {
     historicalCallTypeRows: callTypeRows,
     persistedIncidentRows
   });
+  const totals = generateTotals(history, monthlyRows, callTypeRows);
 
   return {
     ok: true,
@@ -2522,11 +2614,11 @@ async function buildAnalyticsDashboard(recentLimit = 5) {
     updatedLabel: formatCentralDateTime(new Date()),
     historyStart: ANALYTICS_HISTORY_START,
     dateRange: getIncidentDateRange(history),
-    totals: generateTotals(history, monthlyRows, callTypeRows),
+    totals,
     typeCounts: generateTypeCounts(history, monthlyRows, callTypeRows),
     busiestAddresses: generateBusiestAddresses(history, addressRows),
     recent: history.slice(0, recentLimit).map((item) => ({
-      type: item.type || 'UNKNOWN',
+      type: item.type || INCIDENT_TYPE_CATEGORIES.uncategorized,
       rawType: item.rawType || '',
       address: item.address || '',
       businessName: item.businessName || '',
@@ -2536,16 +2628,17 @@ async function buildAnalyticsDashboard(recentLimit = 5) {
       longitude: item.longitude || '',
       sent: item.sent || '',
       timeLabel: item.sent ? formatCentralDateTime(item.sent) : '',
-      details: item.raw?.details || item.raw?.description || item.raw?.cad_code || item.rawType || ''
+      details: item.detailSnippet || item.rawType || item.cadCode || ''
     })),
-    daily: generateDailyStats(history, monthlyRows),
+    daily: generateDailyStats(history, monthlyFileRows),
     historicalCsv: {
       incidentsFile: HISTORICAL_INCIDENTS_CSV_FILE,
       monthlyFile: HISTORICAL_MONTHLY_CSV_FILE,
       callTypeFile: HISTORICAL_CALL_TYPE_CSV_FILE,
       addressFile: HISTORICAL_ADDRESS_CSV_FILE,
       incidentRows: historicalIncidentRows.length,
-      monthlyRows: monthlyRows.length,
+      monthlyRows: monthlyFileRows.length,
+      monthlyRowsUsed: monthlyRows.length,
       callTypeRows: callTypeFileRows.length,
       callTypeRowsUsed: callTypeRows.length,
       addressRows: addressRows.length,

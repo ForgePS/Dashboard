@@ -75,8 +75,13 @@ function renderKpis(data) {
   setWidth('fireSplitBar', Number(totals.firePercent || 0));
   setWidth('emsSplitBar', Number(totals.emsPercent || 0));
   setWidth('otherSplitBar', Number(totals.otherPercent || 0));
+  setText(
+    'splitSummary',
+    `${formatCount(totals.ems)} EMS / ${formatCount(totals.fire)} Fire / ${formatCount(totals.other)} Other`
+  );
 
   setText('monthlyRange', `${oldestLabel} to Current`);
+  setText('totalCallsSubline', `${oldestLabel} to Current`);
 }
 
 function renderTypeBreakdown(typeCounts) {
@@ -304,7 +309,7 @@ async function checkActive911Takeover() {
 }
 
 refreshAnalytics();
-setInterval(refreshAnalytics, 15000);
+setInterval(refreshAnalytics, 30000);
 
 if (new URLSearchParams(window.location.search).get('signage') === '1') {
   document.documentElement.classList.add('signage-mode');
