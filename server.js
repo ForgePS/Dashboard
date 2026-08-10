@@ -2473,29 +2473,19 @@ function generateBusiestAddresses(history, addressRows = []) {
   const counts = {};
   const cities = {};
 
-  if (Array.isArray(addressRows) && addressRows.length) {
-    for (const row of addressRows) {
-      const address = String(row.address || '').trim();
-      if (!address) continue;
-      counts[address] = Number(row.calls || 0);
-      if (row.city) cities[address] = row.city;
-    }
+  // History is the authoritative current total; keep CSV as a floor for gaps only.
+  for (const incident of history) {
+    const address = String(incident.address || '').trim();
+    if (!address) continue;
+    counts[address] = (counts[address] || 0) + 1;
+    if (incident.city) cities[address] = incident.city;
+  }
 
-    // Fold in live/non-historical incidents so current activity still moves rankings.
-    for (const incident of history) {
-      if (incident.source === 'historical-csv') continue;
-      const address = String(incident.address || '').trim();
-      if (!address) continue;
-      counts[address] = (counts[address] || 0) + 1;
-      if (incident.city) cities[address] = incident.city;
-    }
-  } else {
-    for (const incident of history) {
-      const address = String(incident.address || '').trim();
-      if (!address) continue;
-      counts[address] = (counts[address] || 0) + 1;
-      if (incident.city) cities[address] = incident.city;
-    }
+  for (const row of addressRows || []) {
+    const address = String(row.address || '').trim();
+    if (!address) continue;
+    counts[address] = Math.max(counts[address] || 0, Number(row.calls || 0));
+    if (row.city && !cities[address]) cities[address] = row.city;
   }
 
   return Object.entries(counts)
