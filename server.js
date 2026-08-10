@@ -2578,7 +2578,17 @@ function generateDailyStats(history, monthlyRows = []) {
     firstActive++;
   }
 
-  return firstActive > 0 ? months.slice(firstActive) : months;
+  const currentMonthKey = getCentralMonthParts(new Date()).key;
+  let lastActive = months.length - 1;
+  while (
+    lastActive > firstActive &&
+    months[lastActive].total <= 0 &&
+    months[lastActive].monthKey !== currentMonthKey
+  ) {
+    lastActive--;
+  }
+
+  return months.slice(firstActive, lastActive + 1);
 }
 
 async function buildAnalyticsDashboard(recentLimit = 5) {
