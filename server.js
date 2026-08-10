@@ -1628,16 +1628,39 @@ async function fetchTrainingSchedule(force = false) {
   }
 }
 
+function isEmsExpirationHeaderRow(row) {
+  const cells = (row || []).map((value) => String(value || '').trim().toLowerCase());
+  if (!cells.length) return false;
+
+  const hasName = cells.some((value) => value === 'name' || value.startsWith('name'));
+  const hasCert = cells.some((value) => value.includes('cert'));
+  const hasExp = cells.some((value) => value.includes('exp'));
+  return hasName && (hasCert || hasExp);
+}
+
 function shapeEmsExpirationRows(rows) {
   const cleanRows = compactCsvRows(rows);
-  const title = cleanRows[0]?.[0] || 'EMS Expiration Dates';
-  const headers = rowSlice(cleanRows[1] || [], 0, 3);
-  const dataRows = cleanRows.slice(2).filter((row) => row[0]);
+  const headerIndex = cleanRows.findIndex((row) => isEmsExpirationHeaderRow(row));
+  const resolvedHeaderIndex = headerIndex >= 0 ? headerIndex : 0;
+  const headerRow = cleanRows[resolvedHeaderIndex] || [];
+  const columnCount = Math.max(5, headerRow.length);
+  const defaultHeaders = ['Name', 'CERT', 'Exp Date', 'CERT', 'Exp Date'];
+  const headers = rowSlice(headerRow, 0, columnCount);
+  while (headers.length < 5) headers.push(defaultHeaders[headers.length] || '');
+
+  const dataRows = cleanRows
+    .slice(resolvedHeaderIndex + 1)
+    .filter((row) => String(row[0] || '').trim())
+    .filter((row) => !isEmsExpirationHeaderRow(row));
 
   return {
-    title,
-    headers: headers.length ? headers : ['Name', 'Certification', 'Expiration Date'],
-    rows: dataRows.map((row) => rowSlice(row, 0, 3))
+    title: 'EMS Expiration Dates',
+    headers: headers.some(Boolean) ? headers : defaultHeaders,
+    rows: dataRows.map((row) => {
+      const values = rowSlice(row, 0, headers.length);
+      while (values.length < headers.length) values.push('');
+      return values;
+    })
   };
 }
 
@@ -1653,7 +1676,7 @@ function buildEmsExpirationFallback(error) {
     error,
     section: {
       title: 'EMS Expiration Dates',
-      headers: ['Name', 'Certification', 'Expiration Date'],
+      headers: ['Name', 'CERT', 'Exp Date', 'CERT', 'Exp Date'],
       rows: []
     }
   };
