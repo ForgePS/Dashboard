@@ -492,6 +492,7 @@ td::before {
 
 .ems-certifications-display .table-wrap {
   max-height: calc(100% - 46px);
+  overflow: hidden;
 }
 
 .ems-certifications-display tbody {
@@ -528,30 +529,94 @@ td::before {
 
 .ems-certifications-display.two-column-section tbody {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
+  height: 100%;
+  align-content: start;
 }
 
 .ems-certifications-display.two-column-section tr {
   grid-template-columns:
-    minmax(0, 1.25fr)
+    minmax(0, 1.35fr)
     minmax(0, 0.7fr)
     minmax(0, 0.85fr)
     minmax(0, 0.7fr)
     minmax(0, 0.85fr);
-  min-height: 46px;
+  min-height: 0;
+  border-left-width: 4px;
+  border-radius: 8px;
 }
 
 .ems-certifications-display.two-column-section td {
   min-height: 0;
-  padding: 5px 7px;
-  font-size: 13px;
+  padding: 4px 6px;
+  font-size: 12px;
   line-height: 1.05;
 }
 
 .ems-certifications-display.two-column-section td::before {
-  margin-bottom: 2px;
-  font-size: 8px;
-  letter-spacing: 1.2px;
+  margin-bottom: 1px;
+  font-size: 7px;
+  letter-spacing: 1px;
+}
+
+/* Pack ~70 EMS rows into a 1080p signage frame without clipping. */
+.ems-certifications-display.packed-section .doc-header {
+  height: 72px;
+  min-height: 72px;
+  padding: 6px 14px;
+}
+
+.ems-certifications-display.packed-section .brand img {
+  width: 46px;
+  height: 46px;
+}
+
+.ems-certifications-display.packed-section h1 {
+  font-size: 34px;
+}
+
+.ems-certifications-display.packed-section .kicker,
+.ems-certifications-display.packed-section .subline,
+.ems-certifications-display.packed-section .status {
+  font-size: 14px;
+}
+
+.ems-certifications-display.packed-section .doc-grid {
+  height: calc(100% - 80px);
+  margin-top: 6px;
+}
+
+.ems-certifications-display.packed-section .panel-head {
+  height: 34px;
+  padding-bottom: 4px;
+}
+
+.ems-certifications-display.packed-section h2 {
+  font-size: 18px;
+  letter-spacing: 3px;
+}
+
+.ems-certifications-display.packed-section .table-wrap {
+  max-height: calc(100% - 34px);
+}
+
+.ems-certifications-display.packed-section.two-column-section tbody {
+  gap: 3px;
+}
+
+.ems-certifications-display.packed-section.two-column-section tr {
+  min-height: 22px;
+  border-radius: 6px;
+}
+
+.ems-certifications-display.packed-section.two-column-section td {
+  padding: 2px 5px;
+  font-size: 11px;
+  line-height: 1.02;
+}
+
+.ems-certifications-display.packed-section.two-column-section td::before {
+  display: none;
 }
 
 @media (max-width: 1050px) {

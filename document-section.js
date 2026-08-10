@@ -40,6 +40,8 @@ function renderSection(section) {
     'two-column-section',
     twoColumnAfter > 0 && rows.length > twoColumnAfter
   );
+  document.body.dataset.rowCount = String(rows.length);
+  document.body.classList.toggle('packed-section', rows.length >= 40);
 
   setText('sectionTitle', section?.title || window.DISPLAY_CONFIG.title);
 
