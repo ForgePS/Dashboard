@@ -7,6 +7,7 @@
   const TAKEOVER_MINUTES = config.takeoverMinutes;
   const TAKEOVER_MS = config.takeoverMs;
   const POLL_MS = 5000;
+  const LAST_TAKEOVER_KEY = 'active911-monitor-last-takeover-id';
   let takeoverInProgress = false;
   let badge = null;
 
@@ -74,6 +75,31 @@
     return `/station${station}/alert?returnTo=${returnTo}&durationMinutes=${duration}&station=${station}`;
   }
 
+  function alreadyHandledAlert(alertId) {
+    try {
+      return global.sessionStorage.getItem(LAST_TAKEOVER_KEY) === String(alertId);
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function markHandledAlert(alertId) {
+    try {
+      global.sessionStorage.setItem(LAST_TAKEOVER_KEY, String(alertId));
+    } catch (err) {
+      // Ignore storage failures on locked-down kiosk browsers.
+    }
+  }
+
+  function isEligibleActiveAlert(latest) {
+    if (!latest?.id || !latest?.sent) return false;
+    const sentAt = new Date(latest.sent).getTime();
+    if (!Number.isFinite(sentAt)) return false;
+    const age = Date.now() - sentAt;
+    if (age < -2 * 60 * 1000) return false;
+    return age <= TAKEOVER_MS;
+  }
+
   async function checkForActiveCall() {
     if (takeoverInProgress) return;
 
@@ -89,25 +115,20 @@
       }
 
       const latest = Array.isArray(data.recent) ? data.recent[0] : null;
-      if (!latest?.sent) {
+      if (!isEligibleActiveAlert(latest)) {
         setBadgeState('is-armed', armedText(station));
         return;
       }
 
-      const sentAt = new Date(latest.sent).getTime();
-      if (!Number.isFinite(sentAt)) {
+      if (alreadyHandledAlert(latest.id)) {
         setBadgeState('is-armed', armedText(station));
         return;
       }
 
-      if (Date.now() - sentAt <= TAKEOVER_MS) {
-        takeoverInProgress = true;
-        setBadgeState('is-alert', 'Active911 alert — taking over');
-        global.location.replace(alertPath(station));
-        return;
-      }
-
-      setBadgeState('is-armed', armedText(station));
+      markHandledAlert(latest.id);
+      takeoverInProgress = true;
+      setBadgeState('is-alert', 'Active911 alert — taking over');
+      global.location.replace(alertPath(station));
     } catch (err) {
       setBadgeState('is-warning', 'Active911 monitor warning');
     }

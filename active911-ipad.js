@@ -198,14 +198,14 @@ async function playAlertToneSequence() {
   }
 }
 
-function alertSoundStorageKey(alertKey) {
-  return `active911-alert-sounded:${alertKey}`;
+function alertSoundStorageKey(alertId) {
+  return `active911-alert-sounded:${alertId}`;
 }
 
-function playAlertSound(alertKey) {
-  if (!ALERT_SOUND_ENABLED || !alertKey) return;
+function playAlertSound(alertId) {
+  if (!ALERT_SOUND_ENABLED || !alertId) return;
 
-  const storageKey = alertSoundStorageKey(alertKey);
+  const storageKey = alertSoundStorageKey(alertId);
   if (sessionStorage.getItem(storageKey)) return;
 
   sessionStorage.setItem(storageKey, 'true');
@@ -509,7 +509,8 @@ async function loadLatestAlert() {
       return;
     }
 
-    const alertKey = `${latest.id || ''}|${latest.sent || ''}|${latest.address || ''}`;
+    const alertId = String(latest.id || '').trim();
+    const alertKey = alertId || `${latest.sent || ''}|${latest.address || ''}`;
     const mapLocKey = locationKey(latest);
     const isNewRenderedAlert = alertKey !== lastRenderedAlertKey;
     lastRenderedAlertKey = alertKey;
@@ -549,7 +550,7 @@ async function loadLatestAlert() {
     void loadWeather(latest);
 
     if (isNewRenderedAlert) {
-      playAlertSound(alertKey);
+      playAlertSound(alertId || alertKey);
     }
 
     if (isNewRenderedAlert || mapLocKey !== lastMapLocationKey) {
