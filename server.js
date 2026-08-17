@@ -158,6 +158,7 @@ const ACTIVE911_POLL_MS = Number(process.env.ACTIVE911_POLL_MS || 15000);
 const ACTIVE911_POLL_DETAIL_LIMIT = Number(process.env.ACTIVE911_POLL_DETAIL_LIMIT || 1000);
 const ANALYTICS_DASHBOARD_CACHE_MS = Number(process.env.ANALYTICS_DASHBOARD_CACHE_MS || 60000);
 const ACTIVE911_TAKEOVER_CACHE_MS = Number(process.env.ACTIVE911_TAKEOVER_CACHE_MS || 5000);
+const ACTIVE911_TAKEOVER_WINDOW_MS = Number(process.env.ACTIVE911_TAKEOVER_WINDOW_MS || 5 * 60 * 1000);
 
 const ACTIVE911_ACCESS_TOKEN = process.env.ACTIVE911_ACCESS_TOKEN || '';
 const ACTIVE911_ALERTS_URL =
@@ -723,14 +724,19 @@ function normalizeIncidentType(text) {
 }
 
 function parseActive911Date(value) {
-  if (!value) return new Date();
+  if (value == null || value === '') return null;
 
   const text = String(value).trim();
+  if (!text) return null;
+
   const parsed = new Date(text);
   if (!Number.isNaN(parsed.getTime())) return parsed;
 
-  const normalized = new Date(text.replace(' ', 'T') + 'Z');
-  return Number.isNaN(normalized.getTime()) ? new Date() : normalized;
+  const normalized = new Date(text.replace(' ', 'T') + (/[zZ]|[+-]\d{2}:?\d{2}$/.test(text) ? '' : 'Z'));
+  if (!Number.isNaN(normalized.getTime())) return normalized;
+
+  // Never invent "now" — that makes old/incomplete alerts look brand new and triggers false tones.
+  return null;
 }
 
 function normalizeAlertPayload(raw, source) {
@@ -748,12 +754,15 @@ function normalizeAlertPayload(raw, source) {
   const address = alert.address || payload.address || '';
   const businessName = alert.place || alert.unit || alert.units || payload.businessName || '';
   const sentCandidate = alert.sent || alert.received || payload.sent || payload.received || '';
-  const sent = parseActive911Date(sentCandidate).toISOString();
+  const parsedSent = parseActive911Date(sentCandidate);
+  const sent = parsedSent ? parsedSent.toISOString() : '';
   const type = normalizeIncidentType(nature || payload.type);
 
   const fallbackId =
     id ||
-    `${sent}|${type}|${String(address).toUpperCase()}|${String(businessName).toUpperCase()}`;
+    (sent
+      ? `${sent}|${type}|${String(address).toUpperCase()}|${String(businessName).toUpperCase()}`
+      : '');
 
   return {
     id: fallbackId,
@@ -768,17 +777,35 @@ function normalizeAlertPayload(raw, source) {
     latitude: alert.latitude || alert.lat || alert.location?.lat || payload.latitude || payload.lat || '',
     longitude: alert.longitude || alert.lng || alert.lon || alert.location?.lng || alert.location?.lon || payload.longitude || payload.lng || payload.lon || '',
     sent,
-    timeLabel: formatCentralDateTime(sent),
+    timeLabel: sent ? formatCentralDateTime(sent) : '',
     source,
     receivedAt: nowIso(),
     raw: alert
   };
 }
 
+function isTakeoverEligibleIncident(incident) {
+  if (!incident?.id || !incident?.sent) return false;
+  const sentAt = new Date(incident.sent).getTime();
+  return Number.isFinite(sentAt);
+}
+
+function isIncidentWithinTakeoverWindow(incident, windowMs = ACTIVE911_TAKEOVER_WINDOW_MS) {
+  if (!isTakeoverEligibleIncident(incident)) return false;
+  const sentAt = new Date(incident.sent).getTime();
+  const age = Date.now() - sentAt;
+  // Reject future-dated stamps more than 2 minutes ahead (bad clocks / parse errors).
+  if (age < -2 * 60 * 1000) return false;
+  return age <= windowMs;
+}
+
 async function addIncident(raw, source = 'unknown') {
   const incident = normalizeAlertPayload(raw, source);
 
   if (!incident.id) return null;
+  // Active911 items without a real dispatch timestamp must not enter history —
+  // inventing "now" previously caused repeated false takeover tones.
+  if (!incident.sent && String(source).startsWith('active911')) return null;
   if (seenIncidentIds.has(incident.id)) return null;
 
   seenIncidentIds.add(incident.id);
@@ -1207,6 +1234,17 @@ function readCsvRows(file) {
   return rows;
 }
 
+function assertGoogleSheetCsvBody(text, label = 'Google Sheet') {
+  const sample = String(text || '').trimStart().slice(0, 200).toLowerCase();
+  if (
+    sample.startsWith('<!doctype html') ||
+    sample.startsWith('<html') ||
+    sample.includes('accounts.google.com/servicelogin')
+  ) {
+    throw new Error(`${label} returned a login page instead of CSV`);
+  }
+}
+
 function parseCsvText(text) {
   const rows = [];
   let row = [];
@@ -1488,8 +1526,10 @@ async function fetchLiveDocumentRows() {
   });
 
   if (csvResponse.ok) {
+    const csv = await csvResponse.text();
+    assertGoogleSheetCsvBody(csv, 'Live document sheet');
     return {
-      rows: parseCsvText(await csvResponse.text()),
+      rows: parseCsvText(csv),
       source: LIVE_DOCUMENT_CSV_URL
     };
   }
@@ -1594,6 +1634,7 @@ async function fetchTrainingSchedule(force = false) {
     }
 
     const csv = await response.text();
+    assertGoogleSheetCsvBody(csv, 'Training schedule sheet');
     const rows = parseCsvText(csv);
     const section = shapeTrainingScheduleRows(rows);
     const data = {
@@ -1624,7 +1665,7 @@ async function fetchTrainingSchedule(force = false) {
       };
     }
 
-    throw err;
+    return buildTrainingScheduleFallback(err.message);
   }
 }
 
@@ -1702,6 +1743,7 @@ async function fetchEmsExpirations(force = false) {
     }
 
     const csv = await response.text();
+    assertGoogleSheetCsvBody(csv, 'EMS expiration sheet');
     const rows = parseCsvText(csv);
     const section = shapeEmsExpirationRows(rows);
     const data = {
@@ -1942,6 +1984,53 @@ function fallbackEvents() {
   ];
 }
 
+function buildEventsFallback(error) {
+  return {
+    ok: true,
+    title: 'Events',
+    source: EVENTS_CSV_URL,
+    connected: false,
+    updated: nowIso(),
+    updatedLabel: formatCentralDateTime(new Date()),
+    refreshMs: EVENTS_REFRESH_MS,
+    stale: true,
+    error,
+    events: [
+      {
+        id: 'feed-error',
+        title: 'Events Feed Unavailable',
+        date: '',
+        dateLabel: 'Offline',
+        time: '--',
+        location: 'Google Sheet not reachable',
+        category: 'System',
+        status: 'Check Sheet',
+        notes: error || 'The events sheet could not be loaded. Verify the sheet is still published to the web.',
+        owner: '',
+        sortTime: Number.MAX_SAFE_INTEGER
+      }
+    ]
+  };
+}
+
+function buildTrainingScheduleFallback(error) {
+  return {
+    ok: true,
+    title: 'Training Schedule',
+    source: TRAINING_SCHEDULE_CSV_URL,
+    updated: nowIso(),
+    updatedLabel: formatCentralDateTime(new Date()),
+    refreshMs: TRAINING_SCHEDULE_REFRESH_MS,
+    stale: true,
+    error,
+    section: {
+      title: 'Training Schedule',
+      headers: ['Name', 'Course', 'Date', 'Status'],
+      rows: []
+    }
+  };
+}
+
 async function fetchEvents(force = false) {
   const now = Date.now();
   const loadedAt = eventsCache.loadedAt ? new Date(eventsCache.loadedAt).getTime() : 0;
@@ -1977,7 +2066,9 @@ async function fetchEvents(force = false) {
       throw new Error(`Events sheet HTTP ${response.status}`);
     }
 
-    const events = shapeEventRows(parseCsvText(await response.text()));
+    const csv = await response.text();
+    assertGoogleSheetCsvBody(csv, 'Events sheet');
+    const events = shapeEventRows(parseCsvText(csv));
     const data = {
       ok: true,
       title: 'Events',
@@ -2002,7 +2093,7 @@ async function fetchEvents(force = false) {
       };
     }
 
-    throw err;
+    return buildEventsFallback(err.message);
   }
 }
 
@@ -2758,10 +2849,13 @@ async function buildActive911TakeoverPayload(recentLimit = 5) {
       try {
         const fullAlert = await fetchAlertDetail(alertRef);
         const incident = normalizeAlertPayload(fullAlert, 'active911-takeover');
+        if (!isTakeoverEligibleIncident(incident)) continue;
         recent.push(formatTakeoverIncident(incident));
         await addIncident(fullAlert, 'active911-takeover');
       } catch (err) {
         const incident = normalizeAlertPayload(alertRef, 'active911-takeover-list');
+        // List refs often lack timestamps — skip them so we never treat "now" as a new call.
+        if (!isTakeoverEligibleIncident(incident)) continue;
         recent.push(formatTakeoverIncident(incident));
       }
     }
@@ -2781,6 +2875,7 @@ async function buildActive911TakeoverPayload(recentLimit = 5) {
     active911Debug.lastPollError = err.message;
 
     const recent = incidentHistory
+      .filter((item) => isIncidentWithinTakeoverWindow(item, ACTIVE911_TAKEOVER_WINDOW_MS))
       .slice(0, recentLimit)
       .map(formatTakeoverIncident);
 

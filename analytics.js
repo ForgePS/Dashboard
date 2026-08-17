@@ -300,9 +300,8 @@ async function checkActive911Takeover() {
     if (latest.id !== lastTakeoverAlertId) {
       lastTakeoverAlertId = latest.id;
       sessionStorage.setItem('lastTakeoverAlertId', latest.id);
+      window.location.href = stationTakeoverPath();
     }
-
-    window.location.href = stationTakeoverPath();
   } catch (err) {
     console.warn('Active911 takeover check failed:', err.message);
   }

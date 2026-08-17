@@ -46,7 +46,14 @@ function renderEvents(data) {
   const events = data.events || [];
   const list = document.getElementById('eventList');
 
-  setText('statusText', data.connected ? 'Live events feed connected' : 'Events page ready');
+  setText(
+    'statusText',
+    data.stale
+      ? 'Showing cached data'
+      : data.connected
+        ? 'Live events feed connected'
+        : 'Events page ready'
+  );
   setText('updatedText', `Last Updated ${data.updatedLabel || '--'}`);
   setText('upcomingCount', numberFormat.format(events.length));
   setText('monthCount', numberFormat.format(events.filter(eventMonthMatches).length));
