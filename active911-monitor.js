@@ -8,6 +8,8 @@
   const TAKEOVER_MS = config.takeoverMs;
   const POLL_MS = 5000;
   const LAST_TAKEOVER_KEY = 'active911-monitor-last-takeover-id';
+  const SUPPRESS_ALERT_PARAM = 'monitorLastAlertId';
+  const SUPPRESS_UNTIL_PARAM = 'monitorSuppressUntil';
   let takeoverInProgress = false;
   let badge = null;
 
@@ -69,26 +71,55 @@
     return `Active911 enabled · Station ${station}`;
   }
 
-  function alertPath(station) {
-    const returnTo = encodeURIComponent(`${global.location.pathname}${global.location.search}`);
+  function updateReturnToWithSuppression(alertToken, suppressUntilMs) {
+    const returnUrl = new URL(`${global.location.pathname}${global.location.search}`, global.location.origin);
+    returnUrl.searchParams.set(SUPPRESS_ALERT_PARAM, String(alertToken || ''));
+    returnUrl.searchParams.set(SUPPRESS_UNTIL_PARAM, String(Math.max(0, Math.round(suppressUntilMs || 0))));
+    return `${returnUrl.pathname}${returnUrl.search}`;
+  }
+
+  function alertPath(station, alertToken, suppressUntilMs) {
+    const returnTo = encodeURIComponent(updateReturnToWithSuppression(alertToken, suppressUntilMs));
     const duration = encodeURIComponent(String(TAKEOVER_MINUTES));
     return `/station${station}/alert?returnTo=${returnTo}&durationMinutes=${duration}&station=${station}`;
   }
 
-  function alreadyHandledAlert(alertId) {
+  function cleanupExpiredSuppressionParams() {
+    const url = new URL(global.location.href);
+    const suppressUntil = Number(url.searchParams.get(SUPPRESS_UNTIL_PARAM));
+    if (!Number.isFinite(suppressUntil) || Date.now() < suppressUntil) return;
+    if (!url.searchParams.has(SUPPRESS_ALERT_PARAM)) return;
+    url.searchParams.delete(SUPPRESS_ALERT_PARAM);
+    url.searchParams.delete(SUPPRESS_UNTIL_PARAM);
+    global.history.replaceState(global.history.state, '', `${url.pathname}${url.search}`);
+  }
+
+  function alertTokenFor(latest) {
+    return `${latest?.id || ''}|${latest?.sent || ''}`;
+  }
+
+  function alreadyHandledAlert(alertToken) {
     try {
-      return global.sessionStorage.getItem(LAST_TAKEOVER_KEY) === String(alertId);
+      return global.sessionStorage.getItem(LAST_TAKEOVER_KEY) === String(alertToken);
     } catch (err) {
       return false;
     }
   }
 
-  function markHandledAlert(alertId) {
+  function markHandledAlert(alertToken) {
     try {
-      global.sessionStorage.setItem(LAST_TAKEOVER_KEY, String(alertId));
+      global.sessionStorage.setItem(LAST_TAKEOVER_KEY, String(alertToken));
     } catch (err) {
       // Ignore storage failures on locked-down kiosk browsers.
     }
+  }
+
+  function isSuppressedInUrl(alertToken) {
+    const params = pageParams();
+    const token = params.get(SUPPRESS_ALERT_PARAM);
+    const suppressUntil = Number(params.get(SUPPRESS_UNTIL_PARAM));
+    if (!token || !Number.isFinite(suppressUntil)) return false;
+    return token === String(alertToken) && Date.now() < suppressUntil;
   }
 
   function isEligibleActiveAlert(latest) {
@@ -104,6 +135,7 @@
     if (takeoverInProgress) return;
 
     const station = resolveStation();
+    cleanupExpiredSuppressionParams();
 
     try {
       const response = await fetch(`/api/active911-takeover?ts=${Date.now()}`, { cache: 'no-store' });
@@ -120,15 +152,17 @@
         return;
       }
 
-      if (alreadyHandledAlert(latest.id)) {
+      const alertToken = alertTokenFor(latest);
+      if (alreadyHandledAlert(alertToken) || isSuppressedInUrl(alertToken)) {
         setBadgeState('is-armed', armedText(station));
         return;
       }
 
-      markHandledAlert(latest.id);
+      const suppressUntil = Date.now() + TAKEOVER_MS;
+      markHandledAlert(alertToken);
       takeoverInProgress = true;
       setBadgeState('is-alert', 'Active911 alert — taking over');
-      global.location.replace(alertPath(station));
+      global.location.replace(alertPath(station, alertToken, suppressUntil));
     } catch (err) {
       setBadgeState('is-warning', 'Active911 monitor warning');
     }
