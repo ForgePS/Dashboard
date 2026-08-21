@@ -1,6 +1,8 @@
 const DEFAULT_MVIX_PLAYBACK_URL = 'https://vp-iqewtzht.cms.mvix.com/playback';
 const DEFAULT_MVIX_SLOT_SECONDS = 45;
 const PLAYLIST_REFRESH_MS = 30 * 60 * 1000;
+const ROTATION_STATE_KEY = 'mvix-playback-rotation-state-v1';
+const ROTATION_STATE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
 const frame = document.getElementById('mvixFrame');
 
@@ -114,6 +116,49 @@ let slotIndex = 0;
 let rotationTimer = null;
 let currentMode = 'mvix-only';
 
+function rotationScope() {
+  const params = pageParams();
+  return `${resolveStation()}|${currentMode}|${params.get('playbackUrl') || DEFAULT_MVIX_PLAYBACK_URL}`;
+}
+
+function readRotationState() {
+  try {
+    const raw = window.sessionStorage.getItem(ROTATION_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed;
+  } catch (err) {
+    return null;
+  }
+}
+
+function writeRotationState(nextSlotId) {
+  try {
+    window.sessionStorage.setItem(ROTATION_STATE_KEY, JSON.stringify({
+      scope: rotationScope(),
+      nextSlotId: String(nextSlotId || ''),
+      updatedAt: Date.now()
+    }));
+  } catch (err) {
+    // Ignore kiosk browser storage limitations.
+  }
+}
+
+function restoreRotationState() {
+  if (!slots.length) return;
+  const state = readRotationState();
+  if (!state) return;
+  if (state.scope !== rotationScope()) return;
+  if (!Number.isFinite(state.updatedAt) || Date.now() - state.updatedAt > ROTATION_STATE_MAX_AGE_MS) return;
+  if (!state.nextSlotId) return;
+
+  const found = slots.findIndex((slot) => slot.id === state.nextSlotId);
+  if (found >= 0) {
+    slotIndex = found;
+  }
+}
+
 function showSlot(slot) {
   const station = resolveStation();
   if (!frame || !slot) return;
@@ -125,8 +170,9 @@ function scheduleNext() {
   if (!slots.length) return;
 
   const slot = slots[slotIndex % slots.length];
-  slotIndex += 1;
   showSlot(slot);
+  slotIndex = (slotIndex + 1) % slots.length;
+  writeRotationState(slots[slotIndex % slots.length]?.id || '');
 
   const durationMs = Math.max(10, Number(slot.durationSeconds || 45)) * 1000;
   rotationTimer = setTimeout(scheduleNext, durationMs);
@@ -184,6 +230,7 @@ async function init() {
     }
 
     slotIndex = 0;
+    restoreRotationState();
     scheduleNext();
 
     if (currentMode !== 'mvix-only') {
