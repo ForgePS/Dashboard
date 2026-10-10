@@ -5,7 +5,7 @@ on:
     branches: [feature/sharepoint-migration]
     paths:
       - 'sharepoint/src/**'
-      - 'sharepoint/scripts/integrate-generated-spfx.mjs'
+      - 'sharepoint/scripts/**'
       - '.github/workflows/sharepoint-package.yml'
 jobs:
   build:
@@ -19,6 +19,8 @@ jobs:
       - name: Install official Microsoft generator
         run: npm install --global yo @microsoft/generator-sharepoint@1.23.2
       - name: Scaffold official SPFx React project
+        env:
+          CI: 'true'
         run: |
           mkdir -p /tmp/firehouse-spfx
           cd /tmp/firehouse-spfx
