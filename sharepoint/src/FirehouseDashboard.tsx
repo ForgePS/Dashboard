@@ -21,6 +21,7 @@ export const FirehouseDashboard: React.FC<DashboardProps> = (props) => {
   const [now, setNow] = React.useState(Date.now());
   const [error, setError] = React.useState('');
   const [hasLoaded, setHasLoaded] = React.useState(false);
+  const [lastUpdatedAt, setLastUpdatedAt] = React.useState<number | undefined>(undefined);
 
   React.useEffect(() => {
     let active = true;
@@ -35,6 +36,7 @@ export const FirehouseDashboard: React.FC<DashboardProps> = (props) => {
         setPlaylist(nextPlaylist);
         setError('');
         setHasLoaded(true);
+        setLastUpdatedAt(Date.now());
       } catch (e) {
         if (active) setError(e instanceof Error ? e.message : String(e));
       }
@@ -46,7 +48,8 @@ export const FirehouseDashboard: React.FC<DashboardProps> = (props) => {
   }, [provider, station, props.refreshSeconds]);
 
   const minutes = Math.max(1, props.takeoverMinutes || 5);
-  const live = activeIncident(incidents, now, minutes);
+  const dataFresh = lastUpdatedAt !== undefined && (now - lastUpdatedAt) < Math.max(60, (props.refreshSeconds || 15) * 3) * 1000;
+  const live = dataFresh ? activeIncident(incidents, now, minutes) : undefined;
   const activeAnnouncements = announcements.filter(a =>
     (!a.StartsAt || Date.parse(a.StartsAt) <= now) && (!a.EndsAt || Date.parse(a.EndsAt) > now));
 
@@ -56,7 +59,8 @@ export const FirehouseDashboard: React.FC<DashboardProps> = (props) => {
       <strong>{new Date(now).toLocaleString('en-US',{timeZone:'America/Chicago'})}</strong>
     </header>
     {!hasLoaded && !error && <p role="status">Loading station information...</p>}
-    {error && <p role="alert">Data update failed: {error}. Showing last successfully loaded information.</p>}
+    {error && <p role="alert">Data update failed: {error}. Dispatch data may be stale.</p>}
+    {!dataFresh && hasLoaded && <p role="alert" style={{background:'#78350f',padding:12,fontWeight:700}}>DATA CONNECTION STALE — THIS DISPLAY IS NOT AN OPERATIONAL DISPATCH SYSTEM.</p>}
     {live ? <article role="alert" style={{marginTop:22,padding:32,background:'#7f1d1d',border:'4px solid #ef4444'}}>
       <h2>ACTIVE DISPATCH — {live.IncidentType || live.Title}</h2>
       <p style={{fontSize:36,fontWeight:700}}>{live.Address}</p>
