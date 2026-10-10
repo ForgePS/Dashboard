@@ -13,10 +13,12 @@ export class SharePointData {
     query.set('$top', '500');
     query.set('$filter', filter);
     if (orderBy) query.set('$orderby', orderBy);
-    const url = this.webUrl.replace(/\/$/, '') +
-      "/_api/web/lists/getbytitle('" + encodeURIComponent(name) + "')/items?" + query.toString();
-    const response: SPHttpClientResponse = await this.client.get(
-      url, SPHttpClient.configurations.v1, { headers: { Accept: 'application/json;odata=nometadata' } });
+    const base = this.webUrl.replace(/\/$/, '');
+    const encodedName = name.replace(/'/g, "''");
+    const url = base + "/_api/web/lists/getbytitle('" + encodedName + "')/items?" + query.toString();
+    const response: SPHttpClientResponse = await this.client.get(url, SPHttpClient.configurations.v1, {
+      headers: { Accept: 'application/json;odata=nometadata' }
+    });
     if (!response.ok) throw new Error('SharePoint list ' + name + ': HTTP ' + response.status);
     const body = await response.json();
     return (body.value || []) as T[];
