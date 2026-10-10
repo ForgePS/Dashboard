@@ -26,12 +26,12 @@ jobs:
           cd /tmp/firehouse-spfx
           yo @microsoft/sharepoint --solution-name firehouse-dashboard --component-type webpart --component-name FirehouseDashboard --framework react --sharepoint-version spo --skip-install --no-insight
       - name: Integrate existing components
-        run: node sharepoint/scripts/integrate-generated-spfx.mjs /tmp/firehouse-spfx
+        run: node sharepoint/scripts/integrate-generated-spfx.mjs /tmp/firehouse-spfx/firehouse-dashboard
       - name: Install project dependencies
-        working-directory: /tmp/firehouse-spfx
+        working-directory: /tmp/firehouse-spfx/firehouse-dashboard
         run: npm install --no-audit --no-fund
       - name: Build and package
-        working-directory: /tmp/firehouse-spfx
+        working-directory: /tmp/firehouse-spfx/firehouse-dashboard
         run: |
           npx heft build --production
           npx heft package-solution --production
@@ -47,5 +47,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: firehouse-dashboard-sppkg
-          path: /tmp/firehouse-spfx/sharepoint/solution/*.sppkg
+          path: /tmp/firehouse-spfx/firehouse-dashboard/sharepoint/solution/*.sppkg
           if-no-files-found: error
