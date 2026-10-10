@@ -22,6 +22,7 @@ export const FirehouseDashboard: React.FC<DashboardProps> = (props) => {
   const [error, setError] = React.useState('');
   const [hasLoaded, setHasLoaded] = React.useState(false);
   const [lastUpdatedAt, setLastUpdatedAt] = React.useState<number | undefined>(undefined);
+  const [loadedStation, setLoadedStation] = React.useState<number | undefined>(undefined);
 
   React.useEffect(() => {
     let active = true;
@@ -37,6 +38,7 @@ export const FirehouseDashboard: React.FC<DashboardProps> = (props) => {
         setError('');
         setHasLoaded(true);
         setLastUpdatedAt(Date.now());
+        setLoadedStation(station);
       } catch (e) {
         if (active) setError(e instanceof Error ? e.message : String(e));
       }
@@ -48,9 +50,9 @@ export const FirehouseDashboard: React.FC<DashboardProps> = (props) => {
   }, [provider, station, props.refreshSeconds]);
 
   const minutes = Math.max(1, props.takeoverMinutes || 5);
-  const dataFresh = lastUpdatedAt !== undefined && (now - lastUpdatedAt) < Math.max(60, (props.refreshSeconds || 15) * 3) * 1000;
+  const dataFresh = loadedStation === station && lastUpdatedAt !== undefined && (now - lastUpdatedAt) < Math.max(60, (props.refreshSeconds || 15) * 3) * 1000;
   const live = dataFresh ? activeIncident(incidents, now, minutes) : undefined;
-  const activeAnnouncements = announcements.filter(a =>
+  const activeAnnouncements = (loadedStation === station ? announcements : []).filter(a =>
     (!a.StartsAt || Date.parse(a.StartsAt) <= now) && (!a.EndsAt || Date.parse(a.EndsAt) > now));
 
   return <section style={{background:'#09111e',color:'#f8fafc',minHeight:620,padding:24,fontFamily:'Segoe UI, sans-serif'}}>
@@ -58,7 +60,7 @@ export const FirehouseDashboard: React.FC<DashboardProps> = (props) => {
       <h1>FIREHOUSE — STATION {station}</h1>
       <strong>{new Date(now).toLocaleString('en-US',{timeZone:'America/Chicago'})}</strong>
     </header>
-    {!hasLoaded && !error && <p role="status">Loading station information...</p>}
+    {(!hasLoaded || loadedStation !== station) && !error && <p role="status">Loading station information...</p>}
     {error && <p role="alert">Data update failed: {error}. Dispatch data may be stale.</p>}
     {!dataFresh && hasLoaded && <p role="alert" style={{background:'#78350f',padding:12,fontWeight:700}}>DATA CONNECTION STALE — THIS DISPLAY IS NOT AN OPERATIONAL DISPATCH SYSTEM.</p>}
     {live ? <article role="alert" style={{marginTop:22,padding:32,background:'#7f1d1d',border:'4px solid #ef4444'}}>
@@ -66,7 +68,7 @@ export const FirehouseDashboard: React.FC<DashboardProps> = (props) => {
       <p style={{fontSize:36,fontWeight:700}}>{live.Address}</p>
       <p>Dispatched: {new Date(live.DispatchedAt).toLocaleString()}</p>
     </article> : <main style={{marginTop:22}}>
-      <SignagePlayer items={playlist} station={station}/>
+      <SignagePlayer items={loadedStation === station ? playlist : []} station={station}/>
       {activeAnnouncements.map(a => <article key={a.Id} style={{marginTop:16,padding:16,background:'#1e293b'}}>
         <h2>{a.Title}</h2><p>{a.Message}</p>
       </article>)}
