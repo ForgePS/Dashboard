@@ -27,3 +27,11 @@ Leave Firebase deployment active until signed acceptance. If the SharePoint roll
 
 ## Explicit limitations
 These scripts have not provisioned lists and no SPFx package has been produced or deployed in the connected Microsoft 365 tenant.
+
+## Known build gap and cutover requirements
+- Current code is component source, not a generated SPFx project; run the official generator before attempting a package.
+- Install and compile must be verified on a developer workstation with npm connectivity.
+- List API currently limits results to 500 items; scale-up must use indexed time windows and pagination.
+- Replace Google Sheets roster/training/live-document data sources before claiming a Google-free dashboard.
+- Existing MVIX playback is third party, so confirm whether content will be migrated or MVIX retained.
+- Active911 feed is not connected to SharePoint. No live dispatch validation has occurred.
