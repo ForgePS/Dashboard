@@ -15,6 +15,6 @@ export function activeIncident<T extends DispatchIncident>(incidents: T[], nowMs
     const age = nowMs - dispatchedAt;
     if (age < 0 || age >= maxAgeMs) return false;
     const status = String(incident.Status || '').toLowerCase().trim();
-    return !['closed', 'cancelled', 'canceled', 'cleared', 'complete', 'completed'].indexOf(status) !== -1;
+    return ['closed', 'cancelled', 'canceled', 'cleared', 'complete', 'completed'].indexOf(status) === -1;
   }).sort((a, b) => Date.parse(b.DispatchedAt) - Date.parse(a.DispatchedAt))[0];
 }
