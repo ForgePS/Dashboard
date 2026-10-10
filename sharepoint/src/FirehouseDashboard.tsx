@@ -20,6 +20,7 @@ export const FirehouseDashboard: React.FC<DashboardProps> = (props) => {
   const [playlist, setPlaylist] = React.useState<PlaylistItem[]>([]);
   const [now, setNow] = React.useState(Date.now());
   const [error, setError] = React.useState('');
+  const [hasLoaded, setHasLoaded] = React.useState(false);
 
   React.useEffect(() => {
     let active = true;
@@ -33,6 +34,7 @@ export const FirehouseDashboard: React.FC<DashboardProps> = (props) => {
         setIncidents(nextIncidents);
         setPlaylist(nextPlaylist);
         setError('');
+        setHasLoaded(true);
       } catch (e) {
         if (active) setError(e instanceof Error ? e.message : String(e));
       }
@@ -42,13 +44,6 @@ export const FirehouseDashboard: React.FC<DashboardProps> = (props) => {
     const clockTimer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => { active = false; window.clearInterval(refreshTimer); window.clearInterval(clockTimer); };
   }, [provider, station, props.refreshSeconds]);
-
-  const current = playlist.length ? playlist[slot % playlist.length] : undefined;
-  React.useEffect(() => {
-    if (!current || playlist.length < 2) return;
-    const timer = window.setTimeout(() => setSlot(x => x + 1), Math.max(5, current.DurationSeconds || 45) * 1000);
-    return () => window.clearTimeout(timer);
-  }, [current, playlist.length]);
 
   const minutes = Math.max(1, props.takeoverMinutes || 5);
   const live = activeIncident(incidents, now, minutes);
@@ -60,6 +55,7 @@ export const FirehouseDashboard: React.FC<DashboardProps> = (props) => {
       <h1>FIREHOUSE — STATION {station}</h1>
       <strong>{new Date(now).toLocaleString('en-US',{timeZone:'America/Chicago'})}</strong>
     </header>
+    {!hasLoaded && !error && <p role="status">Loading station information...</p>}
     {error && <p role="alert">Data update failed: {error}. Showing last successfully loaded information.</p>}
     {live ? <article role="alert" style={{marginTop:22,padding:32,background:'#7f1d1d',border:'4px solid #ef4444'}}>
       <h2>ACTIVE DISPATCH — {live.IncidentType || live.Title}</h2>
