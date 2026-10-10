@@ -38,3 +38,12 @@ Use separate list permissions: operators edit configuration; display account can
 - Real-time Active911 ingestion needs an authorized upstream interface and server-side credentials. Never expose those credentials in a browser web part.
 - Shared/public signage devices need Microsoft 365 licensing, kiosk sign-in/security and session expiry planning.
 - Leave the original live dashboard in operation until feature parity, incident takeover, permissions and display recovery have been validated.
+
+
+## Phase 3 progress
+- SPFx web-part controller, SharePoint list data provider, and provisioning script added.
+- HTTPS image/video/PDF playlist rotation and station-aware incident takeover wired into React component.
+- Secure Active911 ingestion architecture documented; no operational feed connected.
+- This is not yet a fully scaffolded, compiled, or tested SPFx solution; no .sppkg has been generated.
+- Existing Firebase production deployment remains unchanged.
+- Use SPFx 1.23.2 Heft toolchain (Node 22, React 17.0.1) for generated scaffolding.
