@@ -1,0 +1,51 @@
+name: Build SharePoint package (experimental)
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/sharepoint-migration]
+    paths:
+      - 'sharepoint/src/**'
+      - 'sharepoint/scripts/**'
+      - '.github/workflows/sharepoint-package.yml'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install official Microsoft generator
+        run: npm install --global yo @microsoft/generator-sharepoint@1.23.2
+      - name: Scaffold official SPFx React project
+        env:
+          CI: 'true'
+        run: |
+          mkdir -p /tmp/firehouse-spfx
+          cd /tmp/firehouse-spfx
+          yo @microsoft/sharepoint --solution-name firehouse-dashboard --component-type webpart --component-name FirehouseDashboard --framework react --sharepoint-version spo --skip-install --no-insight
+      - name: Integrate existing components
+        run: node sharepoint/scripts/integrate-generated-spfx.mjs /tmp/firehouse-spfx/firehouse-dashboard
+      - name: Install project dependencies
+        working-directory: /tmp/firehouse-spfx/firehouse-dashboard
+        run: npm install --no-audit --no-fund
+      - name: Build and package
+        working-directory: /tmp/firehouse-spfx/firehouse-dashboard
+        run: |
+          npx heft build --production
+          npx heft package-solution --production
+      - name: Record build diagnostics
+        if: always()
+        run: |
+          echo "SPFx project directory:"
+          ls -la /tmp/firehouse-spfx || true
+          echo "Generated solution artifacts:"
+          find /tmp/firehouse-spfx -maxdepth 7 -name '*.sppkg' -o -name 'package-solution.json' 2>/dev/null || true
+      - name: Upload package
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firehouse-dashboard-sppkg
+          path: /tmp/firehouse-spfx/firehouse-dashboard/sharepoint/solution/*.sppkg
+          if-no-files-found: error

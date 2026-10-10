@@ -1,0 +1,55 @@
+name: SharePoint migration core tests
+on:
+  push:
+    paths:
+      - 'sharepoint/**'
+      - '.github/workflows/sharepoint-core-tests.yml'
+  pull_request:
+    paths:
+      - 'sharepoint/**'
+      - '.github/workflows/sharepoint-core-tests.yml'
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save typescript@5.8.3
+      - run: npx tsc -p sharepoint/tsconfig.core.json
+      - run: node --test sharepoint/tests/core.test.js
+      - run: node --test sharepoint/tests/integrator.test.mjs
+      - run: python3 sharepoint/scripts/audit-google-dependencies.py
+
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install SPFx generator
+        run: npm install --global yo @microsoft/generator-sharepoint@1.23.2
+      - name: Generate SPFx project
+        env:
+          CI: 'true'
+        run: |
+          mkdir -p /tmp/firehouse-spfx
+          cd /tmp/firehouse-spfx
+          yo @microsoft/sharepoint --solution-name firehouse-dashboard --component-type webpart --component-name FirehouseDashboard --framework react --sharepoint-version spo --skip-install --no-insight
+      - name: Integrate Firehouse source
+        run: node sharepoint/scripts/integrate-generated-spfx.mjs /tmp/firehouse-spfx/firehouse-dashboard
+      - name: Install and compile
+        working-directory: /tmp/firehouse-spfx/firehouse-dashboard
+        run: |
+          npm install --no-audit --no-fund
+          npx heft build --production
+          npx heft package-solution --production
+      - name: Upload SharePoint package
+        uses: actions/upload-artifact@v4
+        with:
+          name: firehouse-dashboard-sppkg
+          path: /tmp/firehouse-spfx/firehouse-dashboard/sharepoint/solution/*.sppkg
+          if-no-files-found: error
