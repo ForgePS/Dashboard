@@ -4,13 +4,15 @@ import { mediaKind, mediaSource, orderedItems } from './playlist';
 export interface SignagePlayerProps { items: PlaylistItem[]; station: number; }
 export const SignagePlayer: React.FC<SignagePlayerProps> = ({items,station}) => {
   const eligible = React.useMemo(() => orderedItems(items), [items]);
+  const playlistKey = eligible.map(x => x.Id + ':' + x.MediaUrl + ':' + x.DurationSeconds).join('|');
   const [index,setIndex] = React.useState(0);
   const item = eligible.length ? eligible[index % eligible.length] : undefined;
   const url = item ? mediaSource(item) : undefined;
   const kind = mediaKind(url);
-  const seconds = Math.max(5, Math.min(3600, Number(item?.DurationSeconds || 45)));
+  const configuredSeconds = Number(item?.DurationSeconds || 45);
+  const seconds = Number.isFinite(configuredSeconds) ? Math.max(5, Math.min(3600, configuredSeconds)) : 45;
 
-  React.useEffect(() => { setIndex(0); }, [station]);
+  React.useEffect(() => { setIndex(0); }, [station, playlistKey]);
   React.useEffect(() => {
     if (eligible.length < 2) return;
     const timer = window.setTimeout(() => setIndex(n => n + 1), seconds * 1000);
