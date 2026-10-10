@@ -1,0 +1,41 @@
+name: Build SharePoint package (experimental)
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/sharepoint-migration]
+    paths:
+      - 'sharepoint/src/**'
+      - 'sharepoint/scripts/integrate-generated-spfx.mjs'
+      - '.github/workflows/sharepoint-package.yml'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install official Microsoft generator
+        run: npm install --global yo @microsoft/generator-sharepoint@1.23.2
+      - name: Scaffold official SPFx React project
+        run: |
+          mkdir -p /tmp/firehouse-spfx
+          cd /tmp/firehouse-spfx
+          yo @microsoft/sharepoint --solution-name firehouse-dashboard --component-type webpart --component-name FirehouseDashboard --framework react --sharepoint-version spo --skip-install --no-insight
+      - name: Integrate existing components
+        run: node sharepoint/scripts/integrate-generated-spfx.mjs /tmp/firehouse-spfx
+      - name: Install project dependencies
+        working-directory: /tmp/firehouse-spfx
+        run: npm install --no-audit --no-fund
+      - name: Build and package
+        working-directory: /tmp/firehouse-spfx
+        run: |
+          npx heft build --production
+          npx heft package-solution --production
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: firehouse-dashboard-sppkg
+          path: /tmp/firehouse-spfx/sharepoint/solution/*.sppkg
+          if-no-files-found: error
