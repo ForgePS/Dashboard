@@ -1,0 +1,22 @@
+name: SharePoint migration core tests
+on:
+  push:
+    paths:
+      - 'sharepoint/**'
+      - '.github/workflows/sharepoint-core-tests.yml'
+  pull_request:
+    paths:
+      - 'sharepoint/**'
+      - '.github/workflows/sharepoint-core-tests.yml'
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save typescript@5.8.3
+      - run: npx tsc -p sharepoint/tsconfig.core.json
+      - run: node --test sharepoint/tests/core.test.js
+      - run: python3 sharepoint/scripts/audit-google-dependencies.py
