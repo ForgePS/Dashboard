@@ -2,6 +2,7 @@ import * as React from 'react';
 import { SPHttpClient } from '@microsoft/sp-http';
 import { Announcement, Incident, PlaylistItem, SharePointData } from './SharePointData';
 import { SignagePlayer } from './SignagePlayer';
+import { activeIncident } from './incident';
 
 export interface DashboardProps {
   spHttpClient: SPHttpClient;
@@ -50,11 +51,7 @@ export const FirehouseDashboard: React.FC<DashboardProps> = (props) => {
   }, [current, playlist.length]);
 
   const minutes = Math.max(1, props.takeoverMinutes || 5);
-  const live = incidents
-    .filter(i => i.DispatchedAt && Date.parse(i.DispatchedAt) <= now &&
-      now - Date.parse(i.DispatchedAt) < minutes * 60000 && !['closed', 'cancelled'].includes((i.Status || '').toLowerCase()))
-    .sort((a,b) => Date.parse(b.DispatchedAt) - Date.parse(a.DispatchedAt))[0];
-
+  const live = activeIncident(incidents, now, minutes);
   const activeAnnouncements = announcements.filter(a =>
     (!a.StartsAt || Date.parse(a.StartsAt) <= now) && (!a.EndsAt || Date.parse(a.EndsAt) > now));
 
