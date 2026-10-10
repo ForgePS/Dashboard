@@ -20,6 +20,9 @@ test('newest active incident is preferred', () => {
 test('media URLs accept HTTPS and reject dangerous schemes', () => {
   assert.equal(mediaSource({MediaUrl:'javascript:alert(1)'}),undefined);
   assert.equal(mediaSource({MediaUrl:'http://example.org/p.png'}),undefined);
+  assert.equal(mediaSource({MediaUrl:'https://firehouse-dashboards.web.app/slide.png'}),undefined);
+  assert.equal(mediaSource({MediaUrl:'https://docs.google.com/example'}),undefined);
+  assert.equal(mediaSource({MediaUrl:'https://tenant.sharepoint.com/sites/firehouse/image.png'}),'https://tenant.sharepoint.com/sites/firehouse/image.png');
   assert.equal(mediaKind('https://example.org/a.PDF?x=1'),'pdf');
   assert.equal(mediaKind('https://example.org/a.mp4'),'video');
 });
