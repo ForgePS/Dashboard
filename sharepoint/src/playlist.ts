@@ -12,7 +12,16 @@ export function mediaSource(item: SignageItem): string | undefined {
   try {
     const parsed = new URL(raw);
     // Avoid javascript:, data:, file: or other unsafe schemes.
-    return parsed.protocol === 'https:' ? parsed.href : undefined;
+    if (parsed.protocol !== 'https:') return undefined;
+    const host = parsed.hostname.toLowerCase();
+    // Disallow leftover Google/Firebase-hosted media on the Microsoft-only dashboard.
+    if (host === 'google.com' || host.endsWith('.google.com') ||
+        host === 'googleusercontent.com' || host.endsWith('.googleusercontent.com') ||
+        host === 'firebaseapp.com' || host.endsWith('.firebaseapp.com') ||
+        host === 'web.app' || host.endsWith('.web.app') ||
+        host === 'googleapis.com' || host.endsWith('.googleapis.com') ||
+        host === 'gstatic.com' || host.endsWith('.gstatic.com')) return undefined;
+    return parsed.href;
   } catch { return undefined; }
 }
 export function mediaKind(url?: string): 'image' | 'video' | 'pdf' | 'external' {
