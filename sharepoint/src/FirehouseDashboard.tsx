@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { SPHttpClient } from '@microsoft/sp-http';
 import { Announcement, Incident, PlaylistItem, SharePointData } from './SharePointData';
+import { SignagePlayer } from './SignagePlayer';
 
 export interface DashboardProps {
   spHttpClient: SPHttpClient;
@@ -16,7 +17,6 @@ export const FirehouseDashboard: React.FC<DashboardProps> = (props) => {
   const [announcements, setAnnouncements] = React.useState<Announcement[]>([]);
   const [incidents, setIncidents] = React.useState<Incident[]>([]);
   const [playlist, setPlaylist] = React.useState<PlaylistItem[]>([]);
-  const [slot, setSlot] = React.useState(0);
   const [now, setNow] = React.useState(Date.now());
   const [error, setError] = React.useState('');
 
@@ -58,8 +58,6 @@ export const FirehouseDashboard: React.FC<DashboardProps> = (props) => {
   const activeAnnouncements = announcements.filter(a =>
     (!a.StartsAt || Date.parse(a.StartsAt) <= now) && (!a.EndsAt || Date.parse(a.EndsAt) > now));
 
-  const mediaUrl = current && (typeof current.MediaUrl === 'string' ? current.MediaUrl : current.MediaUrl?.Url);
-  // Only approved SharePoint-hosted media should be entered by authorized editors.
   return <section style={{background:'#09111e',color:'#f8fafc',minHeight:620,padding:24,fontFamily:'Segoe UI, sans-serif'}}>
     <header style={{display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid #334155'}}>
       <h1>FIREHOUSE — STATION {station}</h1>
@@ -71,13 +69,10 @@ export const FirehouseDashboard: React.FC<DashboardProps> = (props) => {
       <p style={{fontSize:36,fontWeight:700}}>{live.Address}</p>
       <p>Dispatched: {new Date(live.DispatchedAt).toLocaleString()}</p>
     </article> : <main style={{marginTop:22}}>
-      {mediaUrl && (/\.(png|jpe?g|gif|webp)(\?.*)?$/i.test(mediaUrl)
-        ? <img alt={current?.Title || 'Station signage'} src={mediaUrl} style={{width:'100%',maxHeight:'55vh',objectFit:'contain'}}/>
-        : <p>Media item: <a style={{color:'#93c5fd'}} href={mediaUrl} target="_blank" rel="noreferrer">{current?.Title || 'Open approved media'}</a></p>)}
+      <SignagePlayer items={playlist} station={station}/>
       {activeAnnouncements.map(a => <article key={a.Id} style={{marginTop:16,padding:16,background:'#1e293b'}}>
         <h2>{a.Title}</h2><p>{a.Message}</p>
       </article>)}
-      {!mediaUrl && !activeAnnouncements.length && <p>No content scheduled for this station.</p>}
     </main>}
   </section>;
 };
