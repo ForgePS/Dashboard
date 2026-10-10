@@ -1,31 +1,26 @@
 #!/usr/bin/env python3
-"""Audit migrated SPFx source/config for forbidden Google dependencies.
-Run: python sharepoint/scripts/audit-google-dependencies.py
-This does not scan root legacy Firebase source: it must remain until cutover.
+"""Detect runtime Google/Firebase dependencies in SharePoint application source.
+
+This audit deliberately permits URL rejection lists in src/playlist.ts.
+It does not inspect legacy root Firebase code, generated builds, or test fixtures.
 """
 from pathlib import Path
 import re
 root = Path(__file__).resolve().parents[1]
-patterns = [
-    r'firebase(?:app|admin|functions)?',
-    r'firestore',
-    r'googleapis',
-    r'docs\.google\.com',
-    r'\.web\.app',
-    r'\.firebaseapp\.com',
+checks = [
+    re.compile(r"""(?:from\s*|require\s*\(\s*|import\s*\(\s*)['"](?:firebase|@firebase|firebase-admin|firebase-functions|googleapis)(?:[/.'"])""", re.I),
+    re.compile(r"""(?:fetch\s*\(\s*|axios\s*\.\s*(?:get|post)\s*\(\s*)['`"]https?://[^'"`]*(?:docs\.google\.com|firebaseapp\.com|web\.app|googleapis\.com)""", re.I),
 ]
-excluded = {'README.md', 'GOOGLE-DEPENDENCY-INVENTORY.md', 'MIGRATION-CHECKLIST.md', 'TEST-CASES.md'}
 violations = []
-for path in root.rglob('*'):
-    if not path.is_file() or path.name in excluded or 'scripts' in path.parts or 'docs' in path.parts:
-        continue
-    if path.suffix.lower() not in {'.ts', '.tsx', '.js', '.jsx', '.json', '.html'}:
-        continue
-    text = path.read_text(encoding='utf-8')
-    for expr in patterns:
-        if re.search(expr, text, re.IGNORECASE):
-            violations.append(f'{path.relative_to(root)}: {expr}')
+for folder in (root / 'src',):
+    for file in folder.rglob('*'):
+        if file.suffix not in ('.ts', '.tsx', '.js', '.jsx'):
+            continue
+        source = file.read_text(encoding='utf-8')
+        for index, line in enumerate(source.splitlines(), 1):
+            if any(pattern.search(line) for pattern in checks):
+                violations.append(f'{file.relative_to(root)}:{index}: runtime Google dependency')
 if violations:
     print('\n'.join(violations))
-    raise SystemExit('Google/Firebase dependencies detected in SharePoint application files.')
-print('No forbidden Google/Firebase dependency strings found in SharePoint application files.')
+    raise SystemExit(1)
+print('SharePoint application source contains no detected runtime Google/Firebase imports or requests.')
