@@ -22,8 +22,15 @@ $spec = @{
 foreach($name in $spec.Keys) {
   Ensure-List $name
   foreach($definition in $spec[$name]) { Ensure-Field $name $definition[0] $definition[1] }
+  # Indexed station fields keep station-specific queries manageable at scale.
+  $stationField = Get-PnPField -List $name -Identity 'StationNumber' -ErrorAction SilentlyContinue
+  if ($stationField -and -not $stationField.Indexed) {
+    Set-PnPField -List $name -Identity 'StationNumber' -Values @{ Indexed = $true }
+  }
   Write-Host "Provisioned list: $name"
 }
+# DispatchId uniqueness is NOT set here: update events need a composite key
+# covering both station and source. Enforce idempotency server-side before creating items.
 # Seed only a non-operational station configuration. Never invent an actual incident.
 $station = Get-PnPListItem -List 'FirehouseStations' -PageSize 100 |
   Where-Object { $_['StationNumber'] -eq 1 } | Select-Object -First 1
