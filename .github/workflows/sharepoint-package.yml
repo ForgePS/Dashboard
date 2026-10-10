@@ -35,7 +35,15 @@ jobs:
         run: |
           npx heft build --production
           npx heft package-solution --production
+      - name: Record build diagnostics
+        if: always()
+        run: |
+          echo "SPFx project directory:"
+          ls -la /tmp/firehouse-spfx || true
+          echo "Generated solution artifacts:"
+          find /tmp/firehouse-spfx -maxdepth 7 -name '*.sppkg' -o -name 'package-solution.json' 2>/dev/null || true
       - name: Upload package
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: firehouse-dashboard-sppkg
