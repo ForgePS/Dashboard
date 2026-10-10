@@ -1,14 +1,16 @@
-# Generates an official SPFx project; do not handcraft undocumented rig/Heft files.
-# Requires Node 22 and npm; requires permission to install npm packages.
-param([string]$Root = (Join-Path $PSScriptRoot '..'))
+# Prepare the official SPFx 1.23.2 generator on a Node 22 workstation.
+# This script intentionally does not perform unattended scaffolding:
+# the generator's answers determine the manifest and package identity.
+param([string]$ProjectDirectory = (Join-Path (Get-Location) 'firehouse-spfx'))
 $ErrorActionPreference = 'Stop'
-Set-Location $Root
-if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw 'Install Node.js 22.' }
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw 'Node.js 22 must be installed.' }
 $major = [int]((node --version).TrimStart('v').Split('.')[0])
-if ($major -ne 22) { throw "Node 22 required; found $(node --version)" }
+if ($major -ne 22) { throw "Node 22 required, found $(node --version)" }
 npm install --global yo @microsoft/generator-sharepoint@1.23.2
-Write-Host 'Generate official SPFx React webpart using: yo @microsoft/sharepoint'
-Write-Host 'Select: SharePoint Online, WebPart, React, FirehouseDashboard.'
-Write-Host 'Copy the files from sharepoint/src into the generated src/webparts/firehouseDashboard/ folder.'
-Write-Host 'IMPORTANT: update generated web part imports/manifest according to project layout, then run: npm install; npm run build; npm run package-solution'
-Write-Host 'The web-part source in this repository is a migration starter; it is not yet integrated with an automatically generated project.'
+if ($LASTEXITCODE -ne 0) { throw 'Failed to install SPFx generator.' }
+New-Item -ItemType Directory -Force -Path $ProjectDirectory | Out-Null
+Set-Location $ProjectDirectory
+Write-Host 'Run: yo @microsoft/sharepoint'
+Write-Host 'Choose: SharePoint Online, React web part, FirehouseDashboard (one web part).'
+Write-Host 'Then, from the Git checkout: node sharepoint/scripts/integrate-generated-spfx.mjs "<generated SPFx project directory>"'
+Write-Host 'Then run npx heft build --production and npx heft package-solution --production in the generated SPFx project.'
