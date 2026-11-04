@@ -131,6 +131,14 @@
     return age <= TAKEOVER_MS;
   }
 
+  function newestEligibleAlert(recent) {
+    const items = Array.isArray(recent) ? recent : [];
+    const eligible = items
+      .filter(isEligibleActiveAlert)
+      .sort((a, b) => new Date(b.sent || 0).getTime() - new Date(a.sent || 0).getTime());
+    return eligible[0] || null;
+  }
+
   async function checkForActiveCall() {
     if (takeoverInProgress) return;
 
@@ -146,7 +154,7 @@
         return;
       }
 
-      const latest = Array.isArray(data.recent) ? data.recent[0] : null;
+      const latest = newestEligibleAlert(data.recent);
       if (!isEligibleActiveAlert(latest)) {
         setBadgeState('is-armed', armedText(station));
         return;
